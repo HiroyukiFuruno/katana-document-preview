@@ -1,7 +1,7 @@
 use super::{
     BrowserSessionAdapter, BrowserSessionAdapterError, BrowserSessionRequest, BrowserSessionUpdate,
-    browser_session_state::BrowserSessionState, browser_session_types::BrowserSessionCommand,
-    command_send_error,
+    WorkerLifetime, browser_session_command_queue::BrowserSessionCommandQueue,
+    browser_session_state::BrowserSessionState,
 };
 use katana_render_runtime::{HtmlBrowserSource, HtmlBrowserViewport};
 use std::{
@@ -15,7 +15,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn take_update_delegates_to_adapter_state() -> TestResult {
-    let (commands, _receiver) = mpsc::sync_channel(1);
+    let commands = Arc::new(BrowserSessionCommandQueue::new());
     let state = Arc::new(BrowserSessionState::default());
     state.publish(BrowserSessionUpdate::Error(
         BrowserSessionAdapterError::WorkerStopped,
@@ -63,27 +63,24 @@ fn close_is_idempotent_after_the_worker_has_stopped() -> TestResult {
 }
 
 #[test]
-fn command_errors_map_queue_full_and_disconnected() -> TestResult {
-    let (sender, receiver) = mpsc::sync_channel(0);
-    let full = rejected_command(sender.try_send(BrowserSessionCommand::Refresh))?;
+fn commands_are_rejected_after_the_worker_stops() -> TestResult {
+    let commands = BrowserSessionCommandQueue::new();
+    commands.mark_worker_stopped();
+
     assert_eq!(
-        command_send_error(full),
-        BrowserSessionAdapterError::CommandQueueFull
-    );
-    drop(receiver);
-    let disconnected = rejected_command(sender.try_send(BrowserSessionCommand::Refresh))?;
-    assert_eq!(
-        command_send_error(disconnected),
-        BrowserSessionAdapterError::WorkerStopped
+        commands.enqueue(super::BrowserSessionCommand::Refresh),
+        Err(BrowserSessionAdapterError::WorkerStopped)
     );
     Ok(())
 }
 
 #[test]
 fn close_reports_worker_panic() -> TestResult {
-    let (commands, receiver) = mpsc::sync_channel(1);
+    let commands = Arc::new(BrowserSessionCommandQueue::new());
+    let worker_commands = Arc::clone(&commands);
     let worker = thread::spawn(move || {
-        let _ = receiver.recv();
+        let _worker_lifetime = WorkerLifetime::new(Arc::clone(&worker_commands));
+        let _ = worker_commands.receive();
         std::panic::resume_unwind(Box::new("test worker panic"));
     });
     let mut adapter = BrowserSessionAdapter {
@@ -101,10 +98,12 @@ fn close_reports_worker_panic() -> TestResult {
 
 #[test]
 fn close_reports_a_worker_that_stopped_before_receiving_close() -> TestResult {
-    let (commands, receiver) = mpsc::sync_channel(1);
+    let commands = Arc::new(BrowserSessionCommandQueue::new());
+    let worker_commands = Arc::clone(&commands);
     let (stopped, stopped_receiver) = mpsc::sync_channel(1);
     let worker = thread::spawn(move || {
-        drop(receiver);
+        let worker_lifetime = WorkerLifetime::new(worker_commands);
+        drop(worker_lifetime);
         let _ = stopped.send(());
     });
     stopped_receiver
@@ -129,13 +128,4 @@ fn source() -> Result<HtmlBrowserSource, katana_render_runtime::HtmlBrowserError
 
 fn viewport() -> Result<HtmlBrowserViewport, katana_render_runtime::HtmlBrowserError> {
     HtmlBrowserViewport::new(320, 240, 1.0)
-}
-
-fn rejected_command<T>(
-    result: Result<(), mpsc::TrySendError<T>>,
-) -> Result<mpsc::TrySendError<T>, Box<dyn std::error::Error>> {
-    match result {
-        Ok(()) => Err("expected command rejection".into()),
-        Err(error) => Ok(error),
-    }
 }

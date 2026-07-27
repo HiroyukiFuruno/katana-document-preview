@@ -1,8 +1,12 @@
 use katana_document_viewer::browser_session::{
-    BrowserSessionAdapter, BrowserSessionRequest, BrowserSessionUpdate, HtmlBrowserNavigation,
-    HtmlBrowserSource, HtmlBrowserViewport,
+    BrowserSessionAdapter, BrowserSessionRequest, BrowserSessionUpdate, HtmlBrowserInput,
+    HtmlBrowserNavigation, HtmlBrowserSource, HtmlBrowserViewport,
 };
-use std::{fs, path::Path, time::Duration};
+use std::{
+    fs,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(1);
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -54,6 +58,55 @@ fn adapter_forwards_document_lifecycle_errors_with_runtime_context() -> TestResu
 }
 
 #[test]
+fn burst_continuous_input_preserves_discrete_input_and_frame_progress() -> TestResult {
+    let mut adapter = BrowserSessionAdapter::start(request(
+        "<a href=linked.html style=\"min-height:80px;padding:8px\">Next</a>",
+    )?);
+    let initial_generation = frame_generation(adapter.wait_for_update(Duration::from_secs(10)))?;
+
+    for index in 0..4_097 {
+        let x = if index % 2 == 0 { 10.0 } else { 310.0 };
+        adapter.dispatch_input(HtmlBrowserInput::PointerMove { x, y: 10.0 })?;
+    }
+    adapter.dispatch_input(HtmlBrowserInput::PointerDown {
+        x: 20.0,
+        y: 20.0,
+        button: 0,
+    })?;
+    adapter.dispatch_input(HtmlBrowserInput::PointerUp {
+        x: 20.0,
+        y: 20.0,
+        button: 0,
+    })?;
+
+    wait_for_navigation(&adapter, "https://example.test/linked.html")?;
+    let mut latest_generation = initial_generation;
+    while let Some(update) = adapter.take_update() {
+        match update {
+            BrowserSessionUpdate::Frame(frame) => latest_generation = frame.generation,
+            BrowserSessionUpdate::Error(error) => return Err(error.into()),
+            BrowserSessionUpdate::Navigation(_) => {}
+        }
+    }
+    adapter.refresh_frame()?;
+    let deadline = Instant::now() + UPDATE_TIMEOUT;
+    let refresh_baseline = latest_generation;
+    while Instant::now() < deadline && latest_generation <= refresh_baseline {
+        match adapter.wait_for_update(Duration::from_millis(20)) {
+            Some(BrowserSessionUpdate::Frame(frame)) => latest_generation = frame.generation,
+            Some(BrowserSessionUpdate::Error(error)) => return Err(error.into()),
+            Some(BrowserSessionUpdate::Navigation(_)) | None => {}
+        }
+    }
+    assert!(
+        latest_generation > refresh_baseline,
+        "browser frame did not progress after burst input"
+    );
+    adapter.close()?;
+    Ok(())
+}
+
+#[test]
 fn adapter_boundary_does_not_reintroduce_html_semantics_or_an_external_browser() -> TestResult {
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for source_name in [
@@ -95,5 +148,33 @@ fn assert_frame(update: Option<BrowserSessionUpdate>) -> TestResult {
     match update {
         Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => Ok(()),
         _ => Err(format!("expected browser frame, got {update:?}").into()),
+    }
+}
+
+fn frame_generation(
+    update: Option<BrowserSessionUpdate>,
+) -> Result<u64, Box<dyn std::error::Error>> {
+    match update {
+        Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => {
+            Ok(frame.generation)
+        }
+        _ => Err(format!("expected browser frame, got {update:?}").into()),
+    }
+}
+
+fn wait_for_navigation(adapter: &BrowserSessionAdapter, expected: &str) -> TestResult {
+    let deadline = Instant::now() + UPDATE_TIMEOUT;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        match adapter.wait_for_update(remaining) {
+            Some(BrowserSessionUpdate::Navigation(navigation))
+                if navigation.url.as_str() == expected =>
+            {
+                return Ok(());
+            }
+            Some(BrowserSessionUpdate::Error(error)) => return Err(error.into()),
+            Some(BrowserSessionUpdate::Frame(_)) | Some(BrowserSessionUpdate::Navigation(_)) => {}
+            None => return Err(format!("expected navigation to {expected}").into()),
+        }
     }
 }

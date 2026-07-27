@@ -11,6 +11,7 @@ mod browser_session_types;
 #[path = "browser_session_worker.rs"]
 mod browser_session_worker;
 
+use browser_session_command_queue::BrowserSessionCommandQueue;
 use browser_session_state::BrowserSessionState;
 use browser_session_types::BrowserSessionCommand;
 pub use browser_session_types::{
@@ -21,28 +22,34 @@ pub use katana_render_runtime::{
     HtmlBrowserInput, HtmlBrowserNavigation, HtmlBrowserSource, HtmlBrowserViewport,
 };
 use std::{
-    sync::{Arc, mpsc},
+    sync::Arc,
     thread::{self, JoinHandle},
     time::Duration,
 };
 
-const COMMAND_QUEUE_CAPACITY: usize = 64;
-
 /// Non-blocking handle for one KRR-owned persistent browser page.
 #[derive(Debug)]
 pub struct BrowserSessionAdapter {
-    commands: mpsc::SyncSender<BrowserSessionCommand>,
+    commands: Arc<BrowserSessionCommandQueue>,
     state: Arc<BrowserSessionState>,
     worker: Option<JoinHandle<()>>,
 }
 
 impl BrowserSessionAdapter {
     pub fn start(request: BrowserSessionRequest) -> Self {
-        let (commands, receiver) = mpsc::sync_channel(COMMAND_QUEUE_CAPACITY);
+        let adapter_started_at = std::time::Instant::now();
+        let commands = Arc::new(BrowserSessionCommandQueue::new());
         let state = Arc::new(BrowserSessionState::default());
+        let worker_commands = Arc::clone(&commands);
         let worker_state = Arc::clone(&state);
         let worker = thread::spawn(move || {
-            browser_session_worker::BrowserSessionWorker::run(request, receiver, worker_state);
+            let _worker_lifetime = WorkerLifetime::new(Arc::clone(&worker_commands));
+            browser_session_worker::BrowserSessionWorker::run(
+                request,
+                worker_commands,
+                worker_state,
+                adapter_started_at,
+            );
         });
         Self {
             commands,
@@ -88,16 +95,15 @@ impl BrowserSessionAdapter {
         let Some(worker) = self.worker.take() else {
             return Ok(());
         };
-        self.commands
-            .send(BrowserSessionCommand::Close)
-            .map_err(|_| BrowserSessionAdapterError::WorkerStopped)?;
-        worker
-            .join()
-            .map_err(|_| BrowserSessionAdapterError::WorkerPanicked)
+        let close_result = self.commands.close();
+        match worker.join() {
+            Ok(()) => close_result,
+            Err(_) => Err(BrowserSessionAdapterError::WorkerPanicked),
+        }
     }
 
     fn enqueue(&self, command: BrowserSessionCommand) -> Result<(), BrowserSessionAdapterError> {
-        self.commands.try_send(command).map_err(command_send_error)
+        self.commands.enqueue(command)
     }
 }
 
@@ -107,12 +113,19 @@ impl Drop for BrowserSessionAdapter {
     }
 }
 
-fn command_send_error(
-    error: mpsc::TrySendError<BrowserSessionCommand>,
-) -> BrowserSessionAdapterError {
-    match error {
-        mpsc::TrySendError::Full(_) => BrowserSessionAdapterError::CommandQueueFull,
-        mpsc::TrySendError::Disconnected(_) => BrowserSessionAdapterError::WorkerStopped,
+struct WorkerLifetime {
+    commands: Arc<BrowserSessionCommandQueue>,
+}
+
+impl WorkerLifetime {
+    fn new(commands: Arc<BrowserSessionCommandQueue>) -> Self {
+        Self { commands }
+    }
+}
+
+impl Drop for WorkerLifetime {
+    fn drop(&mut self) {
+        self.commands.mark_worker_stopped();
     }
 }
 
