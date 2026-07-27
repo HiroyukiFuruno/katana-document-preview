@@ -39,7 +39,23 @@
   `browser_session_adapter_contract` 3 tests passed。
 - [x] KDV `0.3.3` の full check、strict coverage 100% / uncovered 0、release preflight、
   package verify、publish dry-run を確認する。
-- [ ] KDV `0.3.3` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
+- [x] KDV `0.3.3` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
+- [x] KDV `0.3.4` で固定容量 channel を producer-side semantic mailbox に置き換え、
+  連続 pointer move は最新値、scroll は差分合算、resize は最新 viewport へ合流する。
+  pointer down/up、keyboard、text、focus、navigation の順序と内容は保持し、worker が
+  frame を生成中でも一時的な入力集中を fatal error として host へ返さない。証跡:
+  semantic mailbox unit tests 8 passed、worker tests 14 passed、公開 adapter contract
+  4 passed（4,097 pointer move burst 後の link navigation / frame continuation を含む）。
+- [ ] 実際の `slides.html` を用いて adapter start から KRR session creation、
+  first frame publication までを段階計測し、支配的な回避可能遅延を除去する。
+  headless contract で first-frame latency と burst input 後の継続 frame generation を
+  固定待機なしに検証する。
+- [x] KDV `0.3.4` で `just update` を実行し、全依存を対応可能な最新版へ更新する。
+  strict coverage 100% / uncovered 0、full check、release preflight、package verify、
+  publish dry-run を閾値緩和・除外追加なしで通す。証跡:
+  `rtk just VERSION=0.3.4 release-check`、21,050 / 21,050 lines、uncovered 0、
+  1,586 passed / 1 ignored、package verify / publish dry-run passed。
+- [ ] KDV `0.3.4` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
 
 <!-- subagent-spark-harness-strict-start -->
 - [x] KDV browser-session adapter の ownership を独立 review し、KRR への raw source/input/navigation 中継以外の HTML semantics を持たないことを確認する。証跡: agent: `019f75e7-c5e2-7293-b738-cfcc0290f921` / model: `gpt-5.3-codex-spark` / reasoning: `medium` / file: `crates/katana-document-viewer/src/browser_session.rs` / file: `crates/katana-document-viewer/src/browser_session_worker.rs` / file: `crates/katana-document-viewer/tests/browser_session_adapter_contract.rs` / command: `multi_agent_v1.spawn_agent` / verify: `rtk cargo test -p katana-document-viewer --test browser_session_adapter_contract --locked -- --test-threads=1` / close: `multi_agent_v1.close_agent`

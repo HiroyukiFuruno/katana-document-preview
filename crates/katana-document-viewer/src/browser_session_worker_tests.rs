@@ -1,4 +1,3 @@
-use super::BrowserSessionWorker;
 use crate::browser_session::{
     BrowserSessionAdapter, BrowserSessionUpdate,
     browser_session_runtime::{dispatch, publish_updates, start_session},
@@ -9,11 +8,7 @@ use katana_render_runtime::{
     HtmlBrowserInput, HtmlBrowserNavigation, HtmlBrowserSession, HtmlBrowserSource,
     HtmlBrowserViewport,
 };
-use std::{
-    sync::{Arc, mpsc},
-    thread,
-    time::Duration,
-};
+use std::time::Duration;
 
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(1);
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -101,24 +96,6 @@ fn publishing_without_pending_browser_updates_is_a_noop() -> TestResult {
     publish_updates(&mut session, &state);
 
     assert!(state.take_update().is_none());
-    Ok(())
-}
-
-#[test]
-fn worker_publishes_initial_frame_and_closes_after_sender_drop() -> TestResult {
-    let (sender, receiver) = mpsc::sync_channel(1);
-    let state = Arc::new(BrowserSessionState::default());
-    let worker_state = Arc::clone(&state);
-    let request = request("index")?;
-    let worker = thread::spawn(move || {
-        BrowserSessionWorker::run(request, receiver, worker_state);
-    });
-
-    assert_frame(state.wait_for_update(UPDATE_TIMEOUT))?;
-    drop(sender);
-    worker
-        .join()
-        .map_err(|_| std::io::Error::other("worker panicked"))?;
     Ok(())
 }
 
