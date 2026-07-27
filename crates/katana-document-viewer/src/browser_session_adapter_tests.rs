@@ -44,6 +44,7 @@ fn start_publishes_an_in_process_runtime_frame() -> TestResult {
         adapter.wait_for_update(UPDATE_TIMEOUT),
         Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty()
     ));
+    assert!(wait_until_idle(&adapter));
     adapter.close()?;
     Ok(())
 }
@@ -128,4 +129,15 @@ fn source() -> Result<HtmlBrowserSource, katana_render_runtime::HtmlBrowserError
 
 fn viewport() -> Result<HtmlBrowserViewport, katana_render_runtime::HtmlBrowserError> {
     HtmlBrowserViewport::new(320, 240, 1.0)
+}
+
+fn wait_until_idle(adapter: &BrowserSessionAdapter) -> bool {
+    let deadline = std::time::Instant::now() + UPDATE_TIMEOUT;
+    while std::time::Instant::now() < deadline {
+        if adapter.is_idle() {
+            return true;
+        }
+        thread::yield_now();
+    }
+    false
 }

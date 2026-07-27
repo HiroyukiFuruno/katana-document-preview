@@ -16,15 +16,19 @@ fn public_adapter_forwards_in_process_runtime_commands() -> TestResult {
     let mut adapter = BrowserSessionAdapter::start(request("<p>Initial</p>")?);
 
     assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    assert_idle(&adapter)?;
     adapter.resize(HtmlBrowserViewport::new(480, 160, 1.0)?)?;
     assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    assert_idle(&adapter)?;
     adapter.refresh_frame()?;
     assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    assert_idle(&adapter)?;
     adapter.navigate(HtmlBrowserNavigation::new(HtmlBrowserSource::new(
         "<p>Next</p>",
         "https://example.test/next.html",
     )?)?)?;
     assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    assert_idle(&adapter)?;
     adapter.close()?;
     Ok(())
 }
@@ -111,9 +115,12 @@ fn adapter_boundary_does_not_reintroduce_html_semantics_or_an_external_browser()
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for source_name in [
         "src/browser_session.rs",
+        "src/browser_session_command_coalescing.rs",
+        "src/browser_session_command_queue.rs",
         "src/browser_session_state.rs",
         "src/browser_session_types.rs",
         "src/browser_session_worker.rs",
+        "src/browser_session_worker_startup.rs",
     ] {
         let source = fs::read_to_string(crate_root.join(source_name))?;
         for forbidden in [
@@ -149,6 +156,17 @@ fn assert_frame(update: Option<BrowserSessionUpdate>) -> TestResult {
         Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => Ok(()),
         _ => Err(format!("expected browser frame, got {update:?}").into()),
     }
+}
+
+fn assert_idle(adapter: &BrowserSessionAdapter) -> TestResult {
+    let deadline = Instant::now() + UPDATE_TIMEOUT;
+    while Instant::now() < deadline {
+        if adapter.is_idle() {
+            return Ok(());
+        }
+        std::thread::yield_now();
+    }
+    Err("browser adapter did not become idle".into())
 }
 
 fn frame_generation(

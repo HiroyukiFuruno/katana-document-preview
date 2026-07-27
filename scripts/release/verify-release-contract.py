@@ -14,16 +14,18 @@ from pathlib import Path
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 ADAPTER_CONTRACT = "browser-session-adapter"
-KRR_MIN_VERSION = (0, 4, 9)
+KRR_MIN_VERSION = (0, 4, 10)
 KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "^0.4.9"
+KRR_VERSION_REQUIREMENT = "^0.4.10"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
+    "crates/katana-document-viewer/src/browser_session_command_coalescing.rs",
     "crates/katana-document-viewer/src/browser_session_command_queue.rs",
     "crates/katana-document-viewer/src/browser_session_state.rs",
     "crates/katana-document-viewer/src/browser_session_types.rs",
     "crates/katana-document-viewer/src/browser_session_worker.rs",
+    "crates/katana-document-viewer/src/browser_session_worker_startup.rs",
 )
 FORBIDDEN_ADAPTER_MARKERS = (
     "html5ever",
@@ -240,14 +242,14 @@ version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert not lockfile_errors(registry_lock.replace('version = "0.4.9"', 'version = "0.4.10"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.9"', 'version = "0.4.8"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.9"', 'version = "0.5.0"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.4.11"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.4.9"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))
