@@ -91,6 +91,11 @@ impl BrowserSessionAdapter {
         self.state.wait_for_update(timeout)
     }
 
+    /// Returns true after startup and all accepted commands have completed.
+    pub fn is_idle(&self) -> bool {
+        self.commands.is_idle()
+    }
+
     pub fn close(&mut self) -> Result<(), BrowserSessionAdapterError> {
         let Some(worker) = self.worker.take() else {
             return Ok(());

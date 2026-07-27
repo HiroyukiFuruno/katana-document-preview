@@ -9,6 +9,9 @@ use super::{
     },
 };
 use katana_render_runtime::HtmlBrowserSession;
+#[path = "browser_session_worker_startup.rs"]
+mod browser_session_worker_startup;
+use browser_session_worker_startup::open_session;
 use std::{sync::Arc, time::Instant};
 
 pub(crate) struct BrowserSessionWorker;
@@ -21,8 +24,11 @@ impl BrowserSessionWorker {
         adapter_started_at: Instant,
     ) {
         let mut active = ActiveBrowserSession::new(request, state, adapter_started_at);
+        commands.mark_worker_ready();
         while let Some(command) = commands.receive() {
-            if active.handle(command) {
+            let should_close = active.handle(command);
+            commands.complete_command();
+            if should_close {
                 return;
             }
         }
@@ -168,25 +174,6 @@ impl ActiveBrowserSession {
             let _ = session.close();
         }
     }
-}
-
-fn open_session(
-    request: &BrowserSessionRequest,
-    state: &BrowserSessionState,
-    adapter_started_at: Instant,
-) -> (Option<HtmlBrowserSession>, u128, u128) {
-    let runtime_open_started_at = Instant::now();
-    let worker_queue_ms = runtime_open_started_at
-        .saturating_duration_since(adapter_started_at)
-        .as_millis();
-    let session = start_session(request)
-        .map_err(|error| state.publish(BrowserSessionUpdate::Error(error)))
-        .ok();
-    (
-        session,
-        worker_queue_ms,
-        runtime_open_started_at.elapsed().as_millis(),
-    )
 }
 
 #[cfg(test)]
