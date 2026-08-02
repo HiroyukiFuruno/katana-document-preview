@@ -1109,8 +1109,8 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         "KUC Cargo dependency is pinned through Cargo.toml",
         &cargo_toml,
         &[
-            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.2.0\" }",
-            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.2.0\" }",
+            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
+            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
         ],
     );
 
@@ -1121,7 +1121,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         &[
             "name = \"katana-ui-core\"",
             "name = \"katana-ui-core-storybook\"",
-            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0#f62f8977f038f96fca0cf591dcb18b1ccbb4e6f9\"",
+            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382\"",
         ],
     );
 

@@ -17,6 +17,7 @@ fn large_sheet_requests_only_the_kuc_visible_window_and_maps_cells() -> TestResu
     let mut adapter =
         KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(360, 140).scroll(80, 0))?;
     assert_eq!(3, adapter.sheet_index());
+    assert!(adapter.node().props().grid.show_grid_lines);
     let request = adapter.materialization_request();
     assert!(request.len() < 100);
     assert!(request.contains(&SpreadsheetCoordinate::new(0, 0)));
@@ -25,6 +26,17 @@ fn large_sheet_requests_only_the_kuc_visible_window_and_maps_cells() -> TestResu
 
     adapter.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(2, 2))])?;
     assert_materialized_cell(&adapter.node())?;
+    Ok(())
+}
+
+#[test]
+fn sheet_grid_line_visibility_reaches_kuc_render_props() -> TestResult {
+    let mut sheet = sample_sheet();
+    sheet.show_grid_lines = false;
+
+    let adapter = KucSpreadsheetGridAdapter::new(&sheet, GridViewport::new(320, 120))?;
+
+    assert!(!adapter.node().props().grid.show_grid_lines);
     Ok(())
 }
 

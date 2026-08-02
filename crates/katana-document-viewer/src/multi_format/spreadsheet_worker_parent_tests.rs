@@ -81,6 +81,7 @@ fn debug_output_is_covered_with_the_isolated_worker() -> Result<(), Box<dyn std:
         SpreadsheetViewerSession::open(source, OfficeWorkerConfig::new(worker_binary_path()?))?;
 
     assert!(format!("{session:?}").contains("SpreadsheetViewerSession"));
+    assert_eq!(2, session.artifact().sheet_count);
     Ok(())
 }
 

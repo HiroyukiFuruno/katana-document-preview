@@ -13,5 +13,5 @@ path = "src/lib.rs"
 
 [dependencies]
 katana-document-viewer = { path = "../katana-document-viewer", version = "=0.4.0" }
-katana-ui-core = "0.2.0"
+katana-ui-core = "0.3.0"
 thiserror.workspace = true

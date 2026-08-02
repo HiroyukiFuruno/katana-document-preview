@@ -195,13 +195,13 @@ for package in "${packages[@]}"; do
   fi
 done
 
-if ! grep -q '^katana-ui-core = "0[.]2[.]0"$' "$kuc_adapter_manifest"; then
-  echo "kuc-adapter-boundary-check: published KDV adapter must use crates.io KUC 0.2.0" >&2
+if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$kuc_adapter_manifest"; then
+  echo "kuc-adapter-boundary-check: published KDV adapter must use crates.io KUC 0.3.0" >&2
   exit 1
 fi
 
-if ! grep -q 'katana-ui-core.*tag = "v0[.]2[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]2[.]0"' "$kuc_workspace_manifest"; then
-  echo "kuc-adapter-boundary-check: development-only KUC Storybook crates must use the matching v0.2.0 tag" >&2
+if ! grep -q 'katana-ui-core.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest"; then
+  echo "kuc-adapter-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
   exit 1
 fi
 
@@ -234,11 +234,11 @@ else
 fi
 
 if [[ ! -f "$kuc_core_source_root/Cargo.toml" || ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
-  echo "kuc-adapter-boundary-check: resolved KUC v0.2.0 package sources are unavailable" >&2
+  echo "kuc-adapter-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
   exit 1
 fi
 
-kuc_tree="$("$cargo_bin" tree -p 'registry+https://github.com/rust-lang/crates.io-index#katana-ui-core@0.2.0' --locked)"
+kuc_tree="$("$cargo_bin" tree -p 'registry+https://github.com/rust-lang/crates.io-index#katana-ui-core@0.3.0' --locked)"
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
   echo "kuc-adapter-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
   exit 1

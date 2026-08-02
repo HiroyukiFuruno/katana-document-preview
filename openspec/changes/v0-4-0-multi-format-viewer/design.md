@@ -126,11 +126,11 @@ LibreOfficeがexternal relationshipを取得し、`office2pdf`の小さな高圧
 | XLSX | conditional `interactive-grid` | KDV | KDV | conditional generic 2D grid | no change |
 | PPTX | conditional `static-slide` | KDV | KDV | slide viewport / controls | no change |
 
-KUC v0.2.0のscroll area、split pane、virtualized list、image surface、slide control、
+KUC v0.3.0のscroll area、split pane、virtualized list、image surface、slide control、
 generic 2D gridを再利用する。KDV側にprivate grid、cell geometry、hit-test、selection
 engineを作らず、KUC `GenericGrid` が返す可視座標だけをIronCalc workerへ要求する。
-公開KDV adapterはKUC coreをcrates.io `0.2.0`から取得する。非公開Storybook supportと
-その型を共有する開発用KUC coreだけは同一 `v0.2.0` tagから取得し、どちらの経路にも
+公開KDV adapterはKUC coreをcrates.io `0.3.0`から取得する。非公開Storybook supportと
+その型を共有する開発用KUC coreだけは同一 `v0.3.0` tagから取得し、どちらの経路にも
 sibling path dependencyを使用しない。
 
 ## Security

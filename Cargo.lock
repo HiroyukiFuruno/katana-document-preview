@@ -2552,7 +2552,7 @@ name = "katana-document-viewer-kuc"
 version = "0.4.0"
 dependencies = [
  "katana-document-viewer",
- "katana-ui-core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "katana-ui-core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.19",
 ]
 
@@ -2601,9 +2601,9 @@ dependencies = [
 
 [[package]]
 name = "katana-ui-core"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6705070b258b3296c56aa6f43df76c30686424306430ae522e7c29a778ae844"
+checksum = "f91f4ede3db71932a1f39f032ac47d243e79c1c0bd0244d847db69d444a6df3e"
 dependencies = [
  "serde",
  "serde_json",
@@ -2612,8 +2612,8 @@ dependencies = [
 
 [[package]]
 name = "katana-ui-core"
-version = "0.2.0"
-source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0#f62f8977f038f96fca0cf591dcb18b1ccbb4e6f9"
+version = "0.3.0"
+source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382"
 dependencies = [
  "serde",
  "serde_json",
@@ -2622,12 +2622,12 @@ dependencies = [
 
 [[package]]
 name = "katana-ui-core-storybook"
-version = "0.2.0"
-source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0#f62f8977f038f96fca0cf591dcb18b1ccbb4e6f9"
+version = "0.3.0"
+source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382"
 dependencies = [
  "cosmic-text",
  "image",
- "katana-ui-core 0.2.0 (git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0)",
+ "katana-ui-core 0.3.0 (git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0)",
  "minifb",
  "resvg 0.47.0",
  "serde",
@@ -2654,7 +2654,7 @@ dependencies = [
  "image",
  "katana-document-viewer",
  "katana-markdown-model",
- "katana-ui-core 0.2.0 (git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0)",
+ "katana-ui-core 0.3.0 (git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0)",
  "katana-ui-core-storybook",
  "minifb",
 ]

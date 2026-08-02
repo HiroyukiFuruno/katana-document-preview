@@ -50,7 +50,7 @@ LINUX_SANDBOX_DEPENDENCIES = {
     "seccompiler": "0.5.0",
     "skarn-sandbox": "1.0.1",
 }
-KUC_VERSION = "0.2.0"
+KUC_VERSION = "0.3.0"
 MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/artifact.rs",
     "crates/katana-document-viewer/src/multi_format/capability.rs",
@@ -178,8 +178,8 @@ def multi_format_manifest_errors(root: Path, target_version: str) -> list[str]:
         ("katana-ui-core", kuc),
         ("katana-ui-core-storybook", kuc_storybook),
     ):
-        if not isinstance(declared, dict) or declared.get("git") != expected_git or declared.get("tag") != "v0.2.0":
-            errors.append(f"development-only {name} must resolve from KUC tag v0.2.0.")
+        if not isinstance(declared, dict) or declared.get("git") != expected_git or declared.get("tag") != "v0.3.0":
+            errors.append(f"development-only {name} must resolve from KUC tag v0.3.0.")
 
     adapter = tomllib.loads(
         (root / "crates/katana-document-viewer-kuc/Cargo.toml").read_text(encoding="utf-8")
@@ -187,7 +187,7 @@ def multi_format_manifest_errors(root: Path, target_version: str) -> list[str]:
     adapter_dependencies = adapter.get("dependencies", {})
     adapter_kuc = adapter_dependencies.get("katana-ui-core")
     if adapter_kuc != KUC_VERSION:
-        errors.append("published KDV KUC adapter must depend on crates.io katana-ui-core 0.2.0.")
+        errors.append("published KDV KUC adapter must depend on crates.io katana-ui-core 0.3.0.")
     core = adapter_dependencies.get("katana-document-viewer")
     expected_version = f"={target_version.removeprefix('v')}"
     if not isinstance(core, dict) or core.get("version") != expected_version:

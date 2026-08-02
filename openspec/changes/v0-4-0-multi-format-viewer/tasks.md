@@ -4,7 +4,7 @@
 
 - [x] KDV browser session adapterは公開済み `v0.3.5` で完了している
 - [x] KRRの正本仕様はPDF / Word / Excel / PPTX viewer renderingをKDVの責務として固定している
-- [x] KUC `v0.2.0` のpage viewport、virtualized list、image surface、slide controls、generic 2D gridを公開crate/tagから確認している
+- [x] KUC `v0.3.0` のgeneric 2D grid-line visibilityを公開crate/tagから確認している。証跡: GitHub Release `v0.3.0` / crates.io `katana-ui-core 0.3.0` / tag commit `1256fdd08ecc01bcc09066180e1a05d0503ba382`
 - [x] PDF export paginationを独立したKDV `v0.5.0` targetへ繰り延べている
 - [x] formatごとのengine、quality profile、dependency modelを比較し、ユーザーの明示承認を得ている。証跡: file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/benchmark-summary.json`
 
@@ -77,14 +77,15 @@
 
 ## 5. KUC bridge and conditional handoff
 
-- [x] 5.1 KUC `v0.2.0` の既存page viewport、virtualized list、image surface、slide controls、generic 2D gridを再利用する
+- [x] 5.1 KUCの既存page viewport、virtualized list、image surface、slide controls、generic 2D gridを再利用する
 - [x] 5.2 KUC bridgeはneutral artifactとviewer stateだけを表示し、format semanticsを持たない
 - [x] 5.3 XLSX profileが2次元virtualized gridを必要とする場合だけKUCの別OpenSpecを作成する
-- [x] 5.4 KUC gridが必要な場合は公開release完了後にregistry dependencyとして取り込む
+- [x] 5.4 KUC `v0.3.0` 公開release完了後にregistry dependencyとして取り込む
 - [x] 5.5 private table/grid代替実装をKDVへ追加していないことを機械検証する。証跡: test: `kuc-adapter-boundary-check` / file: `scripts/kuc-adapter-boundary-check.sh`
 - [x] 5.6 PPTX chart fallbackはKDV typed diagnosticとして保持し、KUCにOffice semanticsを追加しない
 - [x] 5.7 `katana-document-viewer-kuc`をKDV coreと分離した公開crateにし、KatanAがformat別presentation変換を持たないようにする
-- [x] 5.8 公開adapterはKUC core crates.io `0.2.0`、開発用Storybook一式は同一 `v0.2.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer-kuc/Cargo.toml` / file: `Cargo.toml` / test: `kuc-adapter-boundary-check`
+- [x] 5.8 公開adapterはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer-kuc/Cargo.toml` / file: `Cargo.toml` / test: `kuc-adapter-boundary-check`
+- [x] 5.9 XLSX sheetのgrid-line visibilityをKUC typed render propsへ欠落なく渡す
 
 ---
 
@@ -96,7 +97,7 @@
 - [x] 6.4 PDF export paginationだけがdeferred `v0.5.0` であることを機械検証する。証跡: file: `openspec/release-targets.json` / file: `openspec/changes/v0-5-0-pdf-export-pagination/tasks.md`
 - [x] 6.5 strict coverage 100% / uncovered 0、AST lint、clippy、package verify、publish dry-runを通す
 - [ ] 6.6 macOS / Linux / Windowsのartifactとruntime dependencyを検証する
-- [ ] 6.7 Linux CIの親子process coverage profileを分離し、strict coverage 100% / uncovered 0を再通過する
+- [ ] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する
 
 ---
 

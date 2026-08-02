@@ -41,6 +41,7 @@ impl KucSpreadsheetGridAdapter {
             .viewport(viewport)
             .overscan(1, 1)
             .frozen(sheet.frozen_rows, sheet.frozen_columns)
+            .show_grid_lines(sheet.show_grid_lines)
             .with_cell_spans(sheet.merged_cells.iter().copied().map(cell_span).collect())?;
         if sheet.row_count > 0 && sheet.column_count > 0 {
             grid = grid.active_cell(GridCoordinate::new(0, 0));
