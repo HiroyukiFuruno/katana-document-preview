@@ -86,6 +86,7 @@ mod tests {
     use std::error::Error;
     use std::io;
     use std::net::TcpStream;
+    use std::path::PathBuf;
     use std::process::Command;
 
     const CHILD_ENV: &str = "KDV_NETWORK_SECCOMP_CHILD";
@@ -141,11 +142,21 @@ mod tests {
         let test_name = test_thread
             .name()
             .ok_or_else(|| io::Error::other("test thread must be named"))?;
-        let status = Command::new(std::env::current_exe()?)
+        let mut command = Command::new(std::env::current_exe()?);
+        command
             .args(["--exact", test_name, "--nocapture"])
-            .env(CHILD_ENV, "1")
-            .status()?;
+            .env(CHILD_ENV, "1");
+        configure_child_coverage_profile(&mut command);
+        let status = command.status()?;
         assert!(status.success(), "seccomp test child failed: {status}");
         Ok(())
+    }
+
+    fn configure_child_coverage_profile(command: &mut Command) {
+        if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+            let mut child_profile = PathBuf::from(profile).into_os_string();
+            child_profile.push(format!("-seccomp-child-{}.profraw", std::process::id()));
+            command.env("LLVM_PROFILE_FILE", child_profile);
+        }
     }
 }

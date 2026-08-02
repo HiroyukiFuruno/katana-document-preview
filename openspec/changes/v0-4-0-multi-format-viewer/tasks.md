@@ -96,6 +96,7 @@
 - [x] 6.4 PDF export paginationだけがdeferred `v0.5.0` であることを機械検証する。証跡: file: `openspec/release-targets.json` / file: `openspec/changes/v0-5-0-pdf-export-pagination/tasks.md`
 - [x] 6.5 strict coverage 100% / uncovered 0、AST lint、clippy、package verify、publish dry-runを通す
 - [ ] 6.6 macOS / Linux / Windowsのartifactとruntime dependencyを検証する
+- [ ] 6.7 Linux CIの親子process coverage profileを分離し、strict coverage 100% / uncovered 0を再通過する
 
 ---
 
