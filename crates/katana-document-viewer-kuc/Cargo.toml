@@ -1,0 +1,17 @@
+[package]
+name = "katana-document-viewer-kuc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "KUC presentation adapters for neutral katana-document-viewer artifacts."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+katana-document-viewer = { path = "../katana-document-viewer", version = "=0.4.0" }
+katana-ui-core = "0.2.0"
+thiserror.workspace = true

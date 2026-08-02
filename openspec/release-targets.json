@@ -1,17 +1,13 @@
 {
   "schema_version": "kdv.release-targets.v1",
   "current": {
-    "minor_line": "0.3",
-    "change": "v0-3-0-browser-session-adapter",
-    "release_contract": "browser-session-adapter"
+    "minor_line": "0.4",
+    "change": "v0-4-0-multi-format-viewer",
+    "release_contract": "multi-format-viewer"
   },
   "deferred": [
     {
-      "change": "v0-3-0-pdf-export-pagination",
-      "planned_version": "v0.4.0"
-    },
-    {
-      "change": "v0-4-0-multi-format-viewer",
+      "change": "v0-5-0-pdf-export-pagination",
       "planned_version": "v0.5.0"
     }
   ]

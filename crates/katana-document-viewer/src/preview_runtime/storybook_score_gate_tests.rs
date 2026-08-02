@@ -183,12 +183,12 @@ fn storybook_treeview_core_gate_keeps_window_hover_and_collapse_pixel_contracts(
 fn release_verify_uses_the_active_target_release_contract() -> Result<(), Box<dyn std::error::Error>>
 {
     let root = workspace_root()?;
-    assert_browser_session_release_contract(&root)?;
+    assert_active_release_contract(&root)?;
     assert_legacy_storybook_acceptance_contract(&root)?;
     Ok(())
 }
 
-fn assert_browser_session_release_contract(
+fn assert_active_release_contract(
     root: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let justfile = std::fs::read_to_string(root.join("Justfile"))?;
@@ -199,10 +199,16 @@ fn assert_browser_session_release_contract(
     let release_contract_script =
         std::fs::read_to_string(root.join("scripts/release/verify-release-contract.py"))?;
     assert_contains_all(
-        "browser-session release contract",
+        "multi-format release contract",
         &release_contract_script,
         &[
-            "browser-session-adapter",
+            "multi-format-viewer",
+            "SELECTED_ENGINES",
+            "hayro",
+            "office2pdf",
+            "ironcalc",
+            "FORBIDDEN_ENGINE_PACKAGES",
+            "KUC_VERSION",
             "katana-render-runtime",
             "registry+https://github.com/rust-lang/crates.io-index",
             "browser_session_adapter_contract",
@@ -1103,8 +1109,8 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         "KUC Cargo dependency is pinned through Cargo.toml",
         &cargo_toml,
         &[
-            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.1.4\" }",
-            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.1.4\" }",
+            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.2.0\" }",
+            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.2.0\" }",
         ],
     );
 
@@ -1115,7 +1121,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         &[
             "name = \"katana-ui-core\"",
             "name = \"katana-ui-core-storybook\"",
-            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.1.4#554f13f2c219115cbd3a2c3dc3d02fd5306c4743\"",
+            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.2.0#f62f8977f038f96fca0cf591dcb18b1ccbb4e6f9\"",
         ],
     );
 

@@ -1,0 +1,15 @@
+{
+  "elements": 6,
+  "engine": "office_oxide",
+  "engine_version": "0.1.8",
+  "format": "pptx",
+  "html_bytes": 279,
+  "html_microseconds": 9,
+  "input_bytes": 37600,
+  "ir_json_bytes": 58120,
+  "ir_microseconds": 8,
+  "parse_microseconds": 713,
+  "plain_text_bytes": 217,
+  "sections": 2,
+  "total_microseconds": 732
+}

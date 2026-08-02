@@ -1,0 +1,58 @@
+{
+  "fixtures": [
+    {
+      "name": "external-image.docx",
+      "bytes": 39956,
+      "sha256": "1297dfad906a611feed1faeac83b9cba48509223890a77ec08e21f7a78b1cd30",
+      "zip_entries": 20,
+      "zip_uncompressed_bytes": 835020
+    },
+    {
+      "name": "macro-marker.docx",
+      "bytes": 40146,
+      "sha256": "ec62913b48005b678010c31cfdf069d0636384ff6ef558f9c6ced0f6709406fa",
+      "zip_entries": 21,
+      "zip_uncompressed_bytes": 835094
+    },
+    {
+      "name": "oversized-document.docx",
+      "bytes": 72795,
+      "sha256": "3e2f58401eb5666d361d586c1365bcb08d0f9754347c2ab0f31d1088c8e7aa2a",
+      "zip_entries": 20,
+      "zip_uncompressed_bytes": 34389487
+    },
+    {
+      "name": "reference-shapes.png",
+      "bytes": 2212,
+      "sha256": "1529fdbe3fdf494c5260f8c0cb97c378dff0c088231effd6f46a0f5e1ff5ee21"
+    },
+    {
+      "name": "representative.docx",
+      "bytes": 40016,
+      "sha256": "ce8ec76f77935e63824331f783bbb73f086333c6b331dda5a6d01c1e5f69d0dc",
+      "zip_entries": 20,
+      "zip_uncompressed_bytes": 835078
+    },
+    {
+      "name": "representative.pptx",
+      "bytes": 37600,
+      "sha256": "bfd22adbd4909c3906bdd2bdbcd7dac613c819044afc3e4985752dcfd268b0b8",
+      "zip_entries": 44,
+      "zip_uncompressed_bytes": 110284
+    },
+    {
+      "name": "representative.xlsx",
+      "bytes": 7849,
+      "sha256": "82d645dd146f50b0f0ab0fc59448dad2a400d74e7210920950df89574d434f4e",
+      "zip_entries": 14,
+      "zip_uncompressed_bytes": 24199
+    },
+    {
+      "name": "stress-100k-cells.xlsx",
+      "bytes": 548436,
+      "sha256": "d40da06742be34f75455d2885d7cfd695fda47f2d0ada21e01d1fdf765a2a32c",
+      "zip_entries": 9,
+      "zip_uncompressed_bytes": 3559191
+    }
+  ]
+}

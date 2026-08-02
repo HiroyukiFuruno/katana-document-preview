@@ -1,124 +1,169 @@
 ## Context
 
-`v0.4.0` はMarkdown以外のviewer拡張を扱う。ただし、PDF / CSV / Office / SVG / WebP / AVIFを単純にKDVへ積むと、render-runtimeであるKRRと責務が重なる可能性がある。
+KDV `v0.3.x` はin-process Rust/V8 HTML browser session adapterとして完了し、
+`v0.3.5` まで公開された。以前 `v0.5.0` へ繰り延べたmulti-format viewerを
+`v0.4.0` へ戻し、PDF / DOCX / XLSX / PPTXを次のdocument viewer対象にする。
 
-KRRは図形専用ではなくrender-runtimeである。そのため、PDF page rendering、Office layout rendering、SVG/image rasterizationのような「入力から表示可能な描画成果物へ変換する処理」はKRR候補になる。一方で、KDVはdocument viewerとして、source identity、viewer state、diagnostics、host command、KUC bridgeを持つ。
+KRRの正本 `renderer-runtime-interface` はCSV / PDF / Word / Excel / PPTX viewer
+renderingをKDVへ移譲している。したがって、KDV側の古い「KRR候補」という分類は
+撤回し、format adapterとviewer semanticsをKDVへ固定する。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- PDF / CSV / Office / SVG / WebP / AVIFごとの責務境界を判断する。
-- KRRへ置くべき処理とKDVへ置くべき処理を混ぜない。
-- KRR未対応の処理をKDV内の暫定rendererで正規経路化しない。
-- KDVの `ViewerSource` とKUC viewer modeを、責務判断後の最小範囲で追加する。
+- PDF / DOCX / XLSX / PPTXを閲覧可能にする既存engineを評価する。
+- custom parser / layout engineを作らず、adapterとneutral viewer contractに限定する。
+- formatごとの品質profileとunsupported範囲を明示する。
+- KDV `ViewerSource`、viewer state、diagnostics、host command、KUC bridgeを追加する。
 
 **Non-Goals:**
 
-- KRRのpublic APIをこのchange内で勝手に拡張しない。
-- KRR内部実装やCLIを直接呼び出さない。
-- Officeの完全レイアウト再現をKDVだけで実装しない。
-- CSVをrender-runtimeへ寄せる前提にしない。
+- KRRへPDF / Office viewer APIを追加しない。
+- KatanAまたはKUCへformat parserを追加しない。
+- Microsoft Officeとpixel-identicalなlayout engineを独自実装しない。
+- PDF編集、annotation追加、署名、form入力、OCRを追加しない。
+- Office編集、macro実行、外部link自動取得、再計算を追加しない。
+- PPTX animation、transition、embedded media playbackを追加しない。
+- CSV / SVG / WebP / AVIFとPDF export paginationを本releaseへ混ぜない。
 
-## Boundary Principles
+## Decisions
 
-### 判断を先送りしない
+### D1. Document viewer ownershipはKDVへ固定する
 
-`v0.4.0` の最初の成果物は、formatごとの責務判断表である。判断表は次の列を必須にする。
+責務は次のとおり固定する。
 
-- format
-- 目標品質（可読性優先 / layout faithful / pixel faithful）
-- 入力契約
-- 出力契約
-- parse / extract owner
-- render owner
-- viewer / command owner
-- KRRへ置く理由、またはKRRへ置かない理由
-- KDVへ置く理由、またはKDVへ置かない理由
-- KUCが受け取るdisplay model
-- KRR側handoffが必要か
+- KDV: format detection、engine adapter、neutral artifact、viewer state、diagnostics、
+  navigation、zoom、fit、copy、open command。
+- KUC: neutral page/sheet/slide model、viewport、generic controlsの表示。
+- KDV KUC adapter crate: KDV neutral artifactからKUC modelへのformat-neutralな変換。
+- KatanA: file/URL intake、KDV commandのhost処理、adapter生成結果の表示。
+- KRR: 変更なし。文書内diagram/mathを既存KRR APIで解決する場合だけ間接利用する。
 
-ownerが未確定のformatは実装へ進めない。`KRR候補` や `KDV候補` のまま実装タスクへ進むことを禁止する。
+### D2. Engine selectionを実装前gateにする
 
-### KRR候補
+`feasibility.md` のcandidate matrixを使い、各formatで次を測定する。
 
-KRRは、format固有入力を表示可能な描画成果物へ変換するruntime処理の候補である。
+- representative corpusのreference image差分
+- unsupported featureとdiagnostics
+- cold start / first frame / navigation latency
+- peak memoryとcache size
+- macOS / Linux / Windowsの配布方式
+- direct / transitive license
+- untrusted documentに対するsandboxとresource limit
 
-- PDF page rendering / text geometry extraction
-- Office layout-faithful rendering
-- SVG / WebP / AVIF decodeまたはrasterization
-- diagramやmathなど既存KRR契約に近い描画処理
+比較結果とquality profileをユーザーが承認するまでproduction dependencyと
+`ViewerSource` variantを追加しない。
 
-KRR候補にする場合でも、KDVはKRR public APIだけを使う。public APIがない場合は、KRR側の別changeへhandoffし、KDVではraw sourceとdiagnosticsを保持する。
+評価スコアはvisual fidelity 30、format coverage 20、security/isolation 20、
+performance 10、distribution 10、license 10の100点とする。80点以上かつ全hard
+gate passをrelease条件とし、閾値緩和を禁止する。不合格候補をproduction dependency
+へ追加せず、新規候補も同じrubricで評価する。
 
-KRR責務にする条件:
+### D3. format別quality profileを混同しない
 
-- viewer stateやhost commandを必要とせず、入力から描画成果物へ変換できる
-- KDV以外の利用者も再利用する価値がある
-- layout / raster / geometryなどrender-runtimeとして独立検証できる
-- KRR public APIとして入力、出力、diagnosticsを安定化できる
+- `static-page`: PDF / DOCXをpage artifactとして表示する。reference image差分、
+  page geometry、header / footer、table、imageをhard gateで検証する。
+- `interactive-grid`: XLSXをcell modelと2次元virtualized gridで表示する。
+  formula、style、merge、row / column geometry、conditional formattingを検証し、
+  chart / pivot tableは対応しない限りtyped capabilityで無効化する。
+- `static-slide`: PPTXをslide artifactとして表示する。text、image、shape、table、
+  chartの意味と配置をhard gateで検証する。
 
-KRR責務にしない条件:
+`interactive-grid` をExcel互換page layoutと呼ばず、`static-page` / `static-slide` も
+Microsoft Officeとのpixel identityを保証しない。formatごとに選択したprofileと
+未対応機能をcapabilityとdiagnosticsで公開する。profile変更は評価閾値の緩和ではなく、
+別の表示契約としてcorpus、hard gate、scoreを再定義し、ユーザーの明示承認を必要とする。
 
-- page navigation、selection、copy、openなどviewer操作が主である
-- CSV table modelのように、描画よりデータ解釈が主である
-- KUC部品へ渡すview stateを作るだけである
-- KRR public APIへ載せる前にKDV固有要件へ強く依存している
+### D4. Neutral contracts
 
-### KDV責務
+- `ViewerSource::Pdf`: bytes/path、identity、revision、MIME。
+- `ViewerSource::Office`: format、bytes/path、identity、revision、MIME。
+- `PdfDocumentArtifact`: page count、page geometry、rendered page、link/text capability。
+- `OfficeDocumentArtifact`: profile、page/sheet/slide metadata、rendered/static artifact、
+  semantic model、diagnostics。
+- `ViewerCommand`: previous/next、index jump、zoom、fit、copy、open。
 
-KDVはdocument viewer契約を持つ。
+engine固有型、KUC型、KatanA型をKDV public APIへ露出しない。
+KUC型を返すpresentation adapterはKDV coreと分離した
+`katana-document-viewer-kuc` crateで公開し、KDV coreのneutralityを維持する。
 
-- `ViewerSource` とsource identity
-- format detection後のviewer input
-- diagnosticsとunsupported metadata保持
-- page navigation、zoom、fit、copy、openなどのhost command
-- KRR adapterとKUC bridge
-- KatanAへ返す操作結果
+### D5. Feasibility評価後の候補状態
 
-KDV責務にする条件:
+- PDFはpure Rust `hayro` 0.7.1を推奨する。85/100、hard gate pass。
+- DOCXはpure Rust `office2pdf` 0.6.5 -> canonical PDF -> `hayro`を推奨する。
+  85/100でstatic-page hard gateを満たす。ただしKDVのbounded OOXML preflightと
+  isolated workerを必須条件とする。
+- XLSXの`office2pdf` static-pageは65/100で、formula結果、conditional formatting、
+  chart、column paginationのhard gateを満たさないため不採用とする。`IronCalc`
+  0.8.0はformula、style、merge、row / column geometry、conditional formattingの
+  modelを提供するがRust native rendererを持たない。`interactive-grid` profileを
+  明示承認する場合に限り、KUC generic 2D gridと組み合わせる候補とする。
+- PPTXの`office2pdf` static-slideは80/100だが、chartの方向と意味が変わるため
+  static layout hard gateを満たさない。chartをtyped unsupported diagnosticとする
+  profile変更を明示承認しない限り採用しない。
+- ONLYOFFICE Document Builder 9.4.0は軽量かつ禁止binary dependencyを検出しないが、
+  commercial licenseなしではwatermark/API制限があり、代表XLSX/PPTXにも表示差分が
+  あるため不採用とする。
+- LibreOffice 26.2.5.2 -> canonical PDF -> Hayroはlayout品質を満たすが、
+  Office変換中にLibreOffice同梱PDFiumとmacOS WebKitを実際にloadするため不採用とする。
+- `docMentis`、Aspose、Pandoc + Typst、`rwml`、SlideGlance、BetterOfficeは、
+  license、distribution、native dependency、layout fidelity、renderer欠落の
+  いずれかのhard gateを満たさないため不採用とする。
 
-- `ViewerSource` からviewer inputを作る
-- source identity、revision、MIME、diagnosticsを保持する
-- host commandを返す
-- KRR public APIを呼び、KDV artifactまたはdisplay modelへ変換する
-- format固有の可読性優先抽出modelを作る
+従って、PDF / DOCXには採用候補があり、XLSX `interactive-grid`とPPTX typed chart
+fallbackを含むformat別profileは2026-07-30にユーザーが明示承認した。production
+dependencyとformat実装はこの選定に限定する。評価中に未隔離ONLYOFFICE /
+LibreOfficeがexternal relationshipを取得し、`office2pdf`の小さな高圧縮DOCXが
+約8 GBまでmemoryを消費したため、未隔離fallbackを設けない。
 
-KDV責務にしない条件:
+## Responsibility Matrix
 
-- 忠実なlayout描画やrasterizationそのものが主目的である
-- KRRに汎用runtimeとして置ける処理をKDVだけで二重実装する
-- KUCの部品描画を直接持つ
+| Format | Target | Engine adapter owner | Viewer / command owner | KUC model | KRR |
+| --- | --- | --- | --- | --- | --- |
+| PDF | `static-page` | KDV | KDV | page viewport / page list | no change |
+| DOCX | `static-page` | KDV | KDV | page viewport / page list | no change |
+| XLSX | conditional `interactive-grid` | KDV | KDV | conditional generic 2D grid | no change |
+| PPTX | conditional `static-slide` | KDV | KDV | slide viewport / controls | no change |
 
-### KUC責務
+KUC v0.2.0のscroll area、split pane、virtualized list、image surface、slide control、
+generic 2D gridを再利用する。KDV側にprivate grid、cell geometry、hit-test、selection
+engineを作らず、KUC `GenericGrid` が返す可視座標だけをIronCalc workerへ要求する。
+公開KDV adapterはKUC coreをcrates.io `0.2.0`から取得する。非公開Storybook supportと
+その型を共有する開発用KUC coreだけは同一 `v0.2.0` tagから取得し、どちらの経路にも
+sibling path dependencyを使用しない。
 
-KUCは、解釈済みdisplay modelを画面部品として表示する。
+## Security
 
-- page list / viewport / scroll
-- table view
-- image viewport
-- toolbarやnavigation controls
+- macroとembedded scriptを実行しない。
+- external link、remote image、template、data connectionを自動取得しない。
+- ZIP/XML展開量、page/sheet/slide/cell数、処理時間、メモリに上限を設ける。
+- Office engineへ渡す前にKDVがOOXML central directoryとrelationshipをbounded
+  preflightし、active content、external relationship、圧縮率、展開量、entry数を検査する。
+- password protected、corrupt、unsupported featureをtyped diagnosticsにする。
+- Office変換はpure Rust engineでも別worker processに隔離し、sandbox、dedicated
+  temporary directory、network deny、timeout、memory limit、kill、cleanup、
+  crash isolationを必須にする。8 GB memory回帰fixtureをpreflightまたはworker limitで
+  engine実行前後に確実に拒否する。
+- unsupported時に別rendererへsilent fallbackしない。
 
-KUCはPDF parser、Office parser、CSV parser、KRR adapterを持たない。
+## Release Order
 
-## Initial Classification
-
-| Format | Parse / Extract | Render | Viewer / Command |
-| --- | --- | --- | --- |
-| PDF | KDV adapterまたはKRR public APIの判断対象 | KRR候補。未対応ならKDV adapter候補 | KDV + KUC |
-| CSV | KDV | KUC table表示。KRR前提にしない | KDV + KUC |
-| DOCX | KDV抽出model、またはlayout renderingをKRR候補 | 可読性優先はKDV/KUC。忠実layoutはKRR候補 | KDV + KUC |
-| XLSX | KDV表model | KUC table表示。忠実layoutはKRR候補 | KDV + KUC |
-| PPTX | KDV抽出model、またはslide renderingをKRR候補 | slide忠実描画はKRR候補 | KDV + KUC |
-| SVG / WebP / AVIF | KDV source model | KRR候補。未対応ならKDV adapter候補 | KDV + KUC |
-
-この分類は実装前の仮説であり、`v0.4.0` の最初の成果物としてKRR public API、KDV既存adapter、KUC表示部品を確認して確定する。
-
-確定後の判断表でownerが未確定のformatは、`ViewerSource` variantを追加しない。未対応formatとしてraw sourceとdiagnosticsを返す。
+1. conditional KUC grid contract（必要な場合のみ）
+2. KDV `v0.4.0` multi-format viewer
+3. KatanA adjacent releaseでpublished KDVをintake
+4. KDV `v0.5.0` PDF export pagination
 
 ## Risks / Trade-offs
 
-- KDVにrenderingを抱え込むとKRRと二重実装になる。
-- KRRへ寄せすぎると、viewer stateやhost commandまでruntimeへ漏れる。
-- CSVはrenderingよりdata viewerの性質が強く、KRRに寄せると責務が膨らむ。
-- Officeは「可読性優先」と「忠実layout」で責務が変わるため、最初に目標を固定する必要がある。
+- pure Rust profileは配布しやすいが、formatによってOffice layout fidelityが異なる。
+- external Office engineはlayout fidelityを上げられるが、非Rust依存、配布サイズ、
+  cold start、license、security updateの負担が増える。
+- `office2pdf`はpure RustでもTypst初期化と変換時memoryが大きく、in-process利用できない。
+- XLSX `interactive-grid`は計算結果とcell semanticsを優先する代わりに印刷page layout、
+  chart、pivot tableを保証しない。
+- PPTX chart fallbackを許可するとslide navigationは提供できるが、chartを含むslideの
+  static fidelity hard gateは別profileとして再定義が必要になる。
+- engineを抽象化しすぎるとunsupported差分が隠れるため、capabilityを明示する。
+- PDF / Officeを一度に実装するとscopeが広いため、共通contract後はformat単位で
+  quality gateを通す。

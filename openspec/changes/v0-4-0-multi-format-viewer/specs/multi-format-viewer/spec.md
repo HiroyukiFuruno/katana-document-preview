@@ -1,76 +1,161 @@
 ## ADDED Requirements
 
-### Requirement: multi-format viewer は実装前にKRR/KDV/KUC境界を判断しなければならない
+### Requirement: multi-format viewer は実装前にengineと品質profileを確定しなければならない
 
-システムは、PDF / CSV / Office / SVG / WebP / AVIF対応を追加する前に、解析、描画、viewer統合、操作commandの責務をKRR / KDV / KUCへ分類しなければならない（MUST）。
+システムは、PDF / DOCX / XLSX / PPTXのproduction実装を開始する前に、formatごとの目標品質、既存engine、依存方式、license、配布方式、性能、安全性、未対応機能を比較し、採用案についてユーザーの明示承認を得なければならない（MUST）。
 
-#### Scenario: formatごとの責務を分類する
+#### Scenario: engine候補を比較する
 
-- **WHEN** `v0.4.0` の実装を開始する
-- **THEN** KDVはPDF / CSV / Office / SVG / WebP / AVIFごとに、parse/extract owner、render owner、viewer owner、command ownerを記録する
-- **THEN** 判断表には目標品質、入力契約、出力契約、採用owner、却下したownerと理由、KRR側handoff要否を含める
-- **THEN** ownerが未確定のformatは実装へ進まない
-- **THEN** KRR候補はrender-runtimeとして公開APIに乗せられる描画処理に限定する
-- **THEN** KDV候補は `ViewerSource`、source identity、diagnostics、viewer state、host command、KUC bridgeに限定する
-- **THEN** KUC候補は解釈済みdisplay modelの表示部品に限定する
+- **WHEN** KDV `v0.4.0` のmulti-format viewerを計画する
+- **THEN** KDVはPDF / DOCX / XLSX / PPTXごとにrepresentative corpusとtrusted referenceを固定する
+- **THEN** KDVは表示差分、first frame、navigation latency、peak memory、artifact cache sizeを測定する
+- **THEN** KDVはdirect / transitive license、cross-platform配布、security update経路を記録する
+- **THEN** KDVはunsupported featureをtyped capabilityまたはdiagnosticsとして記録する
+- **THEN** KDVはPDF / DOCXの`static-page`、XLSXの`interactive-grid`、PPTXの`static-slide`を別の表示契約として評価する
 
-#### Scenario: KRR責務に分類する
+#### Scenario: engine選定が未承認である
 
-- **WHEN** format固有入力から描画成果物、layout geometry、raster imageのいずれかを生成する処理が必要である
-- **THEN** KDVはその処理がviewer stateやhost commandなしで独立実行できるか確認する
-- **THEN** KDVはその処理がKDV以外の利用者にも再利用可能か確認する
-- **THEN** KDVはKRR public APIとして入力、出力、diagnosticsを安定化できるか確認する
-- **THEN** すべて満たす場合だけKRR責務として扱う
+- **WHEN** formatのengine、quality profile、dependency modelが未承認である
+- **THEN** KDVはそのformatのproduction dependencyを追加しない
+- **THEN** KDVはそのformatの `ViewerSource` variantを正規経路へ追加しない
+- **THEN** KDVは独自parser、独自layout engine、silent fallbackを暫定実装しない
 
-#### Scenario: KDV責務に分類する
+#### Scenario: format別profileを変更する
 
-- **WHEN** 処理の主目的がsource identity、diagnostics、viewer state、host command、またはKUC bridgeである
-- **THEN** KDVはその処理をKDV責務として扱う
-- **THEN** KDVは忠実layout描画やrasterizationそのものをKDV責務にしない
-- **THEN** KRRで汎用化できる処理をKDVの暫定rendererとして正規経路にしない
+- **WHEN** static layout hard gateを満たさないformatに別の表示契約を提案する
+- **THEN** KDVは既存score thresholdまたはhard gateを緩和しない
+- **THEN** KDVは表示対象、unsupported機能、corpus、hard gate、scoreを別profileとして定義する
+- **THEN** KDVは変更後のprofileについてユーザーの明示承認を得る
 
-#### Scenario: KRR責務と判断した処理がある
+#### Scenario: 禁止されたengine方式を評価する
 
-- **WHEN** PDF page rendering、Office layout rendering、SVG/image rasterizationのいずれかをKRR責務と判断する
-- **THEN** KDVはKRRのpublic APIまたは別changeへのhandoffを前提にする
-- **THEN** KDVはKRR内部実装やCLIを直接呼び出す抜け道を持たない
-- **THEN** KRR未対応の間はraw sourceとdiagnosticsを保持し、KDV内の暫定rendererを正規経路にしない
+- **WHEN** Chromium、WebView、PDFium、独自PDF parser、独自OOXML parser、独自Office layout engineが候補に含まれる
+- **THEN** KDVはその候補を採用しない
+- **THEN** KDVは却下理由をfeasibility evidenceへ記録する
 
-### Requirement: ViewerSource を拡張して PDF / CSV / Office / image viewerを提供しなければならない
+### Requirement: document viewerの責務をKDVへ固定しなければならない
 
-システムは、責務境界の判断後に `ViewerSource` enum に `Pdf` / `Csv` / `Office`（DOCX / XLSX / PPTX）/ `Image` の variantを追加し、各フォーマットのviewerを提供しなければならない（MUST）。
+システムは、PDF / DOCX / XLSX / PPTXのformat adapter、neutral artifact、viewer state、diagnostics、viewer commandをKDVの責務として実装しなければならない（MUST）。
 
-#### Scenario: owner未確定のformatを扱う
+#### Scenario: PDFまたはOffice文書を開く
 
-- **WHEN** 責務判断表でownerが未確定のformatがある
-- **THEN** KDVはそのformatの `ViewerSource` variantを追加しない
-- **THEN** KDVは未対応formatとしてraw sourceとdiagnosticsを返す
-- **THEN** KDVは候補実装を暫定正規経路にしない
+- **WHEN** ホストが選定済みengineに対応するPDF / DOCX / XLSX / PPTX sourceを渡す
+- **THEN** KDVはsource identity、revision、MIME、format、capability、diagnosticsを保持する
+- **THEN** KDVはengine固有型をneutral page / document / sheet / slide artifactへ変換する
+- **THEN** KDVはnavigation、zoom、fit、copy、openのうち対応済みcommandを公開する
+- **THEN** KUCはneutral artifactとgeneric controlsだけを表示する
+- **THEN** KatanAはsource intakeとhost command処理だけを担当する
 
-#### Scenario: PDF を preview する
+#### Scenario: KRRとの責務境界を検証する
 
-- **WHEN** ホストが `ViewerSource::Pdf(path)` を渡す
-- **THEN** KDVはPDF source identity、page navigation state、diagnosticsを保持する
-- **THEN** PDF page renderingの実体はboundary decisionで選んだKRR public APIまたはKDV adapterを使う
-- **THEN** ページナビゲーション（前後・ページ番号入力）が利用できる
+- **WHEN** PDF / DOCX / XLSX / PPTX viewerの依存関係とsource usageを検査する
+- **THEN** KRRにdocument parser、PDF page renderer、Office layout engine、viewer state、viewer commandを追加していない
+- **THEN** KDVはKRR内部実装やCLIを直接呼び出していない
+- **THEN** 文書内diagramまたはmathを解決する場合だけ既存KRR public APIを間接利用する
 
-#### Scenario: CSV をテーブル表示する
+#### Scenario: XLSXに2次元仮想グリッドが必要である
 
-- **WHEN** ホストが `ViewerSource::Csv(path)` を渡す
-- **THEN** KDVはCSVを表データmodelへ変換する
-- **THEN** KUC viewerは表データmodelをtableとして表示する
-- **THEN** ヘッダー行の自動検出と列幅の自動調整が適用される
-- **THEN** KDVはCSVをKRRへ渡す前提にしない
+- **WHEN** 承認済みXLSX profileがrow / column両方向のvirtualizationを必要とする
+- **THEN** KDVはformat semanticsを含まないgeneric grid contractをKUCの別changeへhandoffする
+- **THEN** KUCの公開releaseが完了するまでKDVはprivate代替gridを追加しない
 
-#### Scenario: Office ドキュメントを表示する
+### Requirement: PDF viewerを安全な静的閲覧として提供しなければならない
 
-- **WHEN** ホストが `ViewerSource::Office(path)`（DOCX / XLSX / PPTX）を渡す
-- **THEN** KDVはsemantic extractionとlayout-faithful renderingを別責務として扱う
-- **THEN** 可読性優先の場合、KDVはテキスト・表・画像の抽出modelをKUC viewerへ渡す
-- **THEN** layout-faithful renderingを目標にする場合、KRR責務として扱うかをboundary decisionで判断する
+システムは、承認済みPDF engineをKDV adapter経由で利用し、静的ページ閲覧を提供しなければならない（MUST）。
 
-#### Scenario: Image sourceを表示する
+#### Scenario: PDFをpreviewする
 
-- **WHEN** ホストが `ViewerSource::Image(path)`（SVG / WebP / AVIF等）を渡す
-- **THEN** KDVは画像source identity、zoom、fit、open/copy commandを保持する
-- **THEN** decode / rasterizationの実体はboundary decisionで選んだKRR public APIまたはKDV adapterを使う
+- **WHEN** ホストが有効なPDF sourceを渡す
+- **THEN** KDVはpage count、page geometry、rotation、cropを保持する
+- **THEN** KDVは前後移動、page index jump、zoom、fitを提供する
+- **THEN** linkまたはtext selectionをengineが提供しない場合はcapabilityで無効を示す
+- **THEN** unsupported featureを別rendererへsilent fallbackしない
+
+#### Scenario: PDF pageをcanonical artifactとして表示する
+
+- **WHEN** PDFまたは承認済みDOCX変換がcanonical PDF artifactを生成する
+- **THEN** KDVは承認済みpure Rust PDF engineをprivate worker adapter経由で利用する
+- **THEN** KDVはengine固有型をKUCまたはKatanAへ露出しない
+- **THEN** KDVは同じpage artifactとviewer commandをPDF / DOCXで共有する
+
+#### Scenario: 保護または破損PDFを開く
+
+- **WHEN** PDFがpassword protected、corrupt、resource limit超過のいずれかである
+- **THEN** KDVは原因、format、operation、source identityを含むtyped diagnosticsを返す
+- **THEN** KDV workerまたはhost processを停止させない
+
+### Requirement: Office viewerを承認済みprofileで提供しなければならない
+
+システムは、DOCX / XLSX / PPTXを承認済みのformat別profileとして提供しなければならない（MUST）。
+
+#### Scenario: Office文書を表示する
+
+- **WHEN** ホストがDOCX / XLSX / PPTX sourceを渡す
+- **THEN** DOCXはdocument/page、XLSXはsheet、PPTXはslide単位のnavigationを提供する
+- **THEN** KDVは実際に選択したprofileとunsupported featureをcapabilityへ記録する
+- **THEN** interactive-gridをExcel互換page layoutと表示しない
+- **THEN** static-pageまたはstatic-slideをMicrosoft Officeとのpixel identityと表示しない
+
+#### Scenario: DOCXをstatic pageとして表示する
+
+- **WHEN** 承認済みDOCX `static-page` profileで文書を開く
+- **THEN** KDVはbounded preflight後にisolated workerでcanonical PDFへ変換する
+- **THEN** KDVはPDF page artifactとしてpage geometry、header / footer、table、imageを保持する
+- **THEN** KDVは変換engineとPDF engineのdiagnosticsをsource identity付きで保持する
+
+#### Scenario: XLSXをinteractive gridとして表示する
+
+- **WHEN** ユーザーがXLSX `interactive-grid` profileを明示承認している
+- **THEN** KDVはformula、style、merge、row / column geometry、conditional formattingをneutral sheet artifactへ変換する
+- **THEN** KUCはformat semanticsを持たないgeneric 2D virtualized gridを表示する
+- **THEN** chart、pivot table、print page layoutが未対応ならtyped capabilityとdiagnosticsで無効を示す
+- **THEN** KDVはinteractive gridをExcel互換page layoutと表示しない
+
+#### Scenario: PPTX chartを含むslideを表示する
+
+- **WHEN** ユーザーがchart unsupportedを許容するPPTX `static-slide` profileを明示承認している
+- **THEN** KDVはchartを誤った意味または配置で描画しない
+- **THEN** KDVは該当chartをtyped unsupported diagnostic付きの明示fallbackとして表示する
+- **THEN** text、image、shape、tableとslide geometryは承認済みhard gateを満たす
+
+#### Scenario: active contentを含むOffice文書を開く
+
+- **WHEN** 文書がmacro、embedded script、external link、remote image、template、data connectionを含む
+- **THEN** KDVはactive contentを実行しない
+- **THEN** KDVはexternal resourceを自動取得しない
+- **THEN** KDVは検出したactive contentをtyped diagnosticsへ記録する
+
+#### Scenario: Office packageのresource limitを超える
+
+- **WHEN** ZIP/XML展開量、page / sheet / slide / cell数、処理時間、メモリのいずれかが上限を超える
+- **THEN** KDVはengine起動前にbounded OOXML preflightでentry数、圧縮率、展開量、external relationship、active contentを検査する
+- **THEN** KDVは処理を中止してtyped diagnosticsを返す
+- **THEN** temporary artifactをcleanupする
+- **THEN** Office engineはpure Rust実装でも別worker processで実行する
+- **THEN** workerはnetwork deny、timeout、memory limit、killを強制し、hostからcrashを隔離する
+
+### Requirement: release対象をPDFとOffice viewerへ限定しなければならない
+
+システムは、KDV `v0.4.x` のrelease contractをPDF / DOCX / XLSX / PPTX viewerに限定しなければならない（MUST）。
+
+#### Scenario: v0.4.x release targetを検証する
+
+- **WHEN** release gateがKDV `v0.4.x` を検証する
+- **THEN** current OpenSpec changeは `v0-4-0-multi-format-viewer` である
+- **THEN** PDF export paginationはKDV `v0.5.0` のdeferred targetである
+- **THEN** CSV / SVG / WebP / AVIFは本changeのDoDに含まれない
+- **THEN** coverage thresholdまたは既存quality gateを緩和していない
+
+#### Scenario: feasibility scorecardを検証する
+
+- **WHEN** local checkまたはrelease gateがmulti-format scorecardを検証する
+- **THEN** visual 30、coverage 20、security 20、performance 10、distribution 10、license 10の重みを固定する
+- **THEN** component scoreとtotalの一致、最低80点、全hard gate必須、閾値緩和禁止を機械検証する
+- **THEN** hard gate未達候補をrecommendedまたはrelease-approvedにできない
+- **THEN** PDF / DOCX / XLSX / PPTXすべてのproposed profileとcandidateを要求する
+
+#### Scenario: 未承認または未達候補でreleaseする
+
+- **WHEN** format別profileが未承認、80点未満、hard gate未達、release未承認のいずれかである
+- **THEN** release contract checkはformatと原因を示して失敗する
+- **THEN** local evidence checkの成功をrelease承認の代替にしない

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-07-30",
+  "environment": {
+    "os": "macOS",
+    "architecture": "arm64"
+  },
+  "engine": {
+    "name": "LibreOffice",
+    "version": "26.2.5.2"
+  },
+  "operation": {
+    "input": "assets/fixtures/multi-format/stress-100k-cells.xlsx",
+    "output": "PDF",
+    "process_inspection": "vmmap"
+  },
+  "observed_loaded_images": [
+    {
+      "kind": "bundled",
+      "path_suffix": "LibreOffice.app/Contents/Frameworks/libpdfiumlo.dylib",
+      "forbidden_dependency": "PDFium"
+    },
+    {
+      "kind": "system",
+      "path_suffix": "WebKit.framework/Versions/A/WebKit",
+      "forbidden_dependency": "WebKit"
+    },
+    {
+      "kind": "system",
+      "path_suffix": "WebKit.framework/Versions/A/Frameworks/WebCore.framework/Versions/A/WebCore",
+      "forbidden_dependency": "WebKit"
+    },
+    {
+      "kind": "system",
+      "path_suffix": "WebKit.framework/Versions/A/Frameworks/WebKitLegacy.framework/Versions/A/WebKitLegacy",
+      "forbidden_dependency": "WebKit"
+    }
+  ],
+  "result": "fail_forbidden_dependency_gate"
+}

@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-08-02",
+  "environment": {
+    "os": "macOS",
+    "architecture": "arm64"
+  },
+  "acceptance": {
+    "minimum_score": 80,
+    "all_hard_gates_required": true,
+    "threshold_relaxation_allowed": false
+  },
+  "weights": {
+    "visual_fidelity": 30,
+    "format_coverage": 20,
+    "security_isolation": 20,
+    "performance": 10,
+    "distribution": 10,
+    "license": 10
+  },
+  "proposed_selection": {
+    "approval_status": "approved",
+    "approved_at": "2026-07-30",
+    "approval_evidence": "explicit user approve in the active Codex goal task",
+    "profiles": {
+      "pdf": {
+        "candidate": "hayro_pdf",
+        "profile": "static-page"
+      },
+      "docx": {
+        "candidate": "office2pdf_docx_pdf_hayro",
+        "profile": "static-page"
+      },
+      "xlsx": {
+        "candidate": "ironcalc_xlsx_model",
+        "profile": "interactive-grid"
+      },
+      "pptx": {
+        "candidate": "office2pdf_pptx_pdf_hayro",
+        "profile": "static-slide-with-typed-chart-fallback"
+      }
+    }
+  },
+  "candidates": {
+    "hayro_pdf": {
+      "versions": {
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 25,
+        "format_coverage": 14,
+        "security_isolation": 18,
+        "performance": 8,
+        "distribution": 10,
+        "license": 10,
+        "total": 85
+      },
+      "hard_gate": "pass",
+      "decision": "recommended",
+      "measurements": {
+        "pages": 13,
+        "first_page_microseconds": 33699,
+        "all_pages_microseconds": 360214,
+        "rendered_png_bytes": 2174378,
+        "peak_rss_bytes": 138526720,
+        "mean_normalized_mae": 0.0033083380380768256,
+        "mean_normalized_rmse": 0.03334904547525917,
+        "mean_changed_channel_ratio": 0.03434757490437739
+      }
+    },
+    "office2pdf_docx_pdf_hayro": {
+      "versions": {
+        "office2pdf": "0.6.5",
+        "typst": "0.14",
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 26,
+        "format_coverage": 18,
+        "security_isolation": 20,
+        "performance": 6,
+        "distribution": 10,
+        "license": 10,
+        "total": 90
+      },
+      "hard_gate": "pass",
+      "decision": "approved",
+      "measurements": {
+        "cold_conversion_seconds": 5.4,
+        "warm_conversion_seconds": 1.61,
+        "peak_rss_bytes": 306085888,
+        "pages": 2,
+        "hayro_first_page_microseconds": 11240,
+        "hayro_all_pages_microseconds": 16298,
+        "mean_normalized_rmse_page_1": 0.15681338004813763
+      }
+    },
+    "office2pdf_xlsx_pdf_hayro": {
+      "versions": {
+        "office2pdf": "0.6.5",
+        "typst": "0.14",
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 12,
+        "format_coverage": 12,
+        "security_isolation": 15,
+        "performance": 6,
+        "distribution": 10,
+        "license": 10,
+        "total": 65
+      },
+      "hard_gate": "fail_quality",
+      "decision": "rejected",
+      "quality": {
+        "formula_results": "blank when cached values are absent",
+        "conditional_formatting": "missing from representative output",
+        "chart": "fallback box",
+        "pagination": "Target column split onto another page"
+      }
+    },
+    "office2pdf_pptx_pdf_hayro": {
+      "versions": {
+        "office2pdf": "0.6.5",
+        "typst": "0.14",
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 22,
+        "format_coverage": 17,
+        "security_isolation": 20,
+        "performance": 6,
+        "distribution": 10,
+        "license": 10,
+        "total": 85
+      },
+      "hard_gate": "pass",
+      "decision": "approved",
+      "measurements": {
+        "cold_conversion_seconds": 5.34,
+        "peak_rss_bytes": 274137088,
+        "pages": 2,
+        "hayro_first_page_microseconds": 11289,
+        "hayro_all_pages_microseconds": 18168,
+        "mean_normalized_rmse": 0.13935671828400065
+      },
+      "quality": {
+        "chart": "reported as a typed unsupported feature instead of presenting a misleading chart",
+        "title_style_and_shadow": "degraded and reported through ViewerDiagnosticCode::DegradedRendering",
+        "approved_profile": "static-slide-with-typed-chart-fallback"
+      }
+    },
+    "rwml_docx_pdf_hayro": {
+      "versions": {
+        "rwml": "0.1.1",
+        "hayro": "0.7.1"
+      },
+      "hard_gate": "fail_layout_fidelity",
+      "decision": "rejected",
+      "measurements": {
+        "conversion_seconds": 0.09,
+        "peak_rss_bytes": 25133056,
+        "pages": 2,
+        "hayro_first_page_microseconds": 12502,
+        "hayro_all_pages_microseconds": 17595
+      },
+      "quality": {
+        "image_geometry": "substantially larger than trusted reference",
+        "second_page_header_footer": "missing without diagnostic"
+      }
+    },
+    "ironcalc_xlsx_model": {
+      "versions": {
+        "ironcalc": "0.8.3",
+        "katana-ui-core": "0.2.0"
+      },
+      "score": {
+        "visual_fidelity": 23,
+        "format_coverage": 17,
+        "security_isolation": 20,
+        "performance": 10,
+        "distribution": 10,
+        "license": 10,
+        "total": 90
+      },
+      "hard_gate": "pass",
+      "decision": "approved",
+      "measurements": {
+        "representative_conversion_seconds": 0.01,
+        "representative_peak_rss_bytes": 9437184,
+        "stress_xlsx_conversion_seconds": 0.06,
+        "stress_xlsx_peak_rss_bytes": 69533696
+      },
+      "quality": {
+        "formula_recalculation": "pass",
+        "styles_and_dimensions": "mapped through the published KDV KUC adapter",
+        "conditional_formatting": "data bars, icons and ratings map to typed KUC grid appearance",
+        "large_sheet": "visible-window materialization avoids full-grid expansion",
+        "charts_and_pivot_tables": "typed unsupported features",
+        "approved_profile": "interactive-grid"
+      },
+      "implementation_evidence": [
+        "multi_format_xlsx_contract::xlsx_worker_materializes_formula_style_and_conditional_formatting",
+        "multi_format_xlsx_contract::xlsx_worker_bounds_materialization_without_full_grid_expansion",
+        "spreadsheet_grid_tests::large_sheet_requests_only_the_kuc_visible_window_and_maps_cells",
+        "spreadsheet_grid_alignment_tests::every_alignment_variant_maps_without_format_semantics_in_kuc"
+      ]
+    },
+    "slideglance_pptx_svg": {
+      "versions": {
+        "slideglance": "0.1.3"
+      },
+      "score": {
+        "visual_fidelity": 17,
+        "format_coverage": 12,
+        "security_isolation": 16,
+        "performance": 10,
+        "distribution": 2,
+        "license": 10,
+        "total": 67
+      },
+      "hard_gate": "fail_quality_distribution",
+      "decision": "rejected",
+      "measurements": {
+        "parse_milliseconds": 12,
+        "peak_rss_bytes_library_path": 7290000,
+        "mean_normalized_rmse": 0.12663437183500648
+      }
+    },
+    "pandoc_typst_docx_pdf_hayro": {
+      "versions": {
+        "pandoc": "3.10.1",
+        "typst": "0.15.1",
+        "hayro": "0.7.1"
+      },
+      "hard_gate": "fail_layout",
+      "decision": "rejected",
+      "measurements": {
+        "conversion_seconds": 0.61,
+        "peak_rss_bytes": 247218176,
+        "pages": 1,
+        "hayro_first_page_microseconds": 12110
+      }
+    },
+    "office_oxide_readable": {
+      "versions": {
+        "office_oxide": "0.1.8"
+      },
+      "score": {
+        "visual_fidelity": 7,
+        "format_coverage": 10,
+        "security_isolation": 12,
+        "performance": 5,
+        "distribution": 10,
+        "license": 10,
+        "total": 54
+      },
+      "hard_gate": "fail_layout",
+      "decision": "rejected",
+      "measurements": {
+        "docx_parse_microseconds": 3097,
+        "xlsx_parse_microseconds": 625,
+        "pptx_parse_microseconds": 713,
+        "stress_xlsx_peak_rss_bytes": 310525952,
+        "stress_xlsx_ir_json_bytes": 202045818,
+        "oversized_docx_peak_rss_bytes": 306774016
+      }
+    },
+    "onlyoffice_document_builder_pdf_hayro": {
+      "versions": {
+        "onlyoffice_document_builder": "9.4.0",
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 20,
+        "format_coverage": 15,
+        "security_isolation": 14,
+        "performance": 6,
+        "distribution": 9,
+        "license": 0,
+        "total": 64
+      },
+      "hard_gate": "fail_license_quality",
+      "decision": "rejected_without_full_commercial_or_temporary_license",
+      "measurements": {
+        "docx_cold_conversion_seconds": 3.95,
+        "docx_peak_rss_bytes": 296779776,
+        "xlsx_cold_conversion_seconds": 0.99,
+        "xlsx_peak_rss_bytes": 226000896,
+        "pptx_cold_conversion_seconds": 1.21,
+        "pptx_peak_rss_bytes": 278003712,
+        "stress_xlsx_conversion_seconds": 28.83,
+        "stress_xlsx_peak_rss_bytes": 518078464,
+        "stress_xlsx_pages": 210
+      },
+      "security": {
+        "unsandboxed_external_http_gets": 1,
+        "deny_all_network_sandbox": "pass_with_explicit_block_diagnostic",
+        "forbidden_dynamic_dependencies_detected": [],
+        "javascript_runtime": "macOS JavaScriptCore",
+        "strict_file_write_sandbox": "not_verified"
+      },
+      "quality": {
+        "evaluation_watermark": true,
+        "license_invalid_diagnostic": true,
+        "xlsx_chart_formula_result": "incorrect",
+        "pptx_chart_title": "missing",
+        "pptx_text_wrap": "clipped"
+      },
+      "distribution": {
+        "macos_arm64_archive_bytes": 40000600,
+        "macos_arm64_archive_sha256": "c99ee188726f9450e41ca5f198f3c140ebd43727d8c678db701c8c6e3320216b",
+        "macos_arm64_extracted_kib": 190896
+      }
+    },
+    "libreoffice_pdf_hayro": {
+      "versions": {
+        "libreoffice": "26.2.5.2",
+        "hayro": "0.7.1"
+      },
+      "score": {
+        "visual_fidelity": 26,
+        "format_coverage": 18,
+        "security_isolation": 10,
+        "performance": 5,
+        "distribution": 3,
+        "license": 7,
+        "total": 69
+      },
+      "hard_gate": "fail_forbidden_dependency_security_distribution",
+      "decision": "rejected",
+      "measurements": {
+        "docx_cold_conversion_seconds": 5.97,
+        "docx_warm_conversion_seconds": 2.06,
+        "docx_peak_rss_bytes": 336740352,
+        "xlsx_cold_conversion_seconds": 4.0,
+        "xlsx_peak_rss_bytes": 343523328,
+        "pptx_cold_conversion_seconds": 4.09,
+        "pptx_peak_rss_bytes": 377470976,
+        "stress_xlsx_conversion_seconds": 5.61,
+        "stress_xlsx_peak_rss_bytes": 431046656,
+        "stress_xlsx_pages": 218,
+        "stress_xlsx_all_pages_seconds": 3.65,
+        "stress_xlsx_cache_bytes": 71900000
+      },
+      "security": {
+        "unsandboxed_external_http_options": 1,
+        "unsandboxed_external_http_gets": 2,
+        "network_sandbox_with_loopback_and_unix_socket": "pass",
+        "deny_all_network": "exit_zero_without_output",
+        "strict_file_write_sandbox": "not_yet_working",
+        "output_validation_required": true,
+        "office_conversion_loaded_bundled_pdfium": true,
+        "office_conversion_loaded_system_webkit": true
+      },
+      "distribution": {
+        "macos_arm64_dmg_bytes": 297407265,
+        "macos_arm64_dmg_sha256": "c99fb4fe574437fc4cb820a4ca15271bca325920861f7139858b36d7f9df78ad",
+        "macos_installed_kib": 819188,
+        "macos_x86_64_artifact_seen": true,
+        "linux_x86_64_artifact_seen": true,
+        "windows_x86_64_artifact_seen": true,
+        "non_macos_arm64_hash_and_runtime_verified": false
+      }
+    }
+  }
+}

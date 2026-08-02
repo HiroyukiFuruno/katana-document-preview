@@ -10,7 +10,7 @@ VERSION_BARE := replace(VERSION, "v", "")
 TAG := "v" + VERSION_BARE
 COVERAGE_MIN_LINES := "100"
 COVERAGE_MAX_UNCOVERED_LINES := "0"
-COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer"
+COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer -p katana-document-viewer-kuc"
 COVERAGE_IGNORE_FILENAME_REGEX := "(^|/)(tests?|examples)(/|$)|(^|/)[^/]*(test|tests)[^/]*\\.rs$|/crates/kdv-linter/"
 RELEASE_REPO := env_var_or_default("RELEASE_REPO", "HiroyukiFuruno/katana-document-viewer")
 KAL_VERSION := env_var_or_default("KAL_VERSION", "0.5.1")
@@ -18,7 +18,7 @@ KAL_ROOT := env_var_or_default("KAL_ROOT", REPO_ROOT + "/target/kal")
 KAL := env_var_or_default("KAL", KAL_ROOT + "/bin/kal")
 STORYBOOK_TARGET_DIR := env_var_or_default("STORYBOOK_TARGET_DIR", REPO_ROOT + "/target")
 STORYBOOK_FRAMES := env_var_or_default("STORYBOOK_FRAMES", "0")
-KDV_FMT_PACKAGES := "--package kdv-linter --package katana-document-viewer --package kdv-storybook"
+KDV_FMT_PACKAGES := "--package kdv-linter --package katana-document-viewer --package katana-document-viewer-kuc --package kdv-storybook"
 KUC_ROOT := env_var_or_default("KUC_ROOT", replace(REPO_ROOT, "/katana-document-viewer", "/katana-ui-core"))
 
 export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings")
@@ -53,19 +53,26 @@ unit-test: test
 
 # Run coverage as a required full-check gate
 coverage:
-    {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --summary-only --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
+    {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --summary-only --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Show missing coverage lines without relaxing the coverage gate
 coverage-missing:
-    {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --show-missing-lines --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
+    {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --show-missing-lines --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Run the local quality gate
-check: fmt-check lint ast-lint storybook-entrypoint-check kuc-adapter-boundary-check test release-target-script-test check-subagent-harness
+check: fmt-check lint ast-lint storybook-entrypoint-check kuc-adapter-boundary-check test release-target-script-test multi-format-scorecard-script-test multi-format-scorecard-check check-subagent-harness
     @echo "checks passed"
 
 # Run release-line mapping tests without contacting external services.
 release-target-script-test:
     python3 scripts/release/verify-openspec-release-target.py --self-test
+
+# Verify the fixed multi-format score rubric and recorded candidate evidence.
+multi-format-scorecard-script-test:
+    python3 scripts/feasibility/verify-multi-format-scorecard.py --self-test
+
+multi-format-scorecard-check:
+    python3 scripts/feasibility/verify-multi-format-scorecard.py
 
 # Verify subagent / Spark delegation evidence is explicitly recorded
 check-subagent-harness:
@@ -542,6 +549,7 @@ release-dod-check:
 release-contract-check:
     python3 scripts/release/verify-release-contract.py --self-test
     python3 scripts/release/verify-release-contract.py --target-version "{{TAG}}"
+    python3 scripts/feasibility/verify-multi-format-scorecard.py --require-approved
     {{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked -- --test-threads=1
 
 # Verify package metadata and dry-run the crates.io publish target.
@@ -549,6 +557,7 @@ release-verify: release-contract-check check coverage
     bash scripts/release/verify-version.sh "{{VERSION}}"
     {{CARGO}} package -p katana-document-viewer --locked --allow-dirty
     {{CARGO}} publish -p katana-document-viewer --dry-run --locked --allow-dirty
+    {{CARGO}} package -p katana-document-viewer-kuc --locked --allow-dirty --list
 
 # Verify release branch readiness before merging
 release-check: release-target-check release-verify
@@ -572,7 +581,7 @@ update-safe:
 
 # Upgrade all dependency crates and refresh the lockfile
 update:
-    {{RTK_CMD}}cargo upgrade -i
+    {{RTK_CMD}}cargo upgrade -i --recursive false
     {{RTK_CMD}}cargo update
 
 # List outdated dependency crates

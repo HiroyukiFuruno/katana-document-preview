@@ -2,9 +2,11 @@
 set -euo pipefail
 
 version="$(bash "$(dirname "$0")/verify-version.sh" "${1:-}" | awk -F= '$1 == "version_bare" { print $2 }')"
-if cargo info "katana-document-viewer@${version}" --registry crates-io >/dev/null 2>&1; then
-  echo "katana-document-viewer ${version} is already published on crates.io." >&2
-  exit 1
-fi
+for crate in katana-document-viewer katana-document-viewer-kuc; do
+  if cargo info "${crate}@${version}" --registry crates-io >/dev/null 2>&1; then
+    echo "${crate} ${version} is already published on crates.io." >&2
+    exit 1
+  fi
+done
 
-echo "katana-document-viewer ${version} is unpublished"
+echo "KDV ${version} crates are unpublished"

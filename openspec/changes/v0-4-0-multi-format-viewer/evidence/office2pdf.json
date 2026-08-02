@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-07-30",
+  "engine": {
+    "name": "office2pdf",
+    "version": "0.6.5",
+    "source_commit": "7de4b28aca59de69342fc89d7d2de73e9482af69",
+    "repository_created_at": "2026-02-26T05:32:53Z",
+    "host_model": "pure Rust library in an isolated KDV worker",
+    "layout_backend": "Typst 0.14"
+  },
+  "release_assets": [
+    {
+      "platform": "macos-arm64",
+      "bytes": 26348103,
+      "sha256": "1ca2acd416166e8075bc56acc1799b774bf7189e18f5de5d764ddd0b27dd2625",
+      "runtime_verified": true
+    },
+    {
+      "platform": "macos-x86_64",
+      "bytes": 27388305,
+      "sha256": "a5e5cb110f16ef16a5802b44aaf364b753b7eb6f8bdd771c55110404aa1d8c4d",
+      "runtime_verified": false
+    },
+    {
+      "platform": "linux-arm64-gnu",
+      "bytes": 28913687,
+      "sha256": "532384ec2f7af9013bfb59e27bebcbb01daf72ad2e7633a3a0e9a0b47fb57048",
+      "runtime_verified": false
+    },
+    {
+      "platform": "linux-x86_64-gnu",
+      "bytes": 28254219,
+      "sha256": "3985d37363e82c3d6999bf2c5b0d77e4d371be8173d9735b59df997fc2ec291e",
+      "runtime_verified": false
+    },
+    {
+      "platform": "linux-x86_64-musl",
+      "bytes": 29571892,
+      "sha256": "4df1d93125cc571b7a15130c3df7176895082f40c5eadf08c3a613b61e7554e5",
+      "runtime_verified": false
+    },
+    {
+      "platform": "windows-x86_64",
+      "bytes": 26433773,
+      "sha256": "6c09908c4a36499308fcbb8d9fdb024329e1bce93d972a824ca889a3b0ab69af",
+      "runtime_verified": false
+    }
+  ],
+  "supply_chain": {
+    "cargo_packages": 487,
+    "missing_license_count": 0,
+    "license": "Apache-2.0",
+    "forbidden_dynamic_dependencies_detected": [],
+    "macos_binary_bytes": 66629840,
+    "macos_dynamic_dependencies": [
+      "/usr/lib/libiconv.2.dylib",
+      "CoreFoundation",
+      "libSystem"
+    ],
+    "macos_signature": "ad-hoc linker signature; upstream asset is not notarized"
+  },
+  "measurements": {
+    "docx": {
+      "cold_conversion_seconds": 5.4,
+      "warm_conversion_seconds": 1.61,
+      "warm_parse_milliseconds": 9.778,
+      "warm_codegen_milliseconds": 896.643,
+      "warm_compile_milliseconds": 109.188,
+      "peak_rss_bytes": 306085888,
+      "pages": 2,
+      "hayro_first_page_microseconds": 11240,
+      "hayro_all_pages_microseconds": 16298,
+      "mean_normalized_mae_page_1": 0.039577397907940313,
+      "mean_normalized_rmse_page_1": 0.15681338004813763,
+      "changed_channel_ratio_page_1": 0.10571648397765765
+    },
+    "xlsx": {
+      "cold_conversion_seconds": 5.37,
+      "peak_rss_bytes": 275791872,
+      "pages": 3,
+      "hayro_first_page_microseconds": 8001,
+      "hayro_all_pages_microseconds": 16780,
+      "mean_normalized_mae_page_1": 0.03220689642110837,
+      "mean_normalized_rmse_page_1": 0.133288726426265,
+      "changed_channel_ratio_page_1": 0.09239900478621889
+    },
+    "pptx": {
+      "cold_conversion_seconds": 5.34,
+      "peak_rss_bytes": 274137088,
+      "pages": 2,
+      "hayro_first_page_microseconds": 11289,
+      "hayro_all_pages_microseconds": 18168,
+      "mean_normalized_mae": 0.03759812062159278,
+      "mean_normalized_rmse": 0.13935671828400065,
+      "mean_changed_channel_ratio": 0.08587166415633568
+    },
+    "stress_xlsx_streaming": {
+      "conversion_seconds": 4.69,
+      "peak_rss_bytes": 1636073472,
+      "pages": 18
+    },
+    "oversized_docx_without_preflight": {
+      "compressed_bytes": 72795,
+      "conversion_seconds": 15.79,
+      "peak_rss_bytes": 8034746368,
+      "result": "converted instead of rejecting"
+    }
+  },
+  "security": {
+    "unsandboxed_external_http_requests": 0,
+    "macro_execution": "not executed, but the engine does not reject the macro marker",
+    "archive_expansion_limit": "not implemented by engine",
+    "time_limit": "not implemented by engine",
+    "memory_limit": "not implemented by engine",
+    "panic_boundary": "parser panic is caught; OOM requires process isolation",
+    "required_kdv_controls": [
+      "bounded OOXML preflight before engine invocation",
+      "macro and active content rejection",
+      "external relationship rejection",
+      "isolated worker process",
+      "timeout, memory limit, kill and cleanup"
+    ],
+    "implemented_kdv_controls": [
+      "bounded recursive OOXML preflight before engine invocation",
+      "macro, active content and external relationship rejection",
+      "isolated worker process with deny-network policy",
+      "timeout, memory monitor, kill, bounded protocol and cleanup"
+    ]
+  },
+  "quality": {
+    "docx": {
+      "page_break": "retained",
+      "header_footer": "retained",
+      "page_geometry": "retained",
+      "table_image_japanese": "retained",
+      "result": "approved after KDV preflight and isolated-worker contract tests"
+    },
+    "xlsx": {
+      "formula_results": "blank when cached values are absent",
+      "conditional_formatting": "not retained by representative output",
+      "chart": "replaced by a labeled fallback box",
+      "pagination": "Target column split onto another page",
+      "result": "fail quality gate"
+    },
+    "pptx": {
+      "slide_geometry_image_japanese": "retained",
+      "chart": "reported as a typed unsupported feature instead of presenting a misleading chart",
+      "title_style_and_shadow": "degraded with a typed rendering diagnostic",
+      "result": "approved for static-slide-with-typed-chart-fallback profile"
+    }
+  },
+  "score": {
+    "docx": {
+      "visual_fidelity": 26,
+      "format_coverage": 18,
+      "security_isolation": 20,
+      "performance": 6,
+      "distribution": 10,
+      "license": 10,
+      "total": 90,
+      "hard_gate": "pass"
+    },
+    "xlsx": {
+      "visual_fidelity": 12,
+      "format_coverage": 12,
+      "security_isolation": 20,
+      "performance": 6,
+      "distribution": 10,
+      "license": 10,
+      "total": 65,
+      "hard_gate": "fail_quality"
+    },
+    "pptx": {
+      "visual_fidelity": 22,
+      "format_coverage": 17,
+      "security_isolation": 15,
+      "performance": 6,
+      "distribution": 10,
+      "license": 10,
+      "total": 85,
+      "hard_gate": "pass"
+    }
+  }
+}

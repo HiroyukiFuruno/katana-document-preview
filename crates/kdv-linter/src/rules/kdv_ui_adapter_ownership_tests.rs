@@ -3,16 +3,49 @@ use crate::diagnostics::KdvLintError;
 use crate::rules::test_helpers::FixtureWorkspace;
 
 #[test]
-fn flags_kdv_owned_kuc_adapter_crate() -> Result<(), KdvLintError> {
+fn allows_published_kuc_presentation_adapter_when_core_remains_neutral() -> Result<(), KdvLintError>
+{
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
         "crates/katana-document-viewer-kuc/src/lib.rs",
-        "pub struct KdvOwnedAdapter;",
+        "pub struct KucPresentationAdapter;",
     )?;
 
     let violations = KdvUiAdapterOwnershipRule::check(&fixture.workspace()?)?;
 
-    assert!(has_rule(&violations));
+    assert!(violations.is_empty());
+    Ok(())
+}
+
+#[test]
+fn flags_neutral_core_dependency_on_optional_presentation_adapter() -> Result<(), KdvLintError> {
+    let fixture = FixtureWorkspace::new().with_default_manifests()?;
+    fixture.write_manifest(
+        "crates/katana-document-viewer/Cargo.toml",
+        r#"
+[package]
+name = "katana-document-viewer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+katana-document-viewer-kuc = "0.1"
+"#,
+    )?;
+    fixture.write_rust_file(
+        "crates/katana-document-viewer/src/lib.rs",
+        "use katana_document_viewer_kuc::KucPageSurfaceAdapter;",
+    )?;
+
+    let violations = KdvUiAdapterOwnershipRule::check(&fixture.workspace()?)?;
+
+    assert_eq!(
+        2,
+        violations
+            .iter()
+            .filter(|violation| { violation.rule == "no_kdv_ui_adapter_ownership" })
+            .count()
+    );
     Ok(())
 }
 
@@ -95,12 +128,6 @@ fn allows_plain_kdv_engine_model() -> Result<(), KdvLintError> {
 
     assert!(violations.is_empty());
     Ok(())
-}
-
-fn has_rule(violations: &[crate::diagnostics::Violation]) -> bool {
-    violations
-        .iter()
-        .any(|violation| violation.rule == "no_kdv_ui_adapter_ownership")
 }
 
 fn assert_storybook_source_violations(

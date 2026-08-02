@@ -1,0 +1,36 @@
+{
+  "schema_version": "kdv.linux-sandbox-supply-chain.v1",
+  "evaluated_at": "2026-08-02",
+  "scope": "Linux Office and spreadsheet worker child processes",
+  "layers": [
+    {
+      "crate": "skarn-sandbox",
+      "version": "1.0.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/Rani367/Skarn",
+      "role": "Landlock workspace restriction, fail-closed network policy, and dangerous-syscall seccomp denylist"
+    },
+    {
+      "crate": "seccompiler",
+      "version": "0.5.0",
+      "license": "Apache-2.0 OR BSD-3-Clause",
+      "repository": "https://github.com/rust-vmm/seccompiler",
+      "role": "KDV-owned fail-closed BPF filter denying socket, connect, bind, listen, accept, send, receive, shutdown, and setsockopt syscalls"
+    },
+    {
+      "crate": "libc",
+      "version": "0.2.189",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/libc",
+      "role": "Audited Linux syscall numbers and EPERM result code; no document parsing or rendering"
+    }
+  ],
+  "acceptance": {
+    "fully_enforced": "accepted only after the KDV-owned network seccomp filter is installed",
+    "partially_enforced": "accepted only for Landlock when the skarn seccomp denylist and KDV network seccomp are both installed and no policy path was skipped",
+    "unsupported_or_failed": "worker exits before opening the document",
+    "runtime_test": "an isolated test child installs the KDV filter and must receive EPERM when creating a TCP socket"
+  },
+  "release_gate": "exact direct versions and crates.io checksums are verified by scripts/release/verify-release-contract.py",
+  "decision": "accepted; this preserves fail-closed isolation on Linux runners with partial Landlock ABI support without weakening resource, path, syscall, or network policy"
+}

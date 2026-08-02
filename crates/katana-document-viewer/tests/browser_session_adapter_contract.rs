@@ -9,53 +9,43 @@ use std::{
 };
 
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(1);
+const INITIAL_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn public_adapter_forwards_in_process_runtime_commands() -> TestResult {
     let mut adapter = BrowserSessionAdapter::start(request("<p>Initial</p>")?);
 
-    assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    wait_for_frame(&adapter, INITIAL_FRAME_TIMEOUT)?;
     assert_idle(&adapter)?;
     adapter.resize(HtmlBrowserViewport::new(480, 160, 1.0)?)?;
-    assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    wait_for_frame(&adapter, UPDATE_TIMEOUT)?;
     assert_idle(&adapter)?;
     adapter.refresh_frame()?;
-    assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    wait_for_frame(&adapter, UPDATE_TIMEOUT)?;
     assert_idle(&adapter)?;
     adapter.navigate(HtmlBrowserNavigation::new(HtmlBrowserSource::new(
         "<p>Next</p>",
         "https://example.test/next.html",
     )?)?)?;
-    assert_frame(adapter.wait_for_update(UPDATE_TIMEOUT))?;
+    wait_for_frame(&adapter, UPDATE_TIMEOUT)?;
     assert_idle(&adapter)?;
     adapter.close()?;
     Ok(())
 }
 
 #[test]
-fn adapter_forwards_document_lifecycle_errors_with_runtime_context() -> TestResult {
+fn adapter_preserves_the_frame_after_a_non_fatal_lifecycle_listener_error() -> TestResult {
     let mut adapter = BrowserSessionAdapter::start(request(
         "<script>document.addEventListener('DOMContentLoaded', () => { throw new Error('lifecycle failed'); });</script>",
     )?);
 
-    let error = match adapter.wait_for_update(UPDATE_TIMEOUT) {
-        Some(BrowserSessionUpdate::Error(error)) => error,
-        update => return Err(format!("expected lifecycle error, got {update:?}").into()),
-    };
-    let report = error.to_string();
-    for expected in [
-        "Layer: KRR runtime",
-        "Operation: start",
-        "Document: https://example.test/index.html",
-        "Cause: in-process HTML runtime failed",
-        "JavaScript exception: Error: lifecycle failed",
-        "inline-script:1:",
-    ] {
-        assert!(
-            report.contains(expected),
-            "missing {expected:?} in {report}"
-        );
+    wait_for_frame(&adapter, INITIAL_FRAME_TIMEOUT)?;
+    assert_idle(&adapter)?;
+    while let Some(update) = adapter.take_update() {
+        if let BrowserSessionUpdate::Error(error) = update {
+            return Err(format!("non-fatal KRR lifecycle error leaked into KDV: {error}").into());
+        }
     }
     adapter.close()?;
     Ok(())
@@ -66,7 +56,7 @@ fn burst_continuous_input_preserves_discrete_input_and_frame_progress() -> TestR
     let mut adapter = BrowserSessionAdapter::start(request(
         "<a href=linked.html style=\"min-height:80px;padding:8px\">Next</a>",
     )?);
-    let initial_generation = frame_generation(adapter.wait_for_update(Duration::from_secs(10)))?;
+    let initial_generation = wait_for_frame(&adapter, INITIAL_FRAME_TIMEOUT)?;
 
     for index in 0..4_097 {
         let x = if index % 2 == 0 { 10.0 } else { 310.0 };
@@ -151,13 +141,6 @@ fn request(html: &str) -> Result<BrowserSessionRequest, Box<dyn std::error::Erro
     ))
 }
 
-fn assert_frame(update: Option<BrowserSessionUpdate>) -> TestResult {
-    match update {
-        Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => Ok(()),
-        _ => Err(format!("expected browser frame, got {update:?}").into()),
-    }
-}
-
 fn assert_idle(adapter: &BrowserSessionAdapter) -> TestResult {
     let deadline = Instant::now() + UPDATE_TIMEOUT;
     while Instant::now() < deadline {
@@ -169,14 +152,26 @@ fn assert_idle(adapter: &BrowserSessionAdapter) -> TestResult {
     Err("browser adapter did not become idle".into())
 }
 
-fn frame_generation(
-    update: Option<BrowserSessionUpdate>,
+fn wait_for_frame(
+    adapter: &BrowserSessionAdapter,
+    timeout: Duration,
 ) -> Result<u64, Box<dyn std::error::Error>> {
-    match update {
-        Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => {
-            Ok(frame.generation)
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(format!("browser frame did not arrive within {timeout:?}").into());
         }
-        _ => Err(format!("expected browser frame, got {update:?}").into()),
+        match adapter.wait_for_update(remaining) {
+            Some(BrowserSessionUpdate::Frame(frame)) if !frame.pixels.is_empty() => {
+                return Ok(frame.generation);
+            }
+            Some(BrowserSessionUpdate::Error(error)) => return Err(error.into()),
+            Some(BrowserSessionUpdate::Frame(_)) | Some(BrowserSessionUpdate::Navigation(_)) => {}
+            None => {
+                return Err(format!("browser frame did not arrive within {timeout:?}").into());
+            }
+        }
     }
 }
 

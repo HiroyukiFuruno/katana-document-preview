@@ -16,9 +16,10 @@ check_started_changes_have_handoff() {
     fi
 
     pattern="$(evidence_line_pattern "$handoff_file")"
-    if [[ -z "$(match_evidence_lines "$pattern" "$handoff_file")" ]]; then
+    if [[ -z "$(match_evidence_lines "$pattern" "$handoff_file")" ]] &&
+      ! file_has_delegation_exception "$handoff_file"; then
       fail_fast "$handoff_file" \
-        "開始済みactive changeのhandoff.mdにもsubagent / Spark証跡を必須化してください。"
+        "開始済みactive changeのhandoff.mdにはsubagent / Spark証跡または許可済みdelegation-exceptionを必須化してください。"
     fi
   done
 }

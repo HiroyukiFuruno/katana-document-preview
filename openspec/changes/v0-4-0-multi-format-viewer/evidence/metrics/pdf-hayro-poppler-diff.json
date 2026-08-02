@@ -1,0 +1,165 @@
+{
+  "pages": [
+    {
+      "candidate": "page-0000.png",
+      "reference": "page-01.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0020865431923229693,
+      "normalized_rmse": 0.0177596770955955,
+      "changed_channel_ratio": 0.056868525552486185
+    },
+    {
+      "candidate": "page-0001.png",
+      "reference": "page-02.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0026664358998663923,
+      "normalized_rmse": 0.03663457913999596,
+      "changed_channel_ratio": 0.027714376151012892
+    },
+    {
+      "candidate": "page-0002.png",
+      "reference": "page-03.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.003437928244502221,
+      "normalized_rmse": 0.040971147942940815,
+      "changed_channel_ratio": 0.03086757596685083
+    },
+    {
+      "candidate": "page-0003.png",
+      "reference": "page-04.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0033963033302639657,
+      "normalized_rmse": 0.03622167414409991,
+      "changed_channel_ratio": 0.03606281652854512
+    },
+    {
+      "candidate": "page-0004.png",
+      "reference": "page-05.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.005195293598562814,
+      "normalized_rmse": 0.043311875304145826,
+      "changed_channel_ratio": 0.0435482849907919
+    },
+    {
+      "candidate": "page-0005.png",
+      "reference": "page-06.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0038540950104719606,
+      "normalized_rmse": 0.0407449082223267,
+      "changed_channel_ratio": 0.037743439226519335
+    },
+    {
+      "candidate": "page-0006.png",
+      "reference": "page-07.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0018586776216011267,
+      "normalized_rmse": 0.025090804009183384,
+      "changed_channel_ratio": 0.02742532803867403
+    },
+    {
+      "candidate": "page-0007.png",
+      "reference": "page-08.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0014358598066298344,
+      "normalized_rmse": 0.01572475260695065,
+      "changed_channel_ratio": 0.01411559046961326
+    },
+    {
+      "candidate": "page-0008.png",
+      "reference": "page-09.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.004186387918427039,
+      "normalized_rmse": 0.03532669436406509,
+      "changed_channel_ratio": 0.029239612108655617
+    },
+    {
+      "candidate": "page-0009.png",
+      "reference": "page-10.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.004887067580254939,
+      "normalized_rmse": 0.04204590393874501,
+      "changed_channel_ratio": 0.02946708103130755
+    },
+    {
+      "candidate": "page-0010.png",
+      "reference": "page-11.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0047077397717834825,
+      "normalized_rmse": 0.040996978385105264,
+      "changed_channel_ratio": 0.0476650264732965
+    },
+    {
+      "candidate": "page-0011.png",
+      "reference": "page-12.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.00322245637435453,
+      "normalized_rmse": 0.03449187672108051,
+      "changed_channel_ratio": 0.04499381330570902
+    },
+    {
+      "candidate": "page-0012.png",
+      "reference": "page-13.png",
+      "size": [
+        1280,
+        1810
+      ],
+      "comparable": true,
+      "normalized_mae": 0.002073606145957462,
+      "normalized_rmse": 0.024216719304134614,
+      "changed_channel_ratio": 0.020807003913443832
+    }
+  ],
+  "page_count": 13,
+  "comparable_page_count": 13,
+  "mean_normalized_mae": 0.0033083380380768256,
+  "mean_normalized_rmse": 0.03334904547525917,
+  "mean_changed_channel_ratio": 0.03434757490437739
+}

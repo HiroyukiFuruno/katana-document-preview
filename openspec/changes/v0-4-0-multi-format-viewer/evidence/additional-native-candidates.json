@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-07-30",
+  "candidates": {
+    "rwml_docx": {
+      "version": "0.1.1",
+      "source_commit": "3cc0f3fbb1ffe6ec0d9103beefd0cd464460b6f5",
+      "license": "MIT",
+      "repository_created_at": "2026-06-22T03:39:14Z",
+      "cold_build_excluded_conversion_seconds": 0.09,
+      "peak_rss_bytes": 25133056,
+      "pages": 2,
+      "hayro_first_page_microseconds": 12502,
+      "hayro_all_pages_microseconds": 17595,
+      "quality": [
+        "body text, table, image, Japanese and explicit page break retained",
+        "embedded image rendered substantially larger than trusted reference",
+        "second-page header and footer missing without a diagnostic"
+      ],
+      "decision": "rejected in favor of the higher-fidelity office2pdf DOCX adapter"
+    },
+    "slideglance_pptx": {
+      "version": "0.1.3",
+      "source_commit": "13362b4978c52fa8aeb40d7d8dd36ba081af8b22",
+      "license": "MIT",
+      "cargo_packages": 128,
+      "missing_license_count": 0,
+      "native_links": [],
+      "release_binary_bytes": 4161904,
+      "parse_milliseconds": 12,
+      "first_slide_svg_milliseconds": 1,
+      "peak_rss_bytes_library_path": 7290000,
+      "mean_normalized_mae": 0.031652640870712526,
+      "mean_normalized_rmse": 0.12663437183500648,
+      "mean_changed_channel_ratio": 0.11574267176456957,
+      "score": 67,
+      "quality": [
+        "basic geometry and images retained",
+        "chart axis labels and title missing",
+        "right-side text clipped instead of wrapped",
+        "default CLI host-font scan selected an incorrect italic font and consumed unbounded memory"
+      ],
+      "decision": "rejected; no crates.io production package and quality hard gate failed"
+    },
+    "ironcalc_xlsx": {
+      "version": "0.8.3",
+      "source_commit": "9bed9ec023e645101df6b6ac5aebbe0708b259fb",
+      "license": "MIT OR Apache-2.0",
+      "crates_io_published": true,
+      "cargo_packages": 95,
+      "missing_license_count": 0,
+      "representative_conversion_seconds": 0.01,
+      "representative_peak_rss_bytes": 9437184,
+      "stress_100k_cells_conversion_seconds": 0.06,
+      "stress_100k_cells_peak_rss_bytes": 69533696,
+      "quality": [
+        "formula cells recalculate correctly even when the XLSX cached value is empty",
+        "styles, merged cells, row heights, column widths and conditional formatting are modeled",
+        "charts and pivot tables are unsupported",
+        "the reusable Rust crate provides no native renderer; the official canvas frontend requires a browser"
+      ],
+      "decision": "approved for the interactive-grid profile through the published KDV KUC adapter; charts and pivot tables remain typed unsupported features"
+    },
+    "betteroffice_pptx": {
+      "version": "0.0.4",
+      "license": "Apache-2.0",
+      "quality": [
+        "bounded parser and shaped-text display list are available",
+        "table and chart frames are emitted only as placeholders",
+        "no raster or KUC backend is supplied"
+      ],
+      "decision": "rejected because the missing backend and chart/table renderer would become KDV/KUC implementation"
+    },
+    "pandoc_typst_docx": {
+      "versions": {
+        "pandoc": "3.10.1",
+        "typst": "0.15.1",
+        "hayro": "0.7.1"
+      },
+      "compressed_distribution_bytes": 56180079,
+      "conversion_seconds": 0.61,
+      "peak_rss_bytes": 247218176,
+      "pages": 1,
+      "hayro_first_page_microseconds": 12110,
+      "external_http_requests": 0,
+      "quality": [
+        "text, table, image and Japanese retained",
+        "explicit page break collapsed",
+        "header, footer, landscape page geometry and Word pagination lost"
+      ],
+      "decision": "rejected by DOCX layout hard gate"
+    },
+    "docmentis_udoc_wasm": {
+      "version": "0.7.11",
+      "source_commit": "baf6ce65475fcbd243578fefd51eacec46c714c3",
+      "wasm_bytes": 18581221,
+      "wasm_sha256": "acdb6e4a6d12f8e9df3ec7fb5017327699449acf13043dc52cda2633b1caa685",
+      "score": 61,
+      "quality": [
+        "DOCX and PPTX static pages are readable",
+        "XLSX formulas and chart are missing",
+        "PPTX text clips and chart colors differ"
+      ],
+      "license": [
+        "private engine may only be used with docMentis Viewer",
+        "competing document viewer use is prohibited by the free license",
+        "free runtime requires a server-signed permit and mandatory telemetry",
+        "offline and no-telemetry use requires a commercial license"
+      ],
+      "decision": "rejected by license, offline, privacy and quality hard gates"
+    }
+  }
+}

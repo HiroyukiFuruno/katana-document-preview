@@ -119,6 +119,7 @@ impl StorybookMouse {
             ViewerCommand::Slideshow(_) => "slideshow",
             ViewerCommand::ScrollToHeading(_) => "toc",
             ViewerCommand::Host(_) => "host",
+            ViewerCommand::Document(_) => "document",
         }
     }
 

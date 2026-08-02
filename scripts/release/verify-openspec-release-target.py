@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 VERSION_PATTERN = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
-SUPPORTED_RELEASE_CONTRACTS = {"browser-session-adapter"}
+SUPPORTED_RELEASE_CONTRACTS = {"browser-session-adapter", "multi-format-viewer"}
 
 
 def parse_version(value: str) -> tuple[int, int, int]:
@@ -69,7 +69,7 @@ def self_test() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         changes = root / "openspec/changes"
-        for name in ("adapter", "future"):
+        for name in ("viewer", "future"):
             (changes / name).mkdir(parents=True, exist_ok=True)
         targets = root / "openspec/release-targets.json"
         targets.parent.mkdir(parents=True, exist_ok=True)
@@ -78,18 +78,18 @@ def self_test() -> None:
                 {
                     "schema_version": "kdv.release-targets.v1",
                     "current": {
-                        "minor_line": "0.3",
-                        "change": "adapter",
-                        "release_contract": "browser-session-adapter",
+                        "minor_line": "0.4",
+                        "change": "viewer",
+                        "release_contract": "multi-format-viewer",
                     },
-                    "deferred": [{"change": "future", "planned_version": "v0.4.0"}],
+                    "deferred": [{"change": "future", "planned_version": "v0.5.0"}],
                 }
             ),
             encoding="utf-8",
         )
-        assert validate(root, "v0.3.0") == "adapter"
-        assert validate(root, "v0.3.9") == "adapter"
-        for invalid in ("v0.2.9", "v0.4.0", "0.3.0"):
+        assert validate(root, "v0.4.0") == "viewer"
+        assert validate(root, "v0.4.9") == "viewer"
+        for invalid in ("v0.3.9", "v0.5.0", "0.4.0"):
             try:
                 validate(root, invalid)
             except ValueError:

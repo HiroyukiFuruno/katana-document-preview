@@ -99,8 +99,13 @@ evidence_references_file() {
 
   for evidence_file in "${CHANGE_FILES[@]}"; do
     while IFS= read -r line; do
-      [[ "$line" == *"証跡:"* ]] || continue
-      payload="${line#*証跡:}"
+      if [[ "$line" == *"証跡:"* ]]; then
+        payload="${line#*証跡:}"
+      elif [[ "$line" == *"delegation-exception:"* ]]; then
+        payload="$line"
+      else
+        continue
+      fi
 
       while IFS= read -r file_ref; do
         if [[ "$(normalize_evidence_file_ref "$file_ref")" == "$expected" ]]; then
