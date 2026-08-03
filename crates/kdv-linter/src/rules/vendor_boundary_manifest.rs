@@ -31,9 +31,8 @@ impl VendorBoundaryManifestRule {
     }
 }
 
-const MANIFEST_SCOPES: [VendorScope; 3] = [
+const MANIFEST_SCOPES: [VendorScope; 2] = [
     VendorScope::core("crates/katana-document-viewer"),
-    VendorScope::core("crates/katana-document-viewer-kuc"),
     VendorScope::core("tools/kdv-storybook"),
 ];
 

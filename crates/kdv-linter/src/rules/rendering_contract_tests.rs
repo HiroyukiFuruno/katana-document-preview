@@ -6,7 +6,7 @@ use crate::rules::test_helpers::FixtureWorkspace;
 fn rendering_contract_flags_color_font_path_and_preset_refs() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/adapter.rs",
+        "crates/katana-document-viewer/src/document_surface/adapter.rs",
         r##"
 pub fn render() {
     let _color = "#ff00aa";
@@ -46,7 +46,10 @@ pub fn render() {
 #[test]
 fn rendering_contract_ignores_empty_syn_path() -> Result<(), Box<dyn std::error::Error>> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
-    fixture.write_rust_file("crates/katana-document-viewer-kuc/src/adapter.rs", "")?;
+    fixture.write_rust_file(
+        "crates/katana-document-viewer/src/document_surface/adapter.rs",
+        "",
+    )?;
     let workspace = fixture.workspace()?;
     let Some(file) = workspace.rust_files().first() else {
         return Err(Box::new(std::io::Error::other("fixture file missing")));

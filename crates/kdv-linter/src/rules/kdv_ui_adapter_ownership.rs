@@ -11,12 +11,37 @@ pub struct KdvUiAdapterOwnershipRule;
 impl KdvUiAdapterOwnershipRule {
     pub fn check(workspace: &WorkspaceModel) -> Result<Vec<Violation>, KdvLintError> {
         let mut violations = Vec::new();
+        violations.extend(ForbiddenCrossLayerCrateChecker::new(workspace.root()).violations());
         violations.extend(KdvCoreAdapterDependencyChecker::new(workspace).violations()?);
         violations.extend(StorybookOwnedBridgeChecker::new(workspace.root()).violations());
         for file in workspace.storybook_files() {
             violations.extend(StorybookAdapterChecker::new(file).violations());
         }
         Ok(violations)
+    }
+}
+
+struct ForbiddenCrossLayerCrateChecker<'a> {
+    root: &'a Path,
+}
+
+impl<'a> ForbiddenCrossLayerCrateChecker<'a> {
+    fn new(root: &'a Path) -> Self {
+        Self { root }
+    }
+
+    fn violations(&self) -> Vec<Violation> {
+        let path = self.root.join("crates").join("katana-document-viewer-kuc");
+        if !path.exists() {
+            return Vec::new();
+        }
+        vec![Violation::new(
+            path,
+            1,
+            1,
+            "no_cross_layer_document_viewer_crate",
+            "KDV must own its document surface; a mixed KDV-KUC crate is forbidden.",
+        )]
     }
 }
 
@@ -70,8 +95,8 @@ impl<'a> KdvCoreAdapterDependencyChecker<'a> {
                             path.to_path_buf(),
                             index + 1,
                             column + 1,
-                            "no_kdv_ui_adapter_ownership",
-                            "Neutral KDV core must not depend on its optional KUC presentation adapter.",
+                            "no_cross_layer_document_viewer_crate",
+                            "KDV must not depend on the forbidden mixed KDV-KUC crate.",
                         )
                     })
             })

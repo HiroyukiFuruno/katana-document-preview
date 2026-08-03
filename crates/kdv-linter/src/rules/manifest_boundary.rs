@@ -1,7 +1,7 @@
 use crate::diagnostics::{KdvLintError, Violation};
 use std::path::Path;
 
-use super::architecture::{LIB_CRATE, VIEWER_CRATE};
+use super::architecture::VIEWER_CRATE;
 
 pub(super) struct ManifestBoundaryRule;
 
@@ -9,9 +9,7 @@ impl ManifestBoundaryRule {
     pub(super) fn check(root: &Path) -> Result<Vec<Violation>, KdvLintError> {
         let mut violations = Vec::new();
         let viewer_manifest = root.join(VIEWER_CRATE).join("Cargo.toml");
-        let lib_manifest = root.join(LIB_CRATE).join("Cargo.toml");
         Self::check_neutral_manifest(&viewer_manifest, &mut violations)?;
-        Self::check_neutral_manifest(&lib_manifest, &mut violations)?;
         Ok(violations)
     }
 
@@ -21,7 +19,9 @@ impl ManifestBoundaryRule {
     ) -> Result<(), KdvLintError> {
         let manifest = ManifestReader::read(path)?;
         for dependency in ManifestReader::dependency_names(&manifest) {
-            if !Self::is_neutral_boundary_violation(&dependency) {
+            if !Self::is_neutral_boundary_violation(&dependency)
+                || Self::is_feature_scoped_host_dependency(&manifest, &dependency)
+            {
                 continue;
             }
             violations.push(Self::manifest_violation(path, dependency));
@@ -32,6 +32,31 @@ impl ManifestBoundaryRule {
     fn is_neutral_boundary_violation(dependency: &str) -> bool {
         UiDependencyPolicy::is_ui_dependency(dependency)
             || dependency == "katana-document-preview-egui"
+    }
+
+    fn is_feature_scoped_host_dependency(manifest: &toml::Value, dependency: &str) -> bool {
+        if dependency != "egui" {
+            return false;
+        }
+        let optional = manifest
+            .get("dependencies")
+            .and_then(toml::Value::as_table)
+            .and_then(|dependencies| dependencies.get(dependency))
+            .and_then(toml::Value::as_table)
+            .and_then(|dependency| dependency.get("optional"))
+            .and_then(toml::Value::as_bool)
+            == Some(true);
+        let feature_dependency = manifest
+            .get("features")
+            .and_then(toml::Value::as_table)
+            .and_then(|features| features.get("egui"))
+            .and_then(toml::Value::as_array)
+            .is_some_and(|members| {
+                members
+                    .iter()
+                    .any(|member| member.as_str() == Some("dep:egui"))
+            });
+        optional && feature_dependency
     }
 
     fn manifest_violation(path: &Path, dependency: String) -> Violation {

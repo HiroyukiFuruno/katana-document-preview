@@ -16,7 +16,7 @@
 - [x] macro / script非実行、external resource blocking、resource limits、crash isolationを検証している。証跡: test: `multi_format_office_preflight_contract` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/office2pdf.json`
 - [x] unsupported featureとfailureがtyped capability / diagnosticsとして追跡可能である
 - [x] strict coverage 100% / uncovered 0を閾値緩和・除外追加なしで満たしている
-- [ ] macOS / Linux / Windowsのrelease artifactとdependency supply chainを検証している
+- [x] macOS / Linux / Windowsのrelease artifactとdependency supply chainを検証している。証跡: test: GitHub Actions PR #31 macOS / Ubuntu / Windows jobs / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/31/checks`
 - [x] `rtk ./scripts/openspec validate v0-4-0-multi-format-viewer --strict --no-interactive` が通る
 - [x] `rtk just check` とKDV `v0.4.0` release gateが通る。証跡: test: `just-check` / test: `v0.4.0-release-check`
 
@@ -78,13 +78,13 @@
 ## 5. KUC bridge and conditional handoff
 
 - [x] 5.1 KUCの既存page viewport、virtualized list、image surface、slide controls、generic 2D gridを再利用する
-- [x] 5.2 KUC bridgeはneutral artifactとviewer stateだけを表示し、format semanticsを持たない
+- [x] 5.2 KDV document surfaceはKUCを内部利用し、format semanticsまたはKUC型をKatanAへ露出しない
 - [x] 5.3 XLSX profileが2次元virtualized gridを必要とする場合だけKUCの別OpenSpecを作成する
 - [x] 5.4 KUC `v0.3.0` 公開release完了後にregistry dependencyとして取り込む
-- [x] 5.5 private table/grid代替実装をKDVへ追加していないことを機械検証する。証跡: test: `kuc-adapter-boundary-check` / file: `scripts/kuc-adapter-boundary-check.sh`
+- [x] 5.5 private table/grid代替実装をKDVへ追加していないことを機械検証する。証跡: test: `document-surface-boundary-check` / file: `scripts/document-surface-boundary-check.sh`
 - [x] 5.6 PPTX chart fallbackはKDV typed diagnosticとして保持し、KUCにOffice semanticsを追加しない
-- [x] 5.7 `katana-document-viewer-kuc`をKDV coreと分離した公開crateにし、KatanAがformat別presentation変換を持たないようにする
-- [x] 5.8 公開adapterはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer-kuc/Cargo.toml` / file: `Cargo.toml` / test: `kuc-adapter-boundary-check`
+- [x] 5.7 KDV coreの`egui` optional featureがKUCを内部利用するdocument surfaceを所有し、KatanAがKUCへ直接依存またはformat別presentation変換を持たないようにする
+- [x] 5.8 公開featureはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `Cargo.toml` / test: `document-surface-boundary-check`
 - [x] 5.9 XLSX sheetのgrid-line visibilityをKUC typed render propsへ欠落なく渡す
 
 ---
@@ -96,14 +96,17 @@
 - [x] 6.3 `multi-format-viewer` release contractを実装し、current target `v0.4.x` を機械検証する。証跡: test: `release-contract-check` / file: `scripts/release/verify-release-contract.py`
 - [x] 6.4 PDF export paginationだけがdeferred `v0.5.0` であることを機械検証する。証跡: file: `openspec/release-targets.json` / file: `openspec/changes/v0-5-0-pdf-export-pagination/tasks.md`
 - [x] 6.5 strict coverage 100% / uncovered 0、AST lint、clippy、package verify、publish dry-runを通す
-- [ ] 6.6 macOS / Linux / Windowsのartifactとruntime dependencyを検証する
-- [ ] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する
+- [x] 6.6 macOS / Linux / Windowsのartifactとruntime dependencyを検証する。証跡: test: GitHub Actions PR #31 macOS / Ubuntu / Windows jobs / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/31/checks`
+- [x] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する。証跡: release-preflight run `30773465236`
+- [x] 6.8 `v0.4.0` core crateの公開と別presentation crateの403およびcross-layer依存を検出し、別crateを削除した`v0.4.1` KDV document surfaceへrelease contractを修正する
+- [x] 6.9 KDV/KUC混成crateの不存在、KUC型のpublic API非露出、`KatanA -> KDV -> KUC/KRR`の依存方向をrelease gateへ固定する。証跡: file: `scripts/document-surface-boundary-check.sh` / test: `document-surface-boundary-check`
+- [ ] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する
 
 ---
 
 ## 7. KatanA handoff
 
-- [ ] 7.1 KDV `v0.4.0` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
+- [ ] 7.1 KDV `v0.4.1` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
 

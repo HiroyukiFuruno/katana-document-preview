@@ -35,9 +35,10 @@ renderingをKDVへ移譲している。したがって、KDV側の古い「KRR�
 
 - KDV: format detection、engine adapter、neutral artifact、viewer state、diagnostics、
   navigation、zoom、fit、copy、open command。
-- KUC: neutral page/sheet/slide model、viewport、generic controlsの表示。
-- KDV KUC adapter crate: KDV neutral artifactからKUC modelへのformat-neutralな変換。
-- KatanA: file/URL intake、KDV commandのhost処理、adapter生成結果の表示。
+- KUC: neutral page/sheet/slide model、viewport、generic controls。
+- KDV: KUCを内部利用するdocument surface、host入力変換、page/grid表示。
+- KatanA: file/URL intake、KDV commandのhost処理、KDV document surfaceの表示。
+  KUCへ直接依存せず、KUC型を保持しない。
 - KRR: 変更なし。文書内diagram/mathを既存KRR APIで解決する場合だけ間接利用する。
 
 ### D2. Engine selectionを実装前gateにする
@@ -85,8 +86,17 @@ Microsoft Officeとのpixel identityを保証しない。formatごとに選択�
 - `ViewerCommand`: previous/next、index jump、zoom、fit、copy、open。
 
 engine固有型、KUC型、KatanA型をKDV public APIへ露出しない。
-KUC型を返すpresentation adapterはKDV coreと分離した
-`katana-document-viewer-kuc` crateで公開し、KDV coreのneutralityを維持する。
+既存の`katana-document-viewer` crateのoptional `egui` featureがKUCを内部利用し、
+KDV所有の`DocumentSurfaceFrame` / `DocumentSurfaceCommand` / `DocumentSurfaceHost`を
+公開する。KatanAはこのKDV APIだけを利用し、KUC dependency、`UiNode`、`GridAction`、
+page/grid painterを持たない。KDVとKUCを混成した別crateを作らない。
+
+### D4.1 v0.4.1 release correction
+
+`v0.4.0`ではcore crate公開後に別presentation crateのuploadが403となり、さらに
+KatanAがKDVを飛び越えてKUCへ直接依存する誤った境界が判明した。`v0.4.1`は別crateを
+削除し、KDV所有のdocument surfaceへ置き換える。release対象は既存KDV crateだけとし、
+dependency方向を`KatanA -> KDV -> KUC/KRR`へ固定する。
 
 ### D5. Feasibility評価後の候補状態
 
@@ -129,7 +139,7 @@ LibreOfficeがexternal relationshipを取得し、`office2pdf`の小さな高圧
 KUC v0.3.0のscroll area、split pane、virtualized list、image surface、slide control、
 generic 2D gridを再利用する。KDV側にprivate grid、cell geometry、hit-test、selection
 engineを作らず、KUC `GenericGrid` が返す可視座標だけをIronCalc workerへ要求する。
-公開KDV adapterはKUC coreをcrates.io `0.3.0`から取得する。非公開Storybook supportと
+公開KDV document surfaceはKUC coreをcrates.io `0.3.0`から取得する。非公開Storybook supportと
 その型を共有する開発用KUC coreだけは同一 `v0.3.0` tagから取得し、どちらの経路にも
 sibling path dependencyを使用しない。
 

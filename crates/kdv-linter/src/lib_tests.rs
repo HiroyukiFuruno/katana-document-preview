@@ -5,7 +5,7 @@ use crate::rules::test_helpers::FixtureWorkspace;
 fn lint_workspace_returns_rule_violations_for_valid_root() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/lib.rs",
+        "crates/katana-document-viewer/src/document_surface/leaked_entry.rs",
         "pub fn leaked_entry() {}",
     )?;
     let violations = KdvLinter::lint_workspace(&fixture.root)?;

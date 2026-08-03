@@ -1,13 +1,15 @@
-//! UI-independent document artifact and export foundation for KatanA.
+//! Document viewer runtime, presentation, and export foundation for KatanA.
 //!
 //! KDV receives KMM public DTOs, delegates supported rendering to KRR,
-//! and keeps viewer UI concerns outside this crate.
+//! and owns the document surface presented by host applications.
 
 pub mod artifact;
 pub mod backend;
 pub mod browser_session;
 pub mod cli_api;
 pub mod document;
+#[cfg(feature = "egui")]
+mod document_surface;
 mod emoji_text;
 pub mod evaluation;
 mod export_assets;
@@ -93,6 +95,12 @@ pub use document::{
     DocumentId, DocumentKind, DocumentMetadataView, DocumentModelError, DocumentOutline,
     DocumentOutlineItem, DocumentSnapshot, DocumentSnapshotFactory, DocumentSource, SourceKind,
     SourceRevision, SourceUri,
+};
+#[cfg(feature = "egui")]
+pub use document_surface::{
+    DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceCommand, DocumentSurfaceError,
+    DocumentSurfaceFrame, DocumentSurfaceHost, DocumentSurfaceHostOutput, DocumentSurfaceKind,
+    DocumentViewport, SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,

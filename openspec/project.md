@@ -8,9 +8,9 @@ KDVは、KMM公開データ型（public DTO）を入力にしたMarkdown viewer�
 
 ## Design Principles
 
-- `katana-document-viewer` package（neutral interface）は `egui` に依存しない。
-- `katana-document-viewer-kuc` crate がKUC実装を持つ。
-- KatanA は neutral interface とKUC実装の両方を dependency に取るが、interface 経由でしか呼ばない。
+- `katana-document-viewer` packageはartifact、viewer state、document surfaceを所有する。
+- optional `egui` featureだけがKUCとeguiを内部利用し、KUC型をpublic APIへ露出しない。
+- KatanAはKDVだけを直接dependencyに取り、KUCへ直接依存しない。
 - viewer表示とHTML/PDF/PNG/JPG書き出し（export）は同じ描画手順（render pipeline）を使う。
 - Mermaid / Draw.io / PlantUML / ZenUML互換入力 / 数式（math）のSVG生成はKRR（katana-render-runtime）を正本にする。対応backendがない場合はraw sourceとdiagnosticsを保持し、HTML/PDF/PNG/JPGで同じSVG契約を使う。
 - KDVはeditor-viewer同期制御を持たない。同期制御はKatanAが担い、KatanAがviewerまたはeditorへ命令する。
@@ -53,14 +53,14 @@ React / TypeScript / WebView は使用しない。KDVはKUC契約を消費する
 
 ### このrepoの責務
 
-`katana-document-preview` は未リリース・未取り込みのため、`-egui` implを正規路線にせず、`katana-document-viewer-kuc` を初期実装の前提にする。neutral interface package は `katana-document-viewer` とする。
-KatanA の `Cargo.toml` の impl crate 行を変えるだけで移行が完了する。
+`katana-document-viewer`のoptional `egui` host featureがKUCを内部利用する。
+feature無効時のengine/export APIはKUCとeguiへ依存しない。KatanAはKDVのdocument
+surfaceを表示するだけで、KUC型、grid action、presentation変換を所有しない。
 
 ### katana-document-viewer の移行
 
 ```
-katana-document-viewer          neutral interface
-katana-document-viewer-kuc      KUC viewer/export実装
+KatanA -> katana-document-viewer/egui -> katana-ui-core
 ```
 
 viewer はKUCのstyle / theme / font / state契約に従う。PDF / 画像 / 図表もKDVのartifact/export契約からKUC表示へ接続する。

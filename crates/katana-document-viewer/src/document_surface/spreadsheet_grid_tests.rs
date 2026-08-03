@@ -1,42 +1,45 @@
 use super::{
-    KucSpreadsheetGridAdapter,
+    SpreadsheetGridSurface,
     mapping::{font_size, ratio_basis_points, track_size},
     test_support::{sample_cell, sample_sheet},
 };
-use katana_document_viewer::{SpreadsheetCoordinate, SpreadsheetMergedCellArtifact};
-use katana_ui_core::molecule::{
-    GridAction, GridCoordinate, GridEvent, GridHorizontalAlignment, GridNavigationIntent,
-    GridVerticalAlignment, GridViewport,
+use crate::{
+    DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceError, DocumentViewport,
+    SpreadsheetCoordinate, SpreadsheetMergedCellArtifact,
 };
-use katana_ui_core::render_model::{UiGridValidationError, UiNode, UiNodeKind};
+use katana_ui_core::molecule::{
+    GridCoordinate, GridEvent, GridHorizontalAlignment, GridVerticalAlignment,
+};
+use katana_ui_core::render_model::{UiNode, UiNodeKind};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
-fn large_sheet_requests_only_the_kuc_visible_window_and_maps_cells() -> TestResult {
-    let mut adapter =
-        KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(360, 140).scroll(80, 0))?;
-    assert_eq!(3, adapter.sheet_index());
-    assert!(adapter.node().props().grid.show_grid_lines);
-    let request = adapter.materialization_request();
+fn large_sheet_requests_only_the_visible_window_and_maps_cells() -> TestResult {
+    let mut surface =
+        SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(360, 140))?;
+    let _ = surface.apply_command(DocumentGridCommand::ScrollTo { x: 80, y: 0 });
+    assert_eq!(3, surface.sheet_index());
+    assert!(surface.frame().node().props().grid.show_grid_lines);
+    let request = surface.materialization_request();
     assert!(request.len() < 100);
     assert!(request.contains(&SpreadsheetCoordinate::new(0, 0)));
     assert!(request.contains(&SpreadsheetCoordinate::new(2, 2)));
     assert!(!request.contains(&SpreadsheetCoordinate::new(2, 3)));
 
-    adapter.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(2, 2))])?;
-    assert_materialized_cell(&adapter.node())?;
+    surface.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(2, 2))])?;
+    assert_materialized_cell(surface.frame().node())?;
     Ok(())
 }
 
 #[test]
-fn sheet_grid_line_visibility_reaches_kuc_render_props() -> TestResult {
+fn sheet_grid_line_visibility_reaches_document_surface() -> TestResult {
     let mut sheet = sample_sheet();
     sheet.show_grid_lines = false;
 
-    let adapter = KucSpreadsheetGridAdapter::new(&sheet, GridViewport::new(320, 120))?;
+    let surface = SpreadsheetGridSurface::new(&sheet, DocumentViewport::new(320, 120))?;
 
-    assert!(!adapter.node().props().grid.show_grid_lines);
+    assert!(!surface.frame().node().props().grid.show_grid_lines);
     Ok(())
 }
 
@@ -53,7 +56,7 @@ fn assert_materialized_cell(node: &UiNode) -> TestResult {
         .iter()
         .find(|cell| cell.coordinate == GridCoordinate::new(2, 2))
     else {
-        return Err("materialized cell is missing from the KUC grid node".into());
+        return Err("materialized cell is missing from the document grid".into());
     };
     assert_eq!("42.0", cell.text);
     assert_eq!((1, 2), (cell.row_span, cell.column_span));
@@ -89,30 +92,31 @@ fn assert_materialized_appearance(cell: &katana_ui_core::render_model::UiGridCel
 }
 
 #[test]
-fn grid_actions_preserve_kuc_selection_and_scroll_contracts() -> TestResult {
-    let mut adapter = KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(320, 120))?;
+fn grid_commands_preserve_selection_and_scroll_contracts() -> TestResult {
+    let mut surface =
+        SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(320, 120))?;
     assert_eq!(
         Some(GridCoordinate::new(0, 0)),
-        adapter.grid().active_coordinate()
+        surface.grid.active_coordinate()
     );
     assert!(matches!(
-        adapter.apply_action(GridAction::Navigate {
-            intent: GridNavigationIntent::Down,
+        surface.apply_command(DocumentGridCommand::Navigate {
+            intent: DocumentGridNavigation::Down,
             extend: false,
         }),
         GridEvent::SelectionChanged(_)
     ));
     assert_eq!(
         Some(GridCoordinate::new(2, 0)),
-        adapter.grid().active_coordinate()
+        surface.grid.active_coordinate()
     );
     assert!(matches!(
-        adapter.apply_action(GridAction::ScrollTo { x: 96, y: 240 }),
+        surface.apply_command(DocumentGridCommand::ScrollTo { x: 96, y: 240 }),
         GridEvent::Scrolled(_)
     ));
-    let baseline = KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(320, 120))?
+    let baseline = SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(320, 120))?
         .materialization_request();
-    assert_ne!(adapter.materialization_request(), baseline);
+    assert_ne!(surface.materialization_request(), baseline);
     Ok(())
 }
 
@@ -125,18 +129,16 @@ fn invalid_merged_cells_and_unrequested_cells_remain_typed_errors() -> TestResul
         column_span: 2,
     }];
     assert!(matches!(
-        KucSpreadsheetGridAdapter::new(&invalid, GridViewport::new(320, 120)),
-        Err(super::KucSpreadsheetGridError::InvalidGrid(
-            UiGridValidationError::CellSpanCrossesFrozenBoundary { .. }
-        ))
+        SpreadsheetGridSurface::new(&invalid, DocumentViewport::new(320, 120)),
+        Err(DocumentSurfaceError::InvalidGrid { detail })
+            if detail.contains("CellSpanCrossesFrozenBoundary")
     ));
 
-    let mut adapter = KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(100, 40))?;
+    let mut surface = SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(100, 40))?;
     assert!(matches!(
-        adapter.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(999, 99))]),
-        Err(super::KucSpreadsheetGridError::InvalidGrid(
-            UiGridValidationError::CellOutsideMaterializedRange { .. }
-        ))
+        surface.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(999, 99))]),
+        Err(DocumentSurfaceError::InvalidGrid { detail })
+            if detail.contains("CellOutsideMaterializedRange")
     ));
     Ok(())
 }
@@ -151,9 +153,9 @@ fn empty_sheet_and_numeric_edge_cases_have_bounded_neutral_defaults() -> TestRes
     empty.frozen_rows = 0;
     empty.frozen_columns = 0;
     empty.merged_cells.clear();
-    let adapter = KucSpreadsheetGridAdapter::new(&empty, GridViewport::new(100, 100))?;
-    assert_eq!(None, adapter.grid().active_coordinate());
-    assert!(adapter.materialization_request().is_empty());
+    let surface = SpreadsheetGridSurface::new(&empty, DocumentViewport::new(100, 100))?;
+    assert_eq!(None, surface.grid.active_coordinate());
+    assert!(surface.materialization_request().is_empty());
 
     assert_eq!(1, track_size(f32::NAN));
     assert_eq!(1, track_size(-1.0));

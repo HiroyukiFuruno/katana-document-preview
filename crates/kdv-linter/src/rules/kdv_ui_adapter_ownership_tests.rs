@@ -3,12 +3,11 @@ use crate::diagnostics::KdvLintError;
 use crate::rules::test_helpers::FixtureWorkspace;
 
 #[test]
-fn allows_published_kuc_presentation_adapter_when_core_remains_neutral() -> Result<(), KdvLintError>
-{
+fn allows_kdv_owned_document_surface_without_a_mixed_crate() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/lib.rs",
-        "pub struct KucPresentationAdapter;",
+        "crates/katana-document-viewer/src/document_surface/mod.rs",
+        "pub struct DocumentSurfaceFrame;",
     )?;
 
     let violations = KdvUiAdapterOwnershipRule::check(&fixture.workspace()?)?;
@@ -18,11 +17,39 @@ fn allows_published_kuc_presentation_adapter_when_core_remains_neutral() -> Resu
 }
 
 #[test]
-fn flags_neutral_core_dependency_on_optional_presentation_adapter() -> Result<(), KdvLintError> {
+fn flags_forbidden_mixed_crate_and_core_dependency() -> Result<(), KdvLintError> {
+    let fixture = forbidden_mixed_crate_fixture()?;
+
+    let violations = KdvUiAdapterOwnershipRule::check(&fixture.workspace()?)?;
+
+    assert_eq!(
+        3,
+        violations
+            .iter()
+            .filter(|violation| { violation.rule == "no_cross_layer_document_viewer_crate" })
+            .count()
+    );
+    Ok(())
+}
+
+fn forbidden_mixed_crate_fixture() -> Result<FixtureWorkspace, KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_manifest(
         "crates/katana-document-viewer/Cargo.toml",
-        r#"
+        FORBIDDEN_MIXED_CRATE_MANIFEST,
+    )?;
+    fixture.write_rust_file(
+        "crates/katana-document-viewer/src/lib.rs",
+        "use katana_document_viewer_kuc::KucPageSurfaceAdapter;",
+    )?;
+    fixture.write_rust_file(
+        "crates/katana-document-viewer-kuc/src/lib.rs",
+        "pub struct ForbiddenMixedCrate;",
+    )?;
+    Ok(fixture)
+}
+
+const FORBIDDEN_MIXED_CRATE_MANIFEST: &str = r#"
 [package]
 name = "katana-document-viewer"
 version = "0.1.0"
@@ -30,24 +57,7 @@ edition = "2021"
 
 [dependencies]
 katana-document-viewer-kuc = "0.1"
-"#,
-    )?;
-    fixture.write_rust_file(
-        "crates/katana-document-viewer/src/lib.rs",
-        "use katana_document_viewer_kuc::KucPageSurfaceAdapter;",
-    )?;
-
-    let violations = KdvUiAdapterOwnershipRule::check(&fixture.workspace()?)?;
-
-    assert_eq!(
-        2,
-        violations
-            .iter()
-            .filter(|violation| { violation.rule == "no_kdv_ui_adapter_ownership" })
-            .count()
-    );
-    Ok(())
-}
+"#;
 
 #[test]
 fn flags_storybook_kuc_renderer_and_hit_wrappers() -> Result<(), KdvLintError> {

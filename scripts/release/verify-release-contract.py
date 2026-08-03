@@ -63,8 +63,12 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
-    "crates/katana-document-viewer-kuc/src/page_surface.rs",
-    "crates/katana-document-viewer-kuc/src/spreadsheet_grid.rs",
+    "crates/katana-document-viewer/src/document_surface/mod.rs",
+    "crates/katana-document-viewer/src/document_surface/page_surface.rs",
+    "crates/katana-document-viewer/src/document_surface/spreadsheet_grid.rs",
+    "crates/katana-document-viewer/src/document_surface/host.rs",
+    "crates/katana-document-viewer/src/document_surface/host/grid.rs",
+    "crates/katana-document-viewer/src/document_surface/host/page.rs",
 )
 MULTI_FORMAT_TESTS = (
     "crates/katana-document-viewer/tests/multi_format_office_preflight_contract.rs",
@@ -162,10 +166,15 @@ def lockfile_errors(lockfile: str) -> list[str]:
     return errors
 
 
-def multi_format_manifest_errors(root: Path, target_version: str) -> list[str]:
+def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
     workspace = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
+    members = workspace.get("workspace", {}).get("members", [])
     dependencies = workspace.get("workspace", {}).get("dependencies", {})
     errors: list[str] = []
+    if "crates/katana-document-viewer-kuc" in members or (
+        root / "crates/katana-document-viewer-kuc"
+    ).exists():
+        errors.append("the cross-layer katana-document-viewer-kuc crate must not exist.")
     for name, version in {**SELECTED_ENGINES, **LINUX_SANDBOX_DEPENDENCIES}.items():
         declared = dependencies.get(name)
         if dependency_version(declared) != f"={version}":
@@ -181,22 +190,27 @@ def multi_format_manifest_errors(root: Path, target_version: str) -> list[str]:
         if not isinstance(declared, dict) or declared.get("git") != expected_git or declared.get("tag") != "v0.3.0":
             errors.append(f"development-only {name} must resolve from KUC tag v0.3.0.")
 
-    adapter = tomllib.loads(
-        (root / "crates/katana-document-viewer-kuc/Cargo.toml").read_text(encoding="utf-8")
+    core_manifest = tomllib.loads(
+        (root / "crates/katana-document-viewer/Cargo.toml").read_text(encoding="utf-8")
     )
-    adapter_dependencies = adapter.get("dependencies", {})
-    adapter_kuc = adapter_dependencies.get("katana-ui-core")
-    if adapter_kuc != KUC_VERSION:
-        errors.append("published KDV KUC adapter must depend on crates.io katana-ui-core 0.3.0.")
-    core = adapter_dependencies.get("katana-document-viewer")
-    expected_version = f"={target_version.removeprefix('v')}"
-    if not isinstance(core, dict) or core.get("version") != expected_version:
-        errors.append(
-            "katana-document-viewer-kuc must pin its KDV core dependency to "
-            f"{expected_version}."
-        )
-    if isinstance(core, dict) and core.get("path") != "../katana-document-viewer":
-        errors.append("KDV adapter workspace dependency must point only to its in-repo core crate.")
+    core_dependencies = core_manifest.get("dependencies", {})
+    core_kuc = core_dependencies.get("katana-ui-core")
+    if not isinstance(core_kuc, dict) or core_kuc.get("version") != KUC_VERSION:
+        errors.append("KDV document surface must depend on crates.io katana-ui-core 0.3.0.")
+    elif core_kuc.get("optional") is not True or any(
+        key in core_kuc for key in ("path", "git")
+    ):
+        errors.append("KDV document surface KUC dependency must be optional and registry-only.")
+    core_egui = core_dependencies.get("egui")
+    if not isinstance(core_egui, dict) or core_egui.get("version") != "0.35":
+        errors.append("KDV document surface must use egui 0.35 through its host feature.")
+    elif core_egui.get("optional") is not True or any(
+        key in core_egui for key in ("path", "git")
+    ):
+        errors.append("KDV egui host dependency must be optional and registry-only.")
+    features = core_manifest.get("features", {})
+    if features.get("egui") != ["dep:egui", "dep:katana-ui-core"]:
+        errors.append("KDV must own KUC presentation behind its egui feature.")
     return errors
 
 
@@ -253,10 +267,18 @@ def multi_format_source_errors(root: Path) -> list[str]:
         "NetPolicy::Deny",
         "GenericGrid",
         "ImageSurface",
+        "DocumentSurfaceFrame",
+        "DocumentSurfaceHost",
+        "SpreadsheetGridSurface",
     )
     missing = [token for token in required if token not in production]
     if missing:
         errors.append("multi-format implementation is incomplete: " + ", ".join(missing) + ".")
+    public_surface = (root / "crates/katana-document-viewer/src/lib.rs").read_text(
+        encoding="utf-8"
+    )
+    if "katana_ui_core" in public_surface or "katana-document-viewer-kuc" in public_surface:
+        errors.append("KDV public API must not expose KUC types or the forbidden cross-layer crate.")
     return errors
 
 
@@ -312,8 +334,9 @@ def justfile_errors(justfile: str) -> list[str]:
         "verify-release-contract.py --target-version \"{{TAG}}\"",
         "{{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked",
         "release-verify: release-contract-check check coverage",
-        'COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer -p katana-document-viewer-kuc"',
-        "package -p katana-document-viewer-kuc --locked --allow-dirty --list",
+        'COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer"',
+        "document-surface-boundary-check:",
+        "scripts/document-surface-boundary-check.sh",
     )
     missing = [token for token in required if token not in justfile]
     if not missing:
@@ -325,16 +348,16 @@ def staged_publish_errors(script: str) -> list[str]:
     ordered = (
         "cargo publish -p katana-document-viewer --locked",
         "wait_until_published katana-document-viewer",
-        "cargo publish -p katana-document-viewer-kuc --dry-run --locked",
-        "cargo publish -p katana-document-viewer-kuc --locked",
-        "wait_until_published katana-document-viewer-kuc",
     )
     positions = [script.find(token) for token in ordered]
-    if all(position >= 0 for position in positions) and positions == sorted(positions):
+    publishes_adapter = "cargo publish -p katana-document-viewer-kuc" in script
+    if (
+        all(position >= 0 for position in positions)
+        and positions == sorted(positions)
+        and not publishes_adapter
+    ):
         return []
-    return [
-        "publish script must publish and await KDV core before the adapter dry-run and publish."
-    ]
+    return ["publish script must publish only the KDV core crate and await its registry entry."]
 
 
 def release_workflow_errors(preflight: str, release: str) -> list[str]:
@@ -452,13 +475,13 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
         (
             "cargo publish -p katana-document-viewer --locked",
             "wait_until_published katana-document-viewer",
-            "cargo publish -p katana-document-viewer-kuc --dry-run --locked",
-            "cargo publish -p katana-document-viewer-kuc --locked",
-            "wait_until_published katana-document-viewer-kuc",
         )
     )
     assert not staged_publish_errors(staged_publish)
-    assert staged_publish_errors("\n".join(reversed(staged_publish.splitlines())))
+    assert staged_publish_errors("wait_until_published katana-document-viewer")
+    assert staged_publish_errors(
+        staged_publish + "\ncargo publish -p katana-document-viewer-kuc --locked"
+    )
 
 
 def main() -> int:

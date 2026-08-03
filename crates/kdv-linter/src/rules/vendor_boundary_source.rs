@@ -4,7 +4,7 @@ use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 
-use super::vendor_boundary::{VendorScope, is_allowed_ref, is_vendor_ref};
+use super::vendor_boundary::{VendorScope, is_allowed_source_ref, is_vendor_ref};
 
 pub(super) struct VendorBoundarySourceRule;
 
@@ -19,9 +19,8 @@ impl VendorBoundarySourceRule {
     }
 }
 
-const SOURCE_SCOPES: [VendorScope; 3] = [
+const SOURCE_SCOPES: [VendorScope; 2] = [
     VendorScope::core("crates/katana-document-viewer/src"),
-    VendorScope::core("crates/katana-document-viewer-kuc/src"),
     VendorScope::core("tools/kdv-storybook/src"),
 ];
 
@@ -86,7 +85,7 @@ impl VendorSourceVisitor {
     }
 
     fn check_ref(&mut self, name: &str, span: proc_macro2::Span) {
-        if !is_vendor_ref(name) || is_allowed_ref(self.scope, name) {
+        if !is_vendor_ref(name) || is_allowed_source_ref(self.scope, &self.path, name) {
             return;
         }
         let location = SpanOps::start(span);

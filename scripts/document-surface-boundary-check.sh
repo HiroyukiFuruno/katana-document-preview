@@ -18,12 +18,11 @@ cd "$repo_root"
 
 packages=(
   katana-document-viewer
-  katana-document-viewer-kuc
   kdv-storybook
 )
 
 vendor_pattern='(^|[[:space:]├└─│])((eframe|egui|gpui|floem|floem_reactive|floem_renderer|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui))[[:space:]]'
-source_pattern='egui|gpui|floem|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui'
+source_pattern='gpui|floem|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui'
 storybook_sidebar="$repo_root/tools/kdv-storybook/src/sidebar.rs"
 storybook_sidebar_sources=(
   "$repo_root/tools/kdv-storybook/src/sidebar.rs"
@@ -63,8 +62,8 @@ neutral_package_roots=(
   "$repo_root/tools/kdv-storybook"
 )
 neutral_extra_roots=()
-kuc_adapter_manifest="$repo_root/crates/katana-document-viewer-kuc/Cargo.toml"
-kuc_adapter_source="$repo_root/crates/katana-document-viewer-kuc/src"
+document_viewer_manifest="$repo_root/crates/katana-document-viewer/Cargo.toml"
+document_surface_source="$repo_root/crates/katana-document-viewer/src/document_surface"
 kuc_workspace_manifest="$repo_root/Cargo.toml"
 
 resolve_cargo_package_root() {
@@ -72,7 +71,7 @@ resolve_cargo_package_root() {
   local source_prefix="$2"
   if [[ -z "$metadata_file" ]]; then
     metadata_file="$(mktemp)"
-    "$cargo_bin" metadata --locked --format-version 1 > "$metadata_file"
+    "$cargo_bin" metadata --locked --format-version 1 --all-features > "$metadata_file"
   fi
   python3 - "$package" "$source_prefix" "$metadata_file" <<'PY'
 import json
@@ -93,6 +92,47 @@ sys.exit(1)
 PY
 }
 
+resolve_cargo_package_tree() {
+  local package="$1"
+  local source_prefix="$2"
+  if [[ -z "$metadata_file" ]]; then
+    metadata_file="$(mktemp)"
+    "$cargo_bin" metadata --locked --format-version 1 --all-features > "$metadata_file"
+  fi
+  python3 - "$package" "$source_prefix" "$metadata_file" <<'PY'
+import json
+import sys
+
+package_name = sys.argv[1]
+source_prefix = sys.argv[2]
+metadata_path = sys.argv[3]
+with open(metadata_path, encoding="utf-8") as metadata_file:
+    metadata = json.load(metadata_file)
+
+packages = {package["id"]: package for package in metadata["packages"]}
+roots = [
+    package["id"]
+    for package in metadata["packages"]
+    if package["name"] == package_name
+    and (package.get("source") or "").startswith(source_prefix)
+]
+if len(roots) != 1:
+    sys.exit(1)
+
+nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+pending = roots
+visited = set()
+while pending:
+    package_id = pending.pop()
+    if package_id in visited:
+        continue
+    visited.add(package_id)
+    package = packages[package_id]
+    print(f'{package["name"]} v{package["version"]}')
+    pending.extend(dependency["pkg"] for dependency in nodes[package_id]["deps"])
+PY
+}
+
 check_kuc_core_source_boundary() {
   local label="$1"
   local root="$2"
@@ -104,12 +144,12 @@ check_kuc_core_source_boundary() {
   fi
 
   if grep -R -n -E "$source_pattern" "${source_paths[@]}"; then
-    echo "kuc-adapter-boundary-check: vendor runtime source reference leaked into $label" >&2
+    echo "document-surface-boundary-check: vendor runtime source reference leaked into $label" >&2
     exit 1
   fi
 
   if grep -R -n -E "$kuc_forbidden_viewer_semantic_pattern" "${semantic_paths[@]}"; then
-    echo "kuc-adapter-boundary-check: viewer media semantics leaked into $label" >&2
+    echo "document-surface-boundary-check: viewer media semantics leaked into $label" >&2
     exit 1
   fi
 }
@@ -134,27 +174,27 @@ check_file_tree_facade_contract() {
   fi
 
   if ! grep -q 'TreeView::new' "${module_files[@]}"; then
-    echo "kuc-adapter-boundary-check: FileTree in $label must build KUC TreeView" >&2
+    echo "document-surface-boundary-check: FileTree in $label must build KUC TreeView" >&2
     exit 1
   fi
 
   if ! grep -q 'TreeViewHitTestInput' "${module_files[@]}"; then
-    echo "kuc-adapter-boundary-check: FileTree in $label must delegate hit-test to KUC TreeView" >&2
+    echo "document-surface-boundary-check: FileTree in $label must delegate hit-test to KUC TreeView" >&2
     exit 1
   fi
 
   if ! grep -q 'TreeViewAction::SelectNode' "${module_files[@]}"; then
-    echo "kuc-adapter-boundary-check: FileTree in $label must map KUC TreeView selection action" >&2
+    echo "document-surface-boundary-check: FileTree in $label must map KUC TreeView selection action" >&2
     exit 1
   fi
 
   if ! grep -q 'TreeViewAction::ToggleNode' "${module_files[@]}"; then
-    echo "kuc-adapter-boundary-check: FileTree in $label must map KUC TreeView directory toggle action" >&2
+    echo "document-surface-boundary-check: FileTree in $label must map KUC TreeView directory toggle action" >&2
     exit 1
   fi
 
   if grep -n -E 'UiNodeKind::(Text|Row|Column)|Text::new|Row::new|Column::new' "${module_files[@]}"; then
-    echo "kuc-adapter-boundary-check: FileTree in $label must stay a TreeView facade, not build a separate row UI" >&2
+    echo "document-surface-boundary-check: FileTree in $label must stay a TreeView facade, not build a separate row UI" >&2
     exit 1
   fi
 }
@@ -169,7 +209,7 @@ check_file_tree_facade_contract_for_root() {
   fi
 
   if ! grep -R -q 'pub struct FileTree' "$root/src" 2>/dev/null; then
-    echo "kuc-adapter-boundary-check: FileTree type is missing in $label" >&2
+    echo "document-surface-boundary-check: FileTree type is missing in $label" >&2
     exit 1
   fi
 
@@ -178,7 +218,7 @@ check_file_tree_facade_contract_for_root() {
   done < <(grep -R -l -E '^impl[[:space:]]+FileTree[[:space:]]*\{' "$root/src" 2>/dev/null || true)
 
   if [[ ${#candidates[@]} -eq 0 ]]; then
-    echo "kuc-adapter-boundary-check: FileTree implementation is missing in $label" >&2
+    echo "document-surface-boundary-check: FileTree implementation is missing in $label" >&2
     exit 1
   fi
 
@@ -190,38 +230,48 @@ check_file_tree_facade_contract_for_root() {
 for package in "${packages[@]}"; do
   tree="$("$cargo_bin" tree -p "$package" --locked)"
   if printf '%s\n' "$tree" | grep -E "$vendor_pattern"; then
-    echo "kuc-adapter-boundary-check: vendor runtime dependency leaked into $package" >&2
+    echo "document-surface-boundary-check: vendor runtime dependency leaked into $package" >&2
     exit 1
   fi
 done
 
-if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$kuc_adapter_manifest"; then
-  echo "kuc-adapter-boundary-check: published KDV adapter must use crates.io KUC 0.3.0" >&2
+if ! grep -q '^katana-ui-core = { version = "0[.]3[.]0", optional = true }$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV document surface must use optional crates.io KUC 0.3.0" >&2
+  exit 1
+fi
+
+if ! grep -q '^egui = \["dep:egui", "dep:katana-ui-core"\]$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV egui feature must own its KUC presentation dependency" >&2
+  exit 1
+fi
+
+if [[ -e "$repo_root/crates/katana-document-viewer-kuc" ]] || grep -q '"crates/katana-document-viewer-kuc"' "$kuc_workspace_manifest"; then
+  echo "document-surface-boundary-check: the cross-layer katana-document-viewer-kuc crate is forbidden" >&2
   exit 1
 fi
 
 if ! grep -q 'katana-ui-core.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest"; then
-  echo "kuc-adapter-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
+  echo "document-surface-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
   exit 1
 fi
 
-if grep -n -E 'katana-ui-core.*path[[:space:]]*=' "$kuc_workspace_manifest" "$kuc_adapter_manifest"; then
-  echo "kuc-adapter-boundary-check: KDV must not use a sibling KUC path dependency" >&2
+if grep -n -E 'katana-ui-core.*path[[:space:]]*=' "$kuc_workspace_manifest" "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV must not use a sibling KUC path dependency" >&2
   exit 1
 fi
 
-if ! grep -R -q 'GenericGrid' "$kuc_adapter_source" || ! grep -R -q 'ImageSurface' "$kuc_adapter_source"; then
-  echo "kuc-adapter-boundary-check: published KDV adapter must reuse KUC grid and image surface" >&2
+if ! grep -R -q 'GenericGrid' "$document_surface_source" || ! grep -R -q 'ImageSurface' "$document_surface_source"; then
+  echo "document-surface-boundary-check: KDV document surface must reuse KUC grid and image surface" >&2
   exit 1
 fi
 
-if grep -n -E '^(hayro|ironcalc|office2pdf|quick-xml|xmltree|zip)[[:space:]]*=' "$kuc_adapter_manifest"; then
-  echo "kuc-adapter-boundary-check: format engines must remain in neutral KDV core" >&2
+if grep -R -n -E 'use[[:space:]]+(hayro|ironcalc|office2pdf|quick_xml|xmltree|zip)' "$document_surface_source"; then
+  echo "document-surface-boundary-check: format engines must remain outside the KDV presentation surface" >&2
   exit 1
 fi
 
-if grep -R -n -E 'struct[[:space:]]+Grid(Cell|Layout|Viewport|Selection|HitTest)|fn[[:space:]]+(hit_test|plan_grid_layout|navigate_selection)' "$kuc_adapter_source"; then
-  echo "kuc-adapter-boundary-check: KDV adapter must not duplicate KUC grid geometry or interaction" >&2
+if grep -R -n -E 'struct[[:space:]]+Grid(Cell|Layout|Viewport|Selection|HitTest)|fn[[:space:]]+(hit_test|plan_grid_layout|navigate_selection)' "$document_surface_source"; then
+  echo "document-surface-boundary-check: KDV document surface must not duplicate KUC grid geometry or interaction" >&2
   exit 1
 fi
 
@@ -234,13 +284,13 @@ else
 fi
 
 if [[ ! -f "$kuc_core_source_root/Cargo.toml" || ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
-  echo "kuc-adapter-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
+  echo "document-surface-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
   exit 1
 fi
 
-kuc_tree="$("$cargo_bin" tree -p 'registry+https://github.com/rust-lang/crates.io-index#katana-ui-core@0.3.0' --locked)"
+kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+)"
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
-  echo "kuc-adapter-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
+  echo "document-surface-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
   exit 1
 fi
 
@@ -250,7 +300,7 @@ check_file_tree_facade_contract_for_root "katana-ui-core" "$kuc_core_source_root
 kuc_storybook_lib="$kuc_storybook_source_root/src/lib.rs"
 kuc_storybook_visual_mod="$kuc_storybook_source_root/src/visual/mod.rs"
 if grep -n -E 'present_frame,|present_frame[[:space:]]*}' "$kuc_storybook_lib" "$kuc_storybook_visual_mod"; then
-  echo "kuc-adapter-boundary-check: raw frame presentation must not be exported; use present_frame_for_window" >&2
+  echo "document-surface-boundary-check: raw frame presentation must not be exported; use present_frame_for_window" >&2
   exit 1
 fi
 
@@ -276,48 +326,68 @@ matches="$(
     \( -name '*.rs' -o -name 'Cargo.toml' \) \
     ! -name '*tests.rs' \
     ! -path '*/tests/*' \
+    ! -path '*/document_surface/*' \
     -print0 \
     | xargs -0 grep -n -E "$source_pattern" || true
 )"
 
 if [[ -n "$matches" ]]; then
   printf '%s\n' "$matches"
-  echo "kuc-adapter-boundary-check: vendor runtime source reference leaked into KDV/KUC neutral implementation" >&2
+  echo "document-surface-boundary-check: vendor runtime source reference leaked into KDV/KUC neutral implementation" >&2
+  exit 1
+fi
+
+egui_matches="$(
+  find "${neutral_source_roots[@]}" "${neutral_extra_roots[@]}" \
+    -type f \
+    -name '*.rs' \
+    ! -name '*tests.rs' \
+    ! -path '*/tests/*' \
+    ! -path '*/document_surface/*' \
+    -print0 \
+    | xargs -0 grep -n -E 'egui' \
+    | grep -v -E '/katana-document-viewer/src/lib.rs:[0-9]+:#\[cfg\(feature = "egui"\)\]$' \
+    || true
+)"
+
+if [[ -n "$egui_matches" ]]; then
+  printf '%s\n' "$egui_matches"
+  echo "document-surface-boundary-check: egui must remain private to the KDV document surface" >&2
   exit 1
 fi
 
 if ! grep -q 'FileTree::render' "$storybook_sidebar"; then
-  echo "kuc-adapter-boundary-check: Storybook sidebar must render file selection through KUC FileTree" >&2
+  echo "document-surface-boundary-check: Storybook sidebar must render file selection through KUC FileTree" >&2
   exit 1
 fi
 
 if ! grep -R -q 'SettingsList::new' "${storybook_sidebar_sources[@]}"; then
-  echo "kuc-adapter-boundary-check: Storybook sidebar must render settings through KUC SettingsList" >&2
+  echo "document-surface-boundary-check: Storybook sidebar must render settings through KUC SettingsList" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_tree_pattern" "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: vendor or independent tree UI leaked into vendor-free Storybook" >&2
+  echo "document-surface-boundary-check: vendor or independent tree UI leaked into vendor-free Storybook" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_toggle_pattern" "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: Storybook settings toggles must go through KUC SettingsListAction" >&2
+  echo "document-surface-boundary-check: Storybook settings toggles must go through KUC SettingsListAction" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_settings_hit_pattern" "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: Storybook settings hit-test must go through KUC SettingsList::hit_test" >&2
+  echo "document-surface-boundary-check: Storybook settings hit-test must go through KUC SettingsList::hit_test" >&2
   exit 1
 fi
 
 if [[ -e "$storybook_source/settings_action_value.rs" ]]; then
-  echo "kuc-adapter-boundary-check: Storybook settings value conversion must not live in a detached helper that bypasses KUC SettingsList actions" >&2
+  echo "document-surface-boundary-check: Storybook settings value conversion must not live in a detached helper that bypasses KUC SettingsList actions" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_direct_host_action_pattern" "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: Storybook host actions must go through KUC UiHostActionPlan" >&2
+  echo "document-surface-boundary-check: Storybook host actions must go through KUC UiHostActionPlan" >&2
   exit 1
 fi
 
@@ -333,24 +403,24 @@ window_presentation_matches="$(
 
 if [[ -n "$window_presentation_matches" ]]; then
   printf '%s\n' "$window_presentation_matches"
-  echo "kuc-adapter-boundary-check: Storybook window presentation must go through KUC present_frame_for_window" >&2
+  echo "document-surface-boundary-check: Storybook window presentation must go through KUC present_frame_for_window" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_media_hit_pattern" "$storybook_source"/mouse_media*.rs; then
-  echo "kuc-adapter-boundary-check: Storybook media hit-test must go through KUC Storybook renderer hit rects" >&2
+  echo "document-surface-boundary-check: Storybook media hit-test must go through KUC Storybook renderer hit rects" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_kuc_media_boundary_pattern" "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: Storybook must not depend on KUC viewer media control semantics" >&2
+  echo "document-surface-boundary-check: Storybook must not depend on KUC viewer media control semantics" >&2
   exit 1
 fi
 
 if grep -R -n -E "$storybook_forbidden_state_action_pattern" \
   "$storybook_source"/window_command.rs \
   "$storybook_source"/mouse_task.rs; then
-  echo "kuc-adapter-boundary-check: Storybook task actions must go through KUC TaskControlAction" >&2
+  echo "document-surface-boundary-check: Storybook task actions must go through KUC TaskControlAction" >&2
   exit 1
 fi
 
@@ -358,24 +428,24 @@ if grep -n -E "$storybook_forbidden_mouse_host_geometry_pattern" \
   "$storybook_source"/mouse.rs \
   "$storybook_source"/mouse_cursor.rs \
   "$storybook_source"/window_accordion.rs; then
-  echo "kuc-adapter-boundary-check: Storybook link/accordion hover and click must use KUC host action hit rects" >&2
+  echo "document-surface-boundary-check: Storybook link/accordion hover and click must use KUC host action hit rects" >&2
   exit 1
 fi
 
 if grep -n -E "$storybook_forbidden_task_host_geometry_pattern" \
   "$storybook_source"/mouse_task.rs; then
-  echo "kuc-adapter-boundary-check: Storybook task hit-test must use KUC host action hit rects and KDV task state" >&2
+  echo "document-surface-boundary-check: Storybook task hit-test must use KUC host action hit rects and KDV task state" >&2
   exit 1
 fi
 
 if grep -n -E "$storybook_forbidden_task_style_collection_pattern" \
   "$storybook_source"/preview_interaction_command_support.rs; then
-  echo "kuc-adapter-boundary-check: Storybook task action collection must use KUC host action plans instead of style classes" >&2
+  echo "document-surface-boundary-check: Storybook task action collection must use KUC host action plans instead of style classes" >&2
   exit 1
 fi
 
 if [[ -d "$storybook_source/kuc_bridge" ]]; then
-  echo "kuc-adapter-boundary-check: KDV Storybook must not own kuc_bridge; use KUC document_viewer host contract" >&2
+  echo "document-surface-boundary-check: KDV Storybook must not own kuc_bridge; use KUC document_viewer host contract" >&2
   exit 1
 fi
 
@@ -388,7 +458,7 @@ core_adapter_reference_matches="$(
 
 if [[ -n "$core_adapter_reference_matches" ]]; then
   printf '%s\n' "$core_adapter_reference_matches"
-  echo "kuc-adapter-boundary-check: neutral KDV core must not depend on its optional KUC presentation adapter" >&2
+  echo "document-surface-boundary-check: KDV must not reference the forbidden cross-layer crate" >&2
   exit 1
 fi
 
@@ -405,7 +475,7 @@ duplicate_viewer_media_prefix_matches="$(
 
 if [[ -n "$duplicate_viewer_media_prefix_matches" ]]; then
   printf '%s\n' "$duplicate_viewer_media_prefix_matches"
-  echo "kuc-adapter-boundary-check: viewer media action prefix must be owned by KDV core ViewerMediaControlAction" >&2
+  echo "document-surface-boundary-check: viewer media action prefix must be owned by KDV core ViewerMediaControlAction" >&2
   exit 1
 fi
 
@@ -423,7 +493,7 @@ if [[ -d "$kuc_document_viewer_source" ]]; then
 
   if [[ -n "$kuc_document_viewer_manual_interactive_matches" ]]; then
     printf '%s\n' "$kuc_document_viewer_manual_interactive_matches"
-    echo "kuc-adapter-boundary-check: KUC document viewer projection must use KUC interactive presets instead of manual pointer cursor" >&2
+    echo "document-surface-boundary-check: KUC document viewer projection must use KUC interactive presets instead of manual pointer cursor" >&2
     exit 1
   fi
 
@@ -437,17 +507,17 @@ if [[ -d "$kuc_document_viewer_source" ]]; then
 
   if [[ -n "$kuc_document_viewer_media_contract_matches" ]]; then
     printf '%s\n' "$kuc_document_viewer_media_contract_matches"
-    echo "kuc-adapter-boundary-check: viewer media control commands must be owned by KDV core ViewerMediaControlSet" >&2
+    echo "document-surface-boundary-check: viewer media control commands must be owned by KDV core ViewerMediaControlSet" >&2
     exit 1
   fi
 
   if ! grep -q 'variant(UiVariant::Icon)' \
     "$kuc_document_viewer_source/node_factory_media_diagram_controls.rs"; then
-    echo "kuc-adapter-boundary-check: diagram media controls must use KUC icon variant transparent button contract" >&2
+    echo "document-surface-boundary-check: diagram media controls must use KUC icon variant transparent button contract" >&2
     exit 1
   fi
 else
-  echo "kuc-adapter-boundary-check: KUC document_viewer projection source is missing" >&2
+  echo "document-surface-boundary-check: KUC document_viewer projection source is missing" >&2
   exit 1
 fi
 
@@ -464,7 +534,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_kdv_overlay_matches" ]]; then
     printf '%s\n' "$kuc_storybook_kdv_overlay_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook renderer must use generic absolute overlay layout, not KDV diagram style classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook renderer must use generic absolute overlay layout, not KDV diagram style classes" >&2
     exit 1
   fi
 
@@ -479,7 +549,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_viewer_media_action_matches" ]]; then
     printf '%s\n' "$kuc_storybook_viewer_media_action_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook renderer tests must treat host action ids as opaque, not KDV viewer media commands" >&2
+    echo "document-surface-boundary-check: KUC Storybook renderer tests must treat host action ids as opaque, not KDV viewer media commands" >&2
     exit 1
   fi
 
@@ -494,7 +564,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_document_rule_matches" ]]; then
     printf '%s\n' "$kuc_storybook_document_rule_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook divider rendering must use generic Divider props, not KDV document rule classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook divider rendering must use generic Divider props, not KDV document rule classes" >&2
     exit 1
   fi
 
@@ -509,7 +579,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_document_media_matches" ]]; then
     printf '%s\n' "$kuc_storybook_document_media_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook media frame rendering must use generic MediaFrame role, not KDV document media classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook media frame rendering must use generic MediaFrame role, not KDV document media classes" >&2
     exit 1
   fi
 
@@ -524,7 +594,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_code_frame_matches" ]]; then
     printf '%s\n' "$kuc_storybook_code_frame_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook code overlay rendering must use generic absolute overlay layout, not KDV code frame classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook code overlay rendering must use generic absolute overlay layout, not KDV code frame classes" >&2
     exit 1
   fi
 
@@ -539,7 +609,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_alert_matches" ]]; then
     printf '%s\n' "$kuc_storybook_alert_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook alert rendering must use generic tone/theme token props, not KDV alert classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook alert rendering must use generic tone/theme token props, not KDV alert classes" >&2
     exit 1
   fi
 
@@ -554,7 +624,7 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_list_matches" ]]; then
     printf '%s\n' "$kuc_storybook_list_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook list rendering must use generic margin/role props, not KDV list classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook list rendering must use generic margin/role props, not KDV list classes" >&2
     exit 1
   fi
 
@@ -569,17 +639,17 @@ if [[ -d "$kuc_storybook_visual_root" ]]; then
 
   if [[ -n "$kuc_storybook_quote_heading_matches" ]]; then
     printf '%s\n' "$kuc_storybook_quote_heading_matches"
-    echo "kuc-adapter-boundary-check: KUC Storybook quote/heading rendering must use generic margin/padding/border props, not KDV document classes" >&2
+    echo "document-surface-boundary-check: KUC Storybook quote/heading rendering must use generic margin/padding/border props, not KDV document classes" >&2
     exit 1
   fi
 fi
 
 if ! grep -R -q 'SettingsListAction::UpdateField' "$storybook_source"; then
-  echo "kuc-adapter-boundary-check: Storybook settings actions must use KUC SettingsListAction::UpdateField" >&2
+  echo "document-surface-boundary-check: Storybook settings actions must use KUC SettingsListAction::UpdateField" >&2
   exit 1
 fi
 
 "$cargo_bin" test -p kdv-linter --locked storybook_contract_flags_manual_hit_test_and_action_synthesis -- --test-threads=1
 "$cargo_bin" test -p kdv-linter --locked storybook_contract_ignores_window_presentation_terms_in_tests -- --test-threads=1
 
-echo "kuc-adapter-boundary-check: ok"
+echo "document-surface-boundary-check: ok"

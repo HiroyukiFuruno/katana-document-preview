@@ -28,7 +28,7 @@ impl RenderingContractScope {
     fn contains(path: &Path) -> bool {
         let text = path.to_string_lossy();
         text.contains("crates/katana-document-viewer/src/viewer/")
-            || text.contains("crates/katana-document-viewer-kuc/src/")
+            || text.contains("crates/katana-document-viewer/src/document_surface/")
     }
 }
 

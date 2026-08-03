@@ -55,8 +55,8 @@ PDF export paginationは独立したKDV `v0.5.0` changeへ繰り延べる。
 ## Impact
 
 - `crates/katana-document-viewer/` — format adapter、neutral artifact、viewer state、diagnostics
-- KUC bridge — page/sheet/slide viewportとgeneric controls
+- `katana-document-viewer`のdocument surface — KUCを内部利用するpage/grid host API
 - `katana-ui-core` — 公開済みv0.3.0契約のgeneric 2D grid-line visibilityと既存surface/controlを利用する
-- `katana-document-viewer-kuc` — KDV neutral artifactをKUC表示modelへ変換する公開adapter crateを追加する
-- KatanA — published KDVを利用するthin host integration
+- `katana-document-viewer`の`egui` feature — KUC型を露出しないKDV所有のdocument surfaceを追加する
+- KatanA — published KDVだけを直接利用するthin host integration。KUCへ直接依存しない
 - `katana-render-runtime` — 変更なし

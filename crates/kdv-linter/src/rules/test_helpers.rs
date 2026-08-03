@@ -11,11 +11,10 @@ use std::{
 };
 
 #[cfg(test)]
-const CRATE_DIRS: [&str; 6] = [
+const CRATE_DIRS: [&str; 5] = [
     "crates/kdv-linter/src",
     "crates/kdv-linter/tests",
     "crates/katana-document-viewer/src",
-    "crates/katana-document-viewer-kuc/src",
     "crates/katana-ui-core/src",
     "crates/katana-ui-core/tests",
 ];
@@ -71,7 +70,6 @@ impl FixtureWorkspace {
             ensure_directory(&self.root.join(dir))?;
         }
         self.write_default_manifest("crates/katana-document-viewer/Cargo.toml")?;
-        self.write_default_manifest("crates/katana-document-viewer-kuc/Cargo.toml")?;
         Ok(self)
     }
 

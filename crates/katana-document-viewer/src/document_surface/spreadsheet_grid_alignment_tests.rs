@@ -1,24 +1,25 @@
 use super::{
-    KucSpreadsheetGridAdapter,
+    SpreadsheetGridSurface,
     test_support::{sample_cell, sample_sheet},
 };
-use katana_document_viewer::{
-    SpreadsheetCoordinate, SpreadsheetHorizontalAlignment, SpreadsheetVerticalAlignment,
+use crate::{
+    DocumentSurfaceError, DocumentViewport, SpreadsheetCoordinate, SpreadsheetHorizontalAlignment,
+    SpreadsheetVerticalAlignment,
 };
-use katana_ui_core::molecule::{GridHorizontalAlignment, GridVerticalAlignment, GridViewport};
+use katana_ui_core::molecule::{GridHorizontalAlignment, GridVerticalAlignment};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
-fn every_alignment_variant_maps_without_format_semantics_in_kuc() -> TestResult {
+fn every_alignment_variant_maps_without_host_format_semantics() -> TestResult {
     for (source, expected) in horizontal_cases() {
         let mut cell = sample_cell(SpreadsheetCoordinate::new(0, 0));
         cell.style.horizontal_alignment = source;
-        let mut adapter = adapter()?;
-        adapter.supply_cells(vec![cell])?;
+        let mut surface = surface()?;
+        surface.supply_cells(vec![cell])?;
         assert_eq!(
             expected,
-            adapter.node().props().grid.cells[0]
+            surface.frame().node().props().grid.cells[0]
                 .appearance
                 .horizontal_alignment
         );
@@ -30,11 +31,11 @@ fn assert_vertical_alignments() -> TestResult {
     for (source, expected) in vertical_cases() {
         let mut cell = sample_cell(SpreadsheetCoordinate::new(0, 0));
         cell.style.vertical_alignment = source;
-        let mut adapter = adapter()?;
-        adapter.supply_cells(vec![cell])?;
+        let mut surface = surface()?;
+        surface.supply_cells(vec![cell])?;
         assert_eq!(
             expected,
-            adapter.node().props().grid.cells[0]
+            surface.frame().node().props().grid.cells[0]
                 .appearance
                 .vertical_alignment
         );
@@ -42,8 +43,8 @@ fn assert_vertical_alignments() -> TestResult {
     Ok(())
 }
 
-fn adapter() -> Result<KucSpreadsheetGridAdapter, super::KucSpreadsheetGridError> {
-    KucSpreadsheetGridAdapter::new(&sample_sheet(), GridViewport::new(100, 40))
+fn surface() -> Result<SpreadsheetGridSurface, DocumentSurfaceError> {
+    SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(100, 40))
 }
 
 fn horizontal_cases() -> [(SpreadsheetHorizontalAlignment, GridHorizontalAlignment); 8] {

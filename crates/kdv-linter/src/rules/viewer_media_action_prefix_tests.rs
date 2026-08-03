@@ -3,15 +3,15 @@ use crate::diagnostics::{KdvLintError, Violation};
 use crate::rules::test_helpers::FixtureWorkspace;
 
 #[test]
-fn viewer_media_prefix_rule_flags_adapter_duplicate_prefix() -> Result<(), KdvLintError> {
-    let violations = violations_for_adapter_prefix()?;
+fn viewer_media_prefix_rule_flags_document_surface_duplicate_prefix() -> Result<(), KdvLintError> {
+    let violations = violations_for_document_surface_prefix()?;
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "no_duplicate_viewer_media_action_prefix"
             && violation
                 .file
                 .to_string_lossy()
-                .contains("katana-document-viewer-kuc")
+                .contains("document_surface")
     }));
     Ok(())
 }
@@ -50,10 +50,10 @@ fn expected() {
     Ok(())
 }
 
-fn violations_for_adapter_prefix() -> Result<Vec<Violation>, KdvLintError> {
+fn violations_for_document_surface_prefix() -> Result<Vec<Violation>, KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/node_factory_media_controls.rs",
+        "crates/katana-document-viewer/src/document_surface/node_factory_media_controls.rs",
         r#"
 const IMAGE_HOST_ACTION_PREFIX: &str = "viewer.image.";
 const DIAGRAM_HOST_ACTION_PREFIX: &str = "viewer.diagram.";

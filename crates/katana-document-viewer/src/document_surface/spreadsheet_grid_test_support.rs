@@ -1,4 +1,4 @@
-use katana_document_viewer::{
+use crate::{
     SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
     SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
     SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,

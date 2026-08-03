@@ -46,9 +46,17 @@ pub(super) fn is_vendor_ref(name: &str) -> bool {
 }
 
 pub(super) fn is_allowed_ref(scope: VendorScope, name: &str) -> bool {
-    let _ = scope;
-    let _ = name;
-    false
+    scope.path == "crates/katana-document-viewer" && name.replace('-', "_") == "egui"
+}
+
+pub(super) fn is_allowed_source_ref(
+    scope: VendorScope,
+    path: &std::path::Path,
+    name: &str,
+) -> bool {
+    scope.path == "crates/katana-document-viewer/src"
+        && path.to_string_lossy().contains("/document_surface/")
+        && name.replace('-', "_") == "egui"
 }
 
 #[cfg(test)]
