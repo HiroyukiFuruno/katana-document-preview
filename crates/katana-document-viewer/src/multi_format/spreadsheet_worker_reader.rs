@@ -70,6 +70,7 @@ mod tests {
         read_response,
     };
     use std::io::{BufReader, Cursor, Read};
+    use std::sync::{Arc, Barrier};
 
     #[test]
     fn reader_reports_invalid_oversized_and_io_failed_frames()
@@ -101,13 +102,44 @@ mod tests {
     fn reader_stops_when_the_receiver_is_gone() -> Result<(), Box<dyn std::error::Error>> {
         let mut bytes = serde_json::to_vec(&SpreadsheetWorkerResponse::Stopped)?;
         bytes.push(b'\n');
-        let responses = SpreadsheetResponseReader::spawn(Box::new(Cursor::new(bytes)));
+        let read_barrier = Arc::new(Barrier::new(2));
+        let responses = SpreadsheetResponseReader::spawn(Box::new(GatedReader::new(
+            bytes,
+            Arc::clone(&read_barrier),
+        )));
         drop(responses.receiver);
+        read_barrier.wait();
         responses
             .worker
             .join()
             .map_err(|_| "reader thread panicked")?;
         Ok(())
+    }
+
+    struct GatedReader {
+        inner: Cursor<Vec<u8>>,
+        read_barrier: Arc<Barrier>,
+        waiting: bool,
+    }
+
+    impl GatedReader {
+        fn new(bytes: Vec<u8>, read_barrier: Arc<Barrier>) -> Self {
+            Self {
+                inner: Cursor::new(bytes),
+                read_barrier,
+                waiting: true,
+            }
+        }
+    }
+
+    impl Read for GatedReader {
+        fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+            if self.waiting {
+                self.waiting = false;
+                self.read_barrier.wait();
+            }
+            self.inner.read(bytes)
+        }
     }
 
     struct FailingReader;
