@@ -87,6 +87,7 @@
 - [x] 5.7 KDV coreの`egui` optional featureがKUCを内部利用するdocument surfaceを所有し、KatanAがKUCへ直接依存またはformat別presentation変換を持たないようにする
 - [x] 5.8 公開featureはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `Cargo.toml` / test: `document-surface-boundary-check`
 - [x] 5.9 XLSX sheetのgrid-line visibilityをKUC typed render propsへ欠落なく渡す
+- [x] 5.10 grid commandの結果をKDV所有eventへ変換し、KUC `GridEvent`をKDV public APIへ露出しない。証跡: test: `public_document_surface_does_not_expose_kuc_event_types`
 
 ---
 

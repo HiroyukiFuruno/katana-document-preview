@@ -120,3 +120,13 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     assert!(!spreadsheet.contains("std::process::Command"));
     Ok(())
 }
+
+#[test]
+fn public_document_surface_does_not_expose_kuc_event_types() {
+    let surface = include_str!("document_surface/spreadsheet_grid.rs");
+    let api = include_str!("document_surface/mod.rs");
+
+    assert!(surface.contains("-> super::DocumentGridEvent"));
+    assert!(api.contains("pub enum DocumentGridEvent"));
+    assert!(!surface.contains("-> GridEvent"));
+}

@@ -76,13 +76,21 @@ impl SpreadsheetGridSurface {
         Ok(())
     }
 
-    pub fn apply_command(&mut self, command: DocumentGridCommand) -> GridEvent {
-        self.grid.apply_action(grid_action(command))
+    pub fn apply_command(&mut self, command: DocumentGridCommand) -> super::DocumentGridEvent {
+        document_grid_event(self.grid.apply_action(grid_action(command)))
     }
 
     #[must_use]
     pub fn frame(&self) -> DocumentSurfaceFrame {
         DocumentSurfaceFrame::from_node(self.grid.clone().into())
+    }
+}
+
+const fn document_grid_event(event: GridEvent) -> super::DocumentGridEvent {
+    match event {
+        GridEvent::None => super::DocumentGridEvent::None,
+        GridEvent::SelectionChanged(_) => super::DocumentGridEvent::SelectionChanged,
+        GridEvent::Scrolled(_) => super::DocumentGridEvent::Scrolled,
     }
 }
 

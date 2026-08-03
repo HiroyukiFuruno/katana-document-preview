@@ -4,12 +4,10 @@ use super::{
     test_support::{sample_cell, sample_sheet},
 };
 use crate::{
-    DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceError, DocumentViewport,
-    SpreadsheetCoordinate, SpreadsheetMergedCellArtifact,
+    DocumentGridCommand, DocumentGridEvent, DocumentGridNavigation, DocumentSurfaceError,
+    DocumentViewport, SpreadsheetCoordinate, SpreadsheetMergedCellArtifact,
 };
-use katana_ui_core::molecule::{
-    GridCoordinate, GridEvent, GridHorizontalAlignment, GridVerticalAlignment,
-};
+use katana_ui_core::molecule::{GridCoordinate, GridHorizontalAlignment, GridVerticalAlignment};
 use katana_ui_core::render_model::{UiNode, UiNodeKind};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -95,6 +93,7 @@ fn assert_materialized_appearance(cell: &katana_ui_core::render_model::UiGridCel
 fn grid_commands_preserve_selection_and_scroll_contracts() -> TestResult {
     let mut surface =
         SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(320, 120))?;
+    assert_initial_scroll_is_neutral(&mut surface);
     assert_eq!(
         Some(GridCoordinate::new(0, 0)),
         surface.grid.active_coordinate()
@@ -104,7 +103,7 @@ fn grid_commands_preserve_selection_and_scroll_contracts() -> TestResult {
             intent: DocumentGridNavigation::Down,
             extend: false,
         }),
-        GridEvent::SelectionChanged(_)
+        DocumentGridEvent::SelectionChanged
     ));
     assert_eq!(
         Some(GridCoordinate::new(2, 0)),
@@ -112,12 +111,19 @@ fn grid_commands_preserve_selection_and_scroll_contracts() -> TestResult {
     );
     assert!(matches!(
         surface.apply_command(DocumentGridCommand::ScrollTo { x: 96, y: 240 }),
-        GridEvent::Scrolled(_)
+        DocumentGridEvent::Scrolled
     ));
     let baseline = SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(320, 120))?
         .materialization_request();
     assert_ne!(surface.materialization_request(), baseline);
     Ok(())
+}
+
+fn assert_initial_scroll_is_neutral(surface: &mut SpreadsheetGridSurface) {
+    assert_eq!(
+        DocumentGridEvent::None,
+        surface.apply_command(DocumentGridCommand::ScrollTo { x: 0, y: 0 })
+    );
 }
 
 #[test]
