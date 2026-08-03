@@ -1,0 +1,33 @@
+{
+  "pages": [
+    {
+      "candidate": "page-0000.png",
+      "reference": "page-1.png",
+      "size": [
+        595,
+        841
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0070541762203937325,
+      "normalized_rmse": 0.05012884420359463,
+      "changed_channel_ratio": 0.0442856809786935
+    },
+    {
+      "candidate": "page-0001.png",
+      "reference": "page-2.png",
+      "size": [
+        595,
+        841
+      ],
+      "comparable": true,
+      "normalized_mae": 0.0009865304448701212,
+      "normalized_rmse": 0.016237923122581134,
+      "changed_channel_ratio": 0.005977277950419169
+    }
+  ],
+  "page_count": 2,
+  "comparable_page_count": 2,
+  "mean_normalized_mae": 0.004020353332631927,
+  "mean_normalized_rmse": 0.03318338366308789,
+  "mean_changed_channel_ratio": 0.025131479464556336
+}

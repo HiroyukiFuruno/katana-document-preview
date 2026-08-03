@@ -71,6 +71,7 @@ mod forge_diagram_render_types;
 mod forge_types;
 mod html_sanitizer;
 mod markdown_fence_normalizer;
+pub mod multi_format;
 mod preview_runtime;
 mod preview_surface;
 mod render_runtime;
@@ -123,6 +124,23 @@ pub use katana_markdown_model::{
     ByteRange, KmmNodeId, LineColumn, LineColumnRange, RawSnippet, SourceSpan,
 };
 pub use markdown_fence_normalizer::MarkdownFenceNormalizer;
+pub use multi_format::{
+    BinaryDocumentSource, DocumentFitMode, DocumentViewerCommand, DocumentViewerEvent,
+    DocumentViewerState, DocumentViewerStateError, OfficeDocumentFormat, OfficeDocumentSource,
+    OfficePackagePreflight, OfficePreflightError, OfficePreflightLimits, OfficePreflightReport,
+    OfficeResourceLimitKind, OfficeStaticDocumentArtifact, OfficeStaticItemArtifact,
+    OfficeStaticViewerSession, OfficeWorkerConfig, OfficeWorkerEntrypoint, OfficeWorkerError,
+    PdfDocumentArtifact, PdfPageArtifact, PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage,
+    PdfResourceLimitKind, PdfViewerError, PdfViewerLimits, PdfViewerSession,
+    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
+    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
+    SpreadsheetDocumentArtifact, SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact,
+    SpreadsheetMergedCellArtifact, SpreadsheetRatingArtifact, SpreadsheetSheetArtifact,
+    SpreadsheetTrackArtifact, SpreadsheetVerticalAlignment, SpreadsheetViewerLimits,
+    SpreadsheetViewerSession, ViewerCapabilities, ViewerDiagnostic, ViewerDiagnosticCode,
+    ViewerDiagnosticSeverity, ViewerFeature, ViewerFeatureStatus, ViewerQualityProfile,
+    ViewerQualityProfileKind, ViewerSource, ViewerSourceIdentity,
+};
 pub use preview_runtime::{
     MarkdownPreview, MarkdownSource, PreviewAssetLoadReport, PreviewAssetLoader, PreviewConfig,
     PreviewDiagnostics, PreviewError, PreviewOutput, PreviewOutputFactory, PreviewRenderEngine,

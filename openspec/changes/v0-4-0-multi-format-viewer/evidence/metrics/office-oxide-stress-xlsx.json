@@ -1,0 +1,15 @@
+{
+  "elements": 1,
+  "engine": "office_oxide",
+  "engine_version": "0.1.8",
+  "format": "xlsx",
+  "html_bytes": 2115493,
+  "html_microseconds": 41437,
+  "input_bytes": 548436,
+  "ir_json_bytes": 202045818,
+  "ir_microseconds": 14745,
+  "parse_microseconds": 37485,
+  "plain_text_bytes": 565158,
+  "sections": 1,
+  "total_microseconds": 93667
+}

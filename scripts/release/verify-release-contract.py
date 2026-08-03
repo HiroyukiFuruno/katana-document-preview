@@ -13,10 +13,10 @@ from pathlib import Path
 
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
-ADAPTER_CONTRACT = "browser-session-adapter"
-KRR_MIN_VERSION = (0, 4, 10)
+RELEASE_CONTRACT = "multi-format-viewer"
+KRR_MIN_VERSION = (0, 4, 14)
 KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "^0.4.10"
+KRR_VERSION_REQUIREMENT = "^0.4.14"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
@@ -40,6 +40,46 @@ FORBIDDEN_ADAPTER_MARKERS = (
     "WebView",
     "KRR_CHROME_BIN",
 )
+SELECTED_ENGINES = {
+    "hayro": "0.7.1",
+    "office2pdf": "0.6.5",
+    "ironcalc": "0.8.3",
+}
+LINUX_SANDBOX_DEPENDENCIES = {
+    "libc": "0.2.189",
+    "seccompiler": "0.5.0",
+    "skarn-sandbox": "1.0.1",
+}
+KUC_VERSION = "0.3.0"
+MULTI_FORMAT_SOURCES = (
+    "crates/katana-document-viewer/src/multi_format/artifact.rs",
+    "crates/katana-document-viewer/src/multi_format/capability.rs",
+    "crates/katana-document-viewer/src/multi_format/diagnostic.rs",
+    "crates/katana-document-viewer/src/multi_format/office_preflight.rs",
+    "crates/katana-document-viewer/src/multi_format/office_static_adapter.rs",
+    "crates/katana-document-viewer/src/multi_format/office_worker_constraints.rs",
+    "crates/katana-document-viewer/src/multi_format/office_worker_entrypoint.rs",
+    "crates/katana-document-viewer/src/multi_format/office_worker_network_seccomp.rs",
+    "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
+    "crates/katana-document-viewer-kuc/src/page_surface.rs",
+    "crates/katana-document-viewer-kuc/src/spreadsheet_grid.rs",
+)
+MULTI_FORMAT_TESTS = (
+    "crates/katana-document-viewer/tests/multi_format_office_preflight_contract.rs",
+    "crates/katana-document-viewer/tests/multi_format_office_worker_contract.rs",
+    "crates/katana-document-viewer/tests/multi_format_pdf_contract.rs",
+    "crates/katana-document-viewer/tests/multi_format_source_contract.rs",
+    "crates/katana-document-viewer/tests/multi_format_xlsx_contract.rs",
+)
+FORBIDDEN_ENGINE_PACKAGES = {
+    "chromiumoxide",
+    "headless_chrome",
+    "pdfium-render",
+    "web-view",
+    "wry",
+}
 
 
 def parse_version(value: str) -> tuple[int, int, int]:
@@ -61,22 +101,31 @@ def release_contract(root: Path, target_version: str) -> str:
     contract = current.get("release_contract")
     if minor_line != f"{target[0]}.{target[1]}":
         raise ValueError(f"{target_version} is outside the declared KDV release line {minor_line}.x")
-    if contract != ADAPTER_CONTRACT:
+    if contract != RELEASE_CONTRACT:
         raise ValueError(f"unsupported KDV release contract: {contract}")
     return contract
 
 
 def manifest_errors(manifest: str) -> list[str]:
-    dependency = re.compile(
-        rf'^katana-render-runtime\s*=\s*"{re.escape(KRR_DECLARED_VERSION)}"\s*$',
-        re.MULTILINE,
-    )
-    if dependency.search(manifest):
+    workspace = tomllib.loads(manifest)
+    dependencies = workspace.get("workspace", {}).get("dependencies", {})
+    if dependency_version(dependencies.get("katana-render-runtime")) == KRR_DECLARED_VERSION:
         return []
     return [
         "Cargo.toml must depend on "
         f"katana-render-runtime = \"{KRR_DECLARED_VERSION}\"."
     ]
+
+
+def dependency_version(declared: object) -> str | None:
+    if isinstance(declared, str):
+        return declared
+    if not isinstance(declared, dict):
+        return None
+    if any(key in declared for key in ("path", "git")):
+        return None
+    version = declared.get("version")
+    return version if isinstance(version, str) else None
 
 
 def krr_lock_version_is_allowed(version: object) -> bool:
@@ -110,6 +159,104 @@ def lockfile_errors(lockfile: str) -> list[str]:
     checksum = package.get("checksum")
     if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum):
         errors.append("katana-render-runtime crates.io lock entry must include a SHA-256 checksum.")
+    return errors
+
+
+def multi_format_manifest_errors(root: Path, target_version: str) -> list[str]:
+    workspace = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
+    dependencies = workspace.get("workspace", {}).get("dependencies", {})
+    errors: list[str] = []
+    for name, version in {**SELECTED_ENGINES, **LINUX_SANDBOX_DEPENDENCIES}.items():
+        declared = dependencies.get(name)
+        if dependency_version(declared) != f"={version}":
+            errors.append(f"Cargo.toml must pin {name} to ={version}.")
+
+    kuc = dependencies.get("katana-ui-core")
+    kuc_storybook = dependencies.get("katana-ui-core-storybook")
+    expected_git = "https://github.com/HiroyukiFuruno/katana-ui-core.git"
+    for name, declared in (
+        ("katana-ui-core", kuc),
+        ("katana-ui-core-storybook", kuc_storybook),
+    ):
+        if not isinstance(declared, dict) or declared.get("git") != expected_git or declared.get("tag") != "v0.3.0":
+            errors.append(f"development-only {name} must resolve from KUC tag v0.3.0.")
+
+    adapter = tomllib.loads(
+        (root / "crates/katana-document-viewer-kuc/Cargo.toml").read_text(encoding="utf-8")
+    )
+    adapter_dependencies = adapter.get("dependencies", {})
+    adapter_kuc = adapter_dependencies.get("katana-ui-core")
+    if adapter_kuc != KUC_VERSION:
+        errors.append("published KDV KUC adapter must depend on crates.io katana-ui-core 0.3.0.")
+    core = adapter_dependencies.get("katana-document-viewer")
+    expected_version = f"={target_version.removeprefix('v')}"
+    if not isinstance(core, dict) or core.get("version") != expected_version:
+        errors.append(
+            "katana-document-viewer-kuc must pin its KDV core dependency to "
+            f"{expected_version}."
+        )
+    if isinstance(core, dict) and core.get("path") != "../katana-document-viewer":
+        errors.append("KDV adapter workspace dependency must point only to its in-repo core crate.")
+    return errors
+
+
+def multi_format_lockfile_errors(lockfile: str) -> list[str]:
+    packages = tomllib.loads(lockfile).get("package", [])
+    errors: list[str] = []
+    for name, version in {
+        **SELECTED_ENGINES,
+        **LINUX_SANDBOX_DEPENDENCIES,
+        "katana-ui-core": KUC_VERSION,
+    }.items():
+        registry_matches = [
+            package
+            for package in packages
+            if package.get("name") == name
+            and package.get("version") == version
+            and package.get("source") == REGISTRY_SOURCE
+            and isinstance(package.get("checksum"), str)
+            and re.fullmatch(r"[0-9a-f]{64}", package["checksum"])
+        ]
+        if not registry_matches:
+            errors.append(f"Cargo.lock must contain crates.io {name} {version} with checksum.")
+    forbidden = sorted(
+        {
+            package.get("name")
+            for package in packages
+            if package.get("name") in FORBIDDEN_ENGINE_PACKAGES
+        }
+    )
+    if forbidden:
+        errors.append("forbidden browser/PDF engine packages are locked: " + ", ".join(forbidden) + ".")
+    return errors
+
+
+def multi_format_source_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    for relative in (*MULTI_FORMAT_SOURCES, *MULTI_FORMAT_TESTS):
+        if not (root / relative).is_file():
+            errors.append(f"multi-format release source is missing: {relative}.")
+    production = "\n".join(
+        (root / relative).read_text(encoding="utf-8")
+        for relative in MULTI_FORMAT_SOURCES
+        if (root / relative).is_file()
+    )
+    for marker in ("Chromium", "WebView", "PDFium", "headless_chrome", "pdfium_render"):
+        if marker in production:
+            errors.append(f"multi-format production source must not own forbidden engine {marker}.")
+    required = (
+        "OfficePackagePreflight",
+        "OfficeWorkerEntrypoint",
+        "PdfViewerSession",
+        "SpreadsheetViewerSession",
+        "SeccompFilter",
+        "NetPolicy::Deny",
+        "GenericGrid",
+        "ImageSurface",
+    )
+    missing = [token for token in required if token not in production]
+    if missing:
+        errors.append("multi-format implementation is incomplete: " + ", ".join(missing) + ".")
     return errors
 
 
@@ -160,16 +307,34 @@ def justfile_errors(justfile: str) -> list[str]:
     required = (
         'COVERAGE_MIN_LINES := "100"',
         'COVERAGE_MAX_UNCOVERED_LINES := "0"',
-        "--fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}",
+        "--fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}",
         "release-contract-check:",
         "verify-release-contract.py --target-version \"{{TAG}}\"",
         "{{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked",
         "release-verify: release-contract-check check coverage",
+        'COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer -p katana-document-viewer-kuc"',
+        "package -p katana-document-viewer-kuc --locked --allow-dirty --list",
     )
     missing = [token for token in required if token not in justfile]
     if not missing:
         return []
     return ["release contract recipes are incomplete: " + ", ".join(missing) + "."]
+
+
+def staged_publish_errors(script: str) -> list[str]:
+    ordered = (
+        "cargo publish -p katana-document-viewer --locked",
+        "wait_until_published katana-document-viewer",
+        "cargo publish -p katana-document-viewer-kuc --dry-run --locked",
+        "cargo publish -p katana-document-viewer-kuc --locked",
+        "wait_until_published katana-document-viewer-kuc",
+    )
+    positions = [script.find(token) for token in ordered]
+    if all(position >= 0 for position in positions) and positions == sorted(positions):
+        return []
+    return [
+        "publish script must publish and await KDV core before the adapter dry-run and publish."
+    ]
 
 
 def release_workflow_errors(preflight: str, release: str) -> list[str]:
@@ -193,14 +358,22 @@ def validate(root: Path, target_version: str) -> list[str]:
         contract = release_contract(root, target_version)
     except ValueError as error:
         return [str(error)]
-    if contract != ADAPTER_CONTRACT:
+    if contract != RELEASE_CONTRACT:
         return [f"unsupported KDV release contract: {contract}"]
     errors = manifest_errors((root / "Cargo.toml").read_text(encoding="utf-8"))
     errors.extend(lockfile_errors((root / "Cargo.lock").read_text(encoding="utf-8")))
+    errors.extend(multi_format_manifest_errors(root, target_version))
+    errors.extend(multi_format_lockfile_errors((root / "Cargo.lock").read_text(encoding="utf-8")))
     errors.extend(cargo_config_errors(root / ".cargo/config.toml"))
     errors.extend(adapter_source_errors(root))
     errors.extend(integration_contract_errors(root))
+    errors.extend(multi_format_source_errors(root))
     errors.extend(justfile_errors((root / "Justfile").read_text(encoding="utf-8")))
+    errors.extend(
+        staged_publish_errors(
+            (root / "scripts/release/publish-crates.sh").read_text(encoding="utf-8")
+        )
+    )
     errors.extend(
         release_workflow_errors(
             (root / ".github/workflows/release-preflight.yml").read_text(encoding="utf-8"),
@@ -219,37 +392,47 @@ def self_test() -> None:
                 {
                     "schema_version": "kdv.release-targets.v1",
                     "current": {
-                        "minor_line": "0.3",
+                        "minor_line": "0.4",
                         "change": "adapter",
-                        "release_contract": ADAPTER_CONTRACT,
+                        "release_contract": RELEASE_CONTRACT,
                     },
                     "deferred": [],
                 }
             ),
             encoding="utf-8",
         )
-        assert release_contract(root, "v0.3.0") == ADAPTER_CONTRACT
+        assert release_contract(root, "v0.4.0") == RELEASE_CONTRACT
         try:
-            release_contract(root, "v0.4.0")
+            release_contract(root, "v0.5.0")
         except ValueError:
             pass
         else:
             raise AssertionError("release contract must reject another release line")
-    assert not manifest_errors(f'katana-render-runtime = "{KRR_DECLARED_VERSION}"\n')
-    assert manifest_errors('katana-render-runtime = { path = "../krr" }\n')
+    valid_manifest = (
+        "[workspace.dependencies]\n"
+        f'katana-render-runtime = "{KRR_DECLARED_VERSION}"\n'
+    )
+    assert not manifest_errors(valid_manifest)
+    assert not manifest_errors(
+        "[workspace.dependencies]\n"
+        f'katana-render-runtime = {{ version = "{KRR_DECLARED_VERSION}" }}\n'
+    )
+    assert manifest_errors(
+        '[workspace.dependencies]\nkatana-render-runtime = { path = "../krr" }\n'
+    )
     registry_lock = """
 version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.10"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert not lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.4.11"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.4.9"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.10"', 'version = "0.5.0"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.14"', 'version = "0.4.15"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.14"', 'version = "0.4.13"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.14"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))
@@ -265,6 +448,17 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert release_workflow_errors(
         "storybook-release-acceptance-artifacts\n", release_workflow
     )
+    staged_publish = "\n".join(
+        (
+            "cargo publish -p katana-document-viewer --locked",
+            "wait_until_published katana-document-viewer",
+            "cargo publish -p katana-document-viewer-kuc --dry-run --locked",
+            "cargo publish -p katana-document-viewer-kuc --locked",
+            "wait_until_published katana-document-viewer-kuc",
+        )
+    )
+    assert not staged_publish_errors(staged_publish)
+    assert staged_publish_errors("\n".join(reversed(staged_publish.splitlines())))
 
 
 def main() -> int:
@@ -284,7 +478,7 @@ def main() -> int:
         for error in errors:
             print(f"release contract: {error}")
         return 1
-    print(f"release contract passed: {ADAPTER_CONTRACT}")
+    print(f"release contract passed: {RELEASE_CONTRACT}")
     return 0
 
 

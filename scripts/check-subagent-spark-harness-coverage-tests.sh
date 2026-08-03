@@ -117,7 +117,17 @@ expect_active_tasks_without_evidence_fails() {
   expect_failure \
     "active tasks without subagent evidence" \
     "- [x] 実装を進める。" \
-    "少なくとも1件のsubagent / Spark証跡"
+    "subagent / Spark証跡または許可済みdelegation-exception"
+}
+
+expect_active_tasks_with_allowed_exception_passes() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap "rm -rf '$workspace'" RETURN
+
+  write_workspace "$workspace" \
+    '- [x] main agentで直列作業を行う。delegation-exception: `ユーザーがsubagent利用を禁止`'
+  run_harness "$workspace" || fail_test "allowed active-task delegation exception should pass"
 }
 
 expect_strict_line_without_evidence_fails() {
@@ -189,6 +199,7 @@ expect_unquoted_extra_command_field_fails() {
 expect_pass_without_keyword
 expect_agent_evidence_without_keyword_is_checked
 expect_active_tasks_without_evidence_fails
+expect_active_tasks_with_allowed_exception_passes
 expect_strict_line_without_evidence_fails
 expect_strict_line_with_allowed_exception_passes
 expect_optional_delegation_regex_terms_fail

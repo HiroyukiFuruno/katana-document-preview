@@ -99,8 +99,19 @@ expect_pass() {
   run_harness "$workspace" || fail_test "valid handoff evidence should pass"
 }
 
+expect_handoff_exception_pass() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap "rm -rf '$workspace'" RETURN
+
+  write_workspace "$workspace" \
+    '- delegation-exception: `ユーザーがsubagent利用を禁止`'
+  run_harness "$workspace" || fail_test "allowed handoff delegation exception should pass"
+}
+
 expect_pass
-expect_failure "empty handoff evidence" "" "handoff.mdにもsubagent / Spark証跡"
-expect_failure "plain handoff without evidence" "- handoffだけを書く。" "handoff.mdにもsubagent / Spark証跡"
+expect_handoff_exception_pass
+expect_failure "empty handoff evidence" "" "handoff.mdにはsubagent / Spark証跡または"
+expect_failure "plain handoff without evidence" "- handoffだけを書く。" "handoff.mdにはsubagent / Spark証跡または"
 
 echo "check-subagent-spark-harness-change-tests: ok"

@@ -46,10 +46,12 @@
   frame を生成中でも一時的な入力集中を fatal error として host へ返さない。証跡:
   semantic mailbox unit tests 8 passed、worker tests 14 passed、公開 adapter contract
   4 passed（4,097 pointer move burst 後の link navigation / frame continuation を含む）。
-- [ ] 実際の `slides.html` を用いて adapter start から KRR session creation、
+- [x] 実際の `slides.html` を用いて adapter start から KRR session creation、
   first frame publication までを段階計測し、支配的な回避可能遅延を除去する。
   headless contract で first-frame latency と burst input 後の継続 frame generation を
-  固定待機なしに検証する。
+  固定待機なしに検証する。証跡: `browser_session_worker_startup.rs` の runtime-open
+  計測、`browser_session_worker.rs` の first-frame publication 計測、KatanA
+  v0.22.37 headless acceptance。
 - [x] KDV `0.3.4` で `just update` を実行し、全依存を対応可能な最新版へ更新する。
   strict coverage 100% / uncovered 0、full check、release preflight、package verify、
   publish dry-run を閾値緩和・除外追加なしで通す。証跡:
@@ -58,16 +60,18 @@
 - [x] KDV `0.3.4` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
   証跡: PR #29、release workflow `30231877757`、GitHub Release `v0.3.4`、
   crates.io `katana-document-viewer 0.3.4`。
-- [ ] KDV `0.3.5` で browser command queue の pending と処理中 command を区別し、
+- [x] KDV `0.3.5` で browser command queue の pending と処理中 command を区別し、
   startup 完了前、処理中、worker 停止後を idle と判定しない公開 adapter 契約を追加する。
   KatanA headless harness は frame generation とこの idle 契約の両方を待ち、
-  burst 後の残存 frame を次の離散入力完了と誤認しないことを固定する。
+  burst 後の残存 frame を次の離散入力完了と誤認しないことを固定する。証跡:
+  `browser_session_command_queue_idle_tests.rs`、公開 adapter contract、PR #30。
 - [x] KDV `0.3.5` で `just update` を実行し、全依存を対応可能な最新版へ更新する。
   strict coverage 100% / uncovered 0、full check、release preflight、package verify、
   publish dry-run を閾値緩和・除外追加なしで通す。証跡:
   `rtk just VERSION=0.3.5 release-check`、21,081 / 21,081 lines、uncovered 0、
   1,587 passed / 1 ignored、package verify / publish dry-run passed。
-- [ ] KDV `0.3.5` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
+- [x] KDV `0.3.5` の PR CI、merge、GitHub Release、crates.io 公開を確認する。
+  証跡: PR #30、tag / GitHub Release / crates.io `v0.3.5`。
 
 <!-- subagent-spark-harness-strict-start -->
 - [x] KDV browser-session adapter の ownership を独立 review し、KRR への raw source/input/navigation 中継以外の HTML semantics を持たないことを確認する。証跡: agent: `019f75e7-c5e2-7293-b738-cfcc0290f921` / model: `gpt-5.3-codex-spark` / reasoning: `medium` / file: `crates/katana-document-viewer/src/browser_session.rs` / file: `crates/katana-document-viewer/src/browser_session_worker.rs` / file: `crates/katana-document-viewer/tests/browser_session_adapter_contract.rs` / command: `multi_agent_v1.spawn_agent` / verify: `rtk cargo test -p katana-document-viewer --test browser_session_adapter_contract --locked -- --test-threads=1` / close: `multi_agent_v1.close_agent`

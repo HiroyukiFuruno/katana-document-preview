@@ -1,3 +1,4 @@
+use crate::DocumentViewerCommand;
 use crate::viewer::search::ViewerSearchCommand;
 use crate::viewer::types::{ViewerTarget, ViewerVector};
 use katana_markdown_model::KmmNodeId;
@@ -16,6 +17,7 @@ pub enum ViewerCommand {
     Task(TaskStateCommand),
     Link(LinkCommand),
     Host(HostCommand),
+    Document(DocumentViewerCommand),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

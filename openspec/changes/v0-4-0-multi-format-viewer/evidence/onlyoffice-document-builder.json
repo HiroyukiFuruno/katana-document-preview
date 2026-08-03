@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-07-30",
+  "engine": {
+    "name": "ONLYOFFICE Document Builder",
+    "version": "9.4.0",
+    "host_model": "signed native child process",
+    "javascript_runtime": "macOS JavaScriptCore"
+  },
+  "release_assets": [
+    {
+      "platform": "linux-aarch64",
+      "bytes": 66971536,
+      "sha256": "8756b0b57a4ab4b27608a6b1fbeb13f67670bde0245da166907277821afbeb8e",
+      "runtime_verified": false
+    },
+    {
+      "platform": "linux-x86_64",
+      "bytes": 71503984,
+      "sha256": "15c02892fea158b76ad343f4d580763c30cbd151a98f0595478d7b6f8599437a",
+      "runtime_verified": false
+    },
+    {
+      "platform": "macos-arm64",
+      "bytes": 40000600,
+      "sha256": "c99ee188726f9450e41ca5f198f3c140ebd43727d8c678db701c8c6e3320216b",
+      "runtime_verified": true,
+      "extracted_kib": 190896,
+      "codesign_authority": "Developer ID Application: Ascensio System SIA (2WH24U26GJ)"
+    },
+    {
+      "platform": "macos-x86_64",
+      "bytes": 44632372,
+      "sha256": "d1963741225801697c40d86971f902a08f515cfd055a9fc24d0682c4532535bc",
+      "runtime_verified": false
+    },
+    {
+      "platform": "windows-x64",
+      "bytes": 81782152,
+      "sha256": "5b509f6d36c810848ffad1e7c8860b36abf05ac757df66a7691ac4c7d3e488e2",
+      "runtime_verified": false
+    },
+    {
+      "platform": "windows-x86",
+      "bytes": 77612132,
+      "sha256": "d58851e4684eafb4b0277eaa1123e4886fd4fbb0c8edb52fdf106ebf9516a4af",
+      "runtime_verified": false
+    }
+  ],
+  "forbidden_dependency_audit": {
+    "inspected": "Mach-O dependency graph, runtime file names, binary strings",
+    "chromium": false,
+    "webview_or_webkit_link": false,
+    "pdfium": false,
+    "cef": false,
+    "javascriptcore": true
+  },
+  "measurements": {
+    "docx": {
+      "conversion_seconds": 3.95,
+      "peak_rss_bytes": 296779776,
+      "pages": 2
+    },
+    "xlsx": {
+      "conversion_seconds": 0.99,
+      "peak_rss_bytes": 226000896,
+      "pages": 1
+    },
+    "pptx": {
+      "conversion_seconds": 1.21,
+      "peak_rss_bytes": 278003712,
+      "pages": 2
+    },
+    "stress_xlsx": {
+      "conversion_seconds": 28.83,
+      "peak_rss_bytes": 518078464,
+      "pages": 210
+    }
+  },
+  "security": {
+    "unsandboxed_external_http_gets": 1,
+    "macos_deny_all_network": "external request blocked and PDF produced",
+    "macro_execution": "not_verified",
+    "strict_file_write_sandbox": "not_verified",
+    "resource_limits": "not_implemented"
+  },
+  "license": {
+    "package_repository_license": "AGPL-3.0 with additional conditions",
+    "free_output_watermark": true,
+    "runtime_diagnostic": "license is invalid",
+    "commercial_license_required_for_unwatermarked_full_features": true,
+    "full_license_available_for_test": false
+  },
+  "quality": {
+    "docx_structure": "page break, table and image retained",
+    "xlsx_chart": "formula-derived chart values rendered incorrectly",
+    "pptx_chart_title": "missing",
+    "pptx_right_text": "clipped instead of wrapped",
+    "evaluation_watermark": "all pages"
+  },
+  "result": "fail_license_quality_gate"
+}

@@ -2,12 +2,16 @@ use crate::diagnostics::{KdvLintError, Violation};
 use crate::workspace::{SourceFile, WorkspaceModel};
 use std::path::{Path, PathBuf};
 
+#[path = "kdv_ui_adapter_patterns.rs"]
+mod patterns;
+use patterns::StorybookAdapterPattern;
+
 pub struct KdvUiAdapterOwnershipRule;
 
 impl KdvUiAdapterOwnershipRule {
     pub fn check(workspace: &WorkspaceModel) -> Result<Vec<Violation>, KdvLintError> {
         let mut violations = Vec::new();
-        violations.extend(KdvOwnedAdapterCrateChecker::new(workspace.root()).violations());
+        violations.extend(KdvCoreAdapterDependencyChecker::new(workspace).violations()?);
         violations.extend(StorybookOwnedBridgeChecker::new(workspace.root()).violations());
         for file in workspace.storybook_files() {
             violations.extend(StorybookAdapterChecker::new(file).violations());
@@ -16,34 +20,62 @@ impl KdvUiAdapterOwnershipRule {
     }
 }
 
-struct KdvOwnedAdapterCrateChecker<'a> {
-    root: &'a Path,
+struct KdvCoreAdapterDependencyChecker<'a> {
+    workspace: &'a WorkspaceModel,
 }
 
-impl<'a> KdvOwnedAdapterCrateChecker<'a> {
-    fn new(root: &'a Path) -> Self {
-        Self { root }
+impl<'a> KdvCoreAdapterDependencyChecker<'a> {
+    fn new(workspace: &'a WorkspaceModel) -> Self {
+        Self { workspace }
     }
 
-    fn violations(&self) -> Vec<Violation> {
-        let manifest = self.manifest_path();
-        if !manifest.exists() {
-            return Vec::new();
-        }
-        vec![Violation::new(
-            manifest,
-            1,
-            1,
-            "no_kdv_ui_adapter_ownership",
-            "KDV repo must not own a KUC UI adapter crate; move viewer projection/host contract to KUC.",
-        )]
-    }
-
-    fn manifest_path(&self) -> PathBuf {
-        self.root
+    fn violations(&self) -> Result<Vec<Violation>, KdvLintError> {
+        let core_root = self
+            .workspace
+            .root()
             .join("crates")
-            .join("katana-document-viewer-kuc")
-            .join("Cargo.toml")
+            .join("katana-document-viewer");
+        let mut violations = Vec::new();
+        let manifest = core_root.join("Cargo.toml");
+        if manifest.exists() {
+            let source =
+                std::fs::read_to_string(&manifest).map_err(|source| KdvLintError::Read {
+                    path: manifest.clone(),
+                    source,
+                })?;
+            violations.extend(Self::find_references(&manifest, &source));
+        }
+        let source_root = core_root.join("src");
+        for file in self
+            .workspace
+            .rust_files()
+            .iter()
+            .filter(|file| file.is_under(&source_root))
+        {
+            violations.extend(Self::find_references(file.path(), file.source()));
+        }
+        Ok(violations)
+    }
+
+    fn find_references(path: &Path, source: &str) -> Vec<Violation> {
+        source
+            .lines()
+            .enumerate()
+            .filter_map(|(index, line)| {
+                ["katana-document-viewer-kuc", "katana_document_viewer_kuc"]
+                    .into_iter()
+                    .find_map(|needle| line.find(needle))
+                    .map(|column| {
+                        Violation::new(
+                            path.to_path_buf(),
+                            index + 1,
+                            column + 1,
+                            "no_kdv_ui_adapter_ownership",
+                            "Neutral KDV core must not depend on its optional KUC presentation adapter.",
+                        )
+                    })
+            })
+            .collect()
     }
 }
 
@@ -129,65 +161,6 @@ impl<'a> StorybookAdapterChecker<'a> {
                 pattern.message(),
             )
         })
-    }
-}
-
-#[derive(Clone, Copy)]
-enum StorybookAdapterPattern {
-    KdvKucCrate,
-    KucStorybookHost,
-    KucRenderedInteractionSurface,
-    KucHostActionHitQuery,
-    KucCanvasRenderer,
-    KucHostActionHitRects,
-    StorybookKucRendererModule,
-    StorybookKucRendererFunction,
-    KucBridgeModule,
-}
-
-impl StorybookAdapterPattern {
-    fn all() -> &'static [Self] {
-        &[
-            Self::KdvKucCrate,
-            Self::KucStorybookHost,
-            Self::KucRenderedInteractionSurface,
-            Self::KucHostActionHitQuery,
-            Self::KucCanvasRenderer,
-            Self::KucHostActionHitRects,
-            Self::StorybookKucRendererModule,
-            Self::StorybookKucRendererFunction,
-            Self::KucBridgeModule,
-        ]
-    }
-
-    fn needle(self) -> &'static str {
-        match self {
-            Self::KdvKucCrate => "katana_document_viewer_kuc",
-            Self::KucStorybookHost => "UiTreeStorybookHost",
-            Self::KucRenderedInteractionSurface => "UiTreeInteractionSurface",
-            Self::KucHostActionHitQuery => "UiTreeHostActionHitQuery",
-            Self::KucCanvasRenderer => "UiTreeCanvasRenderer",
-            Self::KucHostActionHitRects => "host_action_hit_rects",
-            Self::StorybookKucRendererModule => "frame_kuc_renderer",
-            Self::StorybookKucRendererFunction => "kuc_tree_host_action_hits_at",
-            Self::KucBridgeModule => "kuc_bridge",
-        }
-    }
-
-    fn message(self) -> &'static str {
-        match self {
-            Self::KdvKucCrate => "Storybook must not depend on a KDV-owned KUC adapter crate.",
-            Self::KucStorybookHost
-            | Self::KucRenderedInteractionSurface
-            | Self::KucHostActionHitQuery
-            | Self::KucCanvasRenderer
-            | Self::KucHostActionHitRects
-            | Self::StorybookKucRendererModule
-            | Self::StorybookKucRendererFunction
-            | Self::KucBridgeModule => {
-                "Storybook must not wrap KUC renderer/hit-test internals; use a KUC-owned host contract."
-            }
-        }
     }
 }
 

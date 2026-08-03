@@ -1,0 +1,15 @@
+{
+  "elements": 9,
+  "engine": "office_oxide",
+  "engine_version": "0.1.8",
+  "format": "docx",
+  "html_bytes": 777,
+  "html_microseconds": 89,
+  "input_bytes": 40016,
+  "ir_json_bytes": 70461,
+  "ir_microseconds": 57,
+  "parse_microseconds": 3097,
+  "plain_text_bytes": 398,
+  "sections": 1,
+  "total_microseconds": 3243
+}

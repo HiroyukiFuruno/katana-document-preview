@@ -146,10 +146,26 @@ expect_pass() {
   run_harness "$workspace" || fail_test "${label} should pass"
 }
 
+expect_exception_pass() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap "rm -rf '$workspace'" RETURN
+
+  write_workspace "$workspace" "$(payload_with_file 'dummy')"
+  commit_workspace "$workspace"
+  printf '%s\n%s\n' \
+    '<!-- subagent-spark-harness-strict-start -->' \
+    '- [x] main agentで直列作業を行う。delegation-exception: `ユーザーがsubagent利用を禁止` / file: `scripts/subagent-spark-harness-verify.sh`' \
+    >"${workspace}/openspec/changes/subagent-diff/tasks.md"
+  printf '# changed\n' >>"${workspace}/scripts/subagent-spark-harness-verify.sh"
+  run_harness "$workspace" || fail_test "changed harness file with allowed exception should pass"
+}
+
 expect_pass \
   "changed harness file with evidence" \
   "$(payload_with_file 'scripts/subagent-spark-harness-verify.sh')" \
   'printf "# changed\n" >>"$1/scripts/subagent-spark-harness-verify.sh"'
+expect_exception_pass
 expect_pass \
   "changed non-harness file without evidence" \
   "$(payload_with_file 'dummy')" \

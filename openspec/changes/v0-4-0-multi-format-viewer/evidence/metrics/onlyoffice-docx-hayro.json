@@ -1,0 +1,16 @@
+{
+  "engine": "hayro",
+  "engine_version": "0.7.1",
+  "first_page_microseconds": 12969,
+  "format": "pdf",
+  "input_bytes": 145983,
+  "page_render_microseconds": [
+    12969,
+    8127
+  ],
+  "pages": 2,
+  "parse_microseconds": 541,
+  "render_microseconds": 21470,
+  "rendered_png_bytes": 151262,
+  "total_microseconds": 22011
+}

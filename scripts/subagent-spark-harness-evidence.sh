@@ -88,6 +88,21 @@ check_delegation_exception() {
     "delegation-exception は 単純な一手作業 / 直列のクリティカルパス / 書き込み範囲を明示できない / ユーザーがsubagent利用を禁止 のいずれかを明示してください。"
 }
 
+file_has_delegation_exception() {
+  local file="$1"
+  local line
+  local line_no=0
+
+  while IFS= read -r line; do
+    line_no=$((line_no + 1))
+    [[ "$line" == *"delegation-exception:"* ]] || continue
+    check_delegation_exception "${file} (line ${line_no})" "$line"
+    return 0
+  done <"$file"
+
+  return 1
+}
+
 check_strict_task_line() {
   local file="$1"
   local line_no="$2"
@@ -154,6 +169,11 @@ check_file() {
     evidence="${task#*:}"
     evidence="${evidence# }"
 
+    if [[ "$evidence" == *"delegation-exception:"* ]]; then
+      check_delegation_exception "${file} (line ${line_no})" "$evidence"
+      continue
+    fi
+
     if [[ "$evidence" != *"証跡:"* ]]; then
       fail_fast "${file} (line ${line_no})" \
         "subagent / Spark項目に証跡がありません。 [ ] / [/] / [x] 行には 証跡: を必須化してください。"
@@ -165,9 +185,10 @@ check_file() {
 
   if [[ "$(basename "$file")" == "tasks.md" ]] &&
     [[ "$matched" -eq 0 ]] &&
-    tasks_file_has_started_work "$file"; then
+    tasks_file_has_started_work "$file" &&
+    ! file_has_delegation_exception "$file"; then
     fail_fast "$file" \
-      "作業済みactive tasks.mdには少なくとも1件のsubagent / Spark証跡を残してください。"
+      "作業済みactive tasks.mdにはsubagent / Spark証跡または許可済みdelegation-exceptionを残してください。"
   fi
 
   if [[ "$(basename "$file")" == "tasks.md" ]]; then

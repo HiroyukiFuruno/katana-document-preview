@@ -73,9 +73,13 @@ impl SurfaceBlockFactory {
         blocks
     }
 
-    fn non_blank_detail_blocks(blocks: Vec<SurfaceBlock>) -> impl Iterator<Item = SurfaceBlock> {
-        blocks.into_iter().filter(
-            |block| !matches!(block, SurfaceBlock::Line(line) if line.text.trim().is_empty()),
-        )
+    fn non_blank_detail_blocks(blocks: Vec<SurfaceBlock>) -> Vec<SurfaceBlock> {
+        let mut non_blank = Vec::with_capacity(blocks.len());
+        for block in blocks {
+            if !matches!(&block, SurfaceBlock::Line(line) if line.text.trim().is_empty()) {
+                non_blank.push(block);
+            }
+        }
+        non_blank
     }
 }

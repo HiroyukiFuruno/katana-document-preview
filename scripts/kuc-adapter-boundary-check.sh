@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cargo_bin="${CARGO:-cargo}"
-kuc_root="${KUC_ROOT:-"$repo_root/../katana-ui-core"}"
+kuc_root="${KUC_ROOT:-}"
 embedded_kuc_root="$repo_root/crates/katana-ui-core"
 metadata_file=""
 
@@ -18,6 +18,7 @@ cd "$repo_root"
 
 packages=(
   katana-document-viewer
+  katana-document-viewer-kuc
   kdv-storybook
 )
 
@@ -62,24 +63,30 @@ neutral_package_roots=(
   "$repo_root/tools/kdv-storybook"
 )
 neutral_extra_roots=()
+kuc_adapter_manifest="$repo_root/crates/katana-document-viewer-kuc/Cargo.toml"
+kuc_adapter_source="$repo_root/crates/katana-document-viewer-kuc/src"
+kuc_workspace_manifest="$repo_root/Cargo.toml"
 
 resolve_cargo_package_root() {
   local package="$1"
+  local source_prefix="$2"
   if [[ -z "$metadata_file" ]]; then
     metadata_file="$(mktemp)"
     "$cargo_bin" metadata --locked --format-version 1 > "$metadata_file"
   fi
-  python3 - "$package" "$metadata_file" <<'PY'
+  python3 - "$package" "$source_prefix" "$metadata_file" <<'PY'
 import json
 import pathlib
 import sys
 
 package_name = sys.argv[1]
-metadata_path = sys.argv[2]
+source_prefix = sys.argv[2]
+metadata_path = sys.argv[3]
 with open(metadata_path, encoding="utf-8") as metadata_file:
     metadata = json.load(metadata_file)
 for package in metadata["packages"]:
-    if package["name"] == package_name:
+    source = package.get("source") or ""
+    if package["name"] == package_name and source.startswith(source_prefix):
         print(pathlib.Path(package["manifest_path"]).parent.as_posix())
         sys.exit(0)
 sys.exit(1)
@@ -188,18 +195,50 @@ for package in "${packages[@]}"; do
   fi
 done
 
-kuc_core_source_root="$kuc_root/crates/katana-ui-core"
-kuc_storybook_source_root="$kuc_root/crates/katana-ui-core-storybook"
-
-if [[ ! -f "$kuc_core_source_root/Cargo.toml" ]]; then
-  kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core)"
+if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$kuc_adapter_manifest"; then
+  echo "kuc-adapter-boundary-check: published KDV adapter must use crates.io KUC 0.3.0" >&2
+  exit 1
 fi
 
-if [[ ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
-  kuc_storybook_source_root="$(resolve_cargo_package_root katana-ui-core-storybook)"
+if ! grep -q 'katana-ui-core.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest"; then
+  echo "kuc-adapter-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
+  exit 1
 fi
 
-kuc_tree="$("$cargo_bin" tree -p katana-ui-core --locked)"
+if grep -n -E 'katana-ui-core.*path[[:space:]]*=' "$kuc_workspace_manifest" "$kuc_adapter_manifest"; then
+  echo "kuc-adapter-boundary-check: KDV must not use a sibling KUC path dependency" >&2
+  exit 1
+fi
+
+if ! grep -R -q 'GenericGrid' "$kuc_adapter_source" || ! grep -R -q 'ImageSurface' "$kuc_adapter_source"; then
+  echo "kuc-adapter-boundary-check: published KDV adapter must reuse KUC grid and image surface" >&2
+  exit 1
+fi
+
+if grep -n -E '^(hayro|ironcalc|office2pdf|quick-xml|xmltree|zip)[[:space:]]*=' "$kuc_adapter_manifest"; then
+  echo "kuc-adapter-boundary-check: format engines must remain in neutral KDV core" >&2
+  exit 1
+fi
+
+if grep -R -n -E 'struct[[:space:]]+Grid(Cell|Layout|Viewport|Selection|HitTest)|fn[[:space:]]+(hit_test|plan_grid_layout|navigate_selection)' "$kuc_adapter_source"; then
+  echo "kuc-adapter-boundary-check: KDV adapter must not duplicate KUC grid geometry or interaction" >&2
+  exit 1
+fi
+
+if [[ -n "$kuc_root" ]]; then
+  kuc_core_source_root="$kuc_root/crates/katana-ui-core"
+  kuc_storybook_source_root="$kuc_root/crates/katana-ui-core-storybook"
+else
+  kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core registry+)"
+  kuc_storybook_source_root="$(resolve_cargo_package_root katana-ui-core-storybook git+)"
+fi
+
+if [[ ! -f "$kuc_core_source_root/Cargo.toml" || ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
+  echo "kuc-adapter-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
+  exit 1
+fi
+
+kuc_tree="$("$cargo_bin" tree -p 'registry+https://github.com/rust-lang/crates.io-index#katana-ui-core@0.3.0' --locked)"
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
   echo "kuc-adapter-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
   exit 1
@@ -335,37 +374,21 @@ if grep -n -E "$storybook_forbidden_task_style_collection_pattern" \
   exit 1
 fi
 
-if [[ -d "$repo_root/crates/katana-document-viewer-kuc" ]]; then
-  echo "kuc-adapter-boundary-check: KDV repo must not own katana-document-viewer-kuc; move viewer UI projection to KUC" >&2
-  exit 1
-fi
-
 if [[ -d "$storybook_source/kuc_bridge" ]]; then
   echo "kuc-adapter-boundary-check: KDV Storybook must not own kuc_bridge; use KUC document_viewer host contract" >&2
   exit 1
 fi
 
-old_kdv_adapter_reference_matches="$(
-  {
-    grep -n -E 'katana_document_viewer_kuc|katana-document-viewer-kuc|crate::kuc_bridge|mod kuc_bridge' \
-      "$repo_root/Cargo.toml" \
-      "$repo_root/Justfile" \
-      || true
-    find "$repo_root/scripts" \
-      -type f \
-      ! -name 'kuc-adapter-boundary-check.sh' \
-      -print0 \
-      | xargs -0 grep -n -E 'katana_document_viewer_kuc|katana-document-viewer-kuc|crate::kuc_bridge|mod kuc_bridge' \
-      || true
-    grep -R -n -E 'katana_document_viewer_kuc|katana-document-viewer-kuc|crate::kuc_bridge|mod kuc_bridge' \
-      "$storybook_source" \
-      || true
-  }
+core_adapter_reference_matches="$(
+  grep -R -n -E 'katana_document_viewer_kuc|katana-document-viewer-kuc' \
+    "$repo_root/crates/katana-document-viewer/Cargo.toml" \
+    "$repo_root/crates/katana-document-viewer/src" \
+    || true
 )"
 
-if [[ -n "$old_kdv_adapter_reference_matches" ]]; then
-  printf '%s\n' "$old_kdv_adapter_reference_matches"
-  echo "kuc-adapter-boundary-check: active KDV manifests/scripts/source must not reference the old KDV-owned KUC adapter" >&2
+if [[ -n "$core_adapter_reference_matches" ]]; then
+  printf '%s\n' "$core_adapter_reference_matches"
+  echo "kuc-adapter-boundary-check: neutral KDV core must not depend on its optional KUC presentation adapter" >&2
   exit 1
 fi
 

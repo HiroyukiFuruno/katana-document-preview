@@ -9,13 +9,21 @@ use crate::layout::{StorybookPreviewArea, preview_content_height, preview_conten
 use crate::preview::PreviewBuilder;
 use crate::preview_build_request::{PreviewBuildAssetMode, PreviewBuildRequest};
 use katana_document_viewer::{
-    DiagramControlCommand, ImageControlAction, SlideshowCommand, ViewerCommand,
-    ViewerInteractionConfig, ViewerSlideshowControlAction, ViewerTaskState,
+    DiagramControlCommand, DocumentViewerCommand, ImageControlAction, SlideshowCommand,
+    ViewerCommand, ViewerInteractionConfig, ViewerSlideshowControlAction, ViewerTaskState,
 };
 use katana_document_viewer::{ViewerMode, ViewerSearchState, ViewerViewport};
 use katana_ui_core::render_model::{UiTaskMarker, UiTextSpanAction};
 use katana_ui_core_storybook::UiTreeHostActionHit;
 use std::path::PathBuf;
+
+#[test]
+fn document_command_uses_neutral_storybook_label() {
+    assert_eq!(
+        "document",
+        StorybookMouse::command_label(&ViewerCommand::Document(DocumentViewerCommand::Previous))
+    );
+}
 
 #[test]
 fn mouse_left_click_on_list_markdown_link_returns_real_link_command()

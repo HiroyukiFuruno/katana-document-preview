@@ -3,6 +3,7 @@
 /tools/kdv-storybook/target
 /tools/kdv-storybook/tools/*/target
 /tools/kdv-storybook/tools/*/tmp
+/tools/multi-format-feasibility/target
 /crates/katana-ui-core/
 /.codex/external-edit-allow
 /assets/fixtures/*
@@ -11,6 +12,8 @@
 !/assets/fixtures/direct/**
 !/assets/fixtures/katana/
 !/assets/fixtures/katana/**
+!/assets/fixtures/multi-format/
+!/assets/fixtures/multi-format/**
 .DS_Store
 skill.md
 CLAUDE.md
