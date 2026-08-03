@@ -5,7 +5,7 @@ use super::spreadsheet_worker_spawn::{
     SpawnedSpreadsheetProcess, cpu_seconds, stdin_unavailable, stdout_unavailable,
 };
 use super::windows_command_line::WindowsCommandLine;
-use super::windows_worker_executable::stage_windows_worker;
+use super::windows_worker_executable::{grant_workspace_parent_traverse, stage_windows_worker};
 use super::{OfficeWorkerConfig, OfficeWorkerError};
 use rappct::acl::{AccessMask, ResourcePath, grant_to_package};
 use rappct::{AppContainerProfile, SecurityCapabilitiesBuilder};
@@ -18,8 +18,16 @@ pub(super) fn spawn(
     let staged_executable = stage_windows_worker(workspace, config)?;
     let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
     let options = windows_options(workspace, &staged_executable, config);
-    let mut child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
-        .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))?;
+    let mut child =
+        rappct::launch::launch_in_container_with_io(&capabilities, &options).map_err(|error| {
+            OfficeWorkerError::unavailable(
+                config,
+                format!(
+                    "Windows AppContainer staged worker launch failed: executable=`{}`: {error}",
+                    staged_executable.display()
+                ),
+            )
+        })?;
     let input = child.stdin.take().ok_or_else(stdin_unavailable)?;
     let output = child.stdout.take().ok_or_else(stdout_unavailable)?;
     Ok(SpawnedSpreadsheetProcess {
@@ -58,6 +66,7 @@ fn grant_worker_resources(
     profile: &AppContainerProfile,
     config: &OfficeWorkerConfig,
 ) -> Result<(), OfficeWorkerError> {
+    grant_workspace_parent_traverse(workspace, profile, config)?;
     grant_access(
         ResourcePath::Directory(workspace.to_path_buf()),
         profile,

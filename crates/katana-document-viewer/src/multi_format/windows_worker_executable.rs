@@ -2,6 +2,8 @@ use super::{OfficeWorkerConfig, OfficeWorkerError};
 use std::path::{Path, PathBuf};
 
 const STAGED_WORKER_NAME: &str = "kdv-office-worker.exe";
+#[cfg(windows)]
+const FILE_TRAVERSE_MASK: u32 = 0x20;
 
 pub(super) fn stage_windows_worker(
     workspace: &Path,
@@ -23,6 +25,48 @@ pub(super) fn stage_windows_worker(
                 ),
             )
         })
+}
+
+#[cfg(windows)]
+pub(super) fn grant_workspace_parent_traverse(
+    workspace: &Path,
+    profile: &rappct::AppContainerProfile,
+    config: &OfficeWorkerConfig,
+) -> Result<(), OfficeWorkerError> {
+    use rappct::acl::{AccessMask, ResourcePath, grant_to_package};
+
+    let parent = workspace_parent(workspace, config)?;
+    // ResourcePath::File applies a non-inheriting ACE, including for a directory target.
+    grant_to_package(
+        ResourcePath::File(parent.to_path_buf()),
+        &profile.sid,
+        AccessMask(FILE_TRAVERSE_MASK),
+    )
+    .map_err(|error| {
+        OfficeWorkerError::unavailable(
+            config,
+            format!(
+                "Windows AppContainer workspace parent traverse grant failed: parent=`{}`: {error}",
+                parent.display()
+            ),
+        )
+    })
+}
+
+#[cfg(windows)]
+fn workspace_parent<'a>(
+    workspace: &'a Path,
+    config: &OfficeWorkerConfig,
+) -> Result<&'a Path, OfficeWorkerError> {
+    workspace.parent().ok_or_else(|| {
+        OfficeWorkerError::unavailable(
+            config,
+            format!(
+                "Windows AppContainer workspace has no parent: `{}`",
+                workspace.display()
+            ),
+        )
+    })
 }
 
 #[cfg(test)]

@@ -103,10 +103,11 @@ dependency方向を`KatanA -> KDV -> KUC/KRR`へ固定する。
 `v0.4.1`のWindows経路は、KatanAのrelease directoryにあるworker fileへACLを付与して
 AppContainerから直接起動していた。file ACLだけでは親directoryのtraverse権限を保証
 できず、KatanA Windows release buildで`CreateProcessW`がworker開始前に失敗した。
-`v0.4.2`は各document専用workspaceへworkerを固定名でstageし、workspace、既存input、
-staged workerへ明示ACLを付与してから、そのstaged pathだけを起動する。KatanAのinstall
-directoryへ再帰ACLを付けず、unsandboxed fallbackも追加しない。network deny、memory / time
-limit、job close時kill、dedicated workspace cleanupは既存契約を維持する。
+`v0.4.2`は各document専用workspaceへworkerを固定名でstageし、workspaceの直上directoryへ
+継承なしの`FILE_TRAVERSE`だけを付与し、workspace、既存input、staged workerへ明示ACLを
+付与してから、そのstaged pathだけを起動する。KatanAのinstall directoryやTemp配下へ
+再帰ACLを付けず、unsandboxed fallbackも追加しない。network deny、memory / time limit、
+job close時kill、dedicated workspace cleanupは既存契約を維持する。
 
 ### D5. Feasibility評価後の候補状態
 

@@ -72,7 +72,7 @@
 - [x] 4.9 PPTX chart fallback profileが承認された場合だけ `office2pdf` static slide adapterを統合する
 - [x] 4.10 representative corpusのreference diffと性能budgetをformat別契約テストへ固定する
 - [x] 4.11 高圧縮DOCXの約8 GB memory回帰をpreflightまたはprocess limitで拒否する契約テストを追加する
-- [ ] 4.12 Windows AppContainer workerをdocument専用workspaceへstageし、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: PR作成後のWindows CI実行URLと実AppContainer契約テスト結果を追記する
+- [ ] 4.12 Windows AppContainer workerをdocument専用workspaceへstageし、workspace parentへ継承なしのtraverse、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: PR作成後のWindows CI実行URLと実AppContainer契約テスト結果を追記する
 
 ---
 

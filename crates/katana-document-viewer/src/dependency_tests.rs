@@ -103,8 +103,14 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
 
     assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
     assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
+    assert!(staging.contains("AccessMask(FILE_TRAVERSE_MASK)"));
+    assert!(staging.contains("ResourcePath::File(parent.to_path_buf())"));
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
+        assert!(
+            worker.contains("grant_workspace_parent_traverse(workspace, &profile, config)?")
+                || worker.contains("grant_workspace_parent_traverse(workspace, profile, config)?")
+        );
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));
         assert!(worker.contains("staged_executable.to_string_lossy().into_owned()"));
         assert!(worker.contains("office_worker_protocol::INPUT_NAME"));
