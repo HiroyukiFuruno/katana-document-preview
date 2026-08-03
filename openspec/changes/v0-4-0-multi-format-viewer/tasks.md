@@ -72,6 +72,7 @@
 - [x] 4.9 PPTX chart fallback profileが承認された場合だけ `office2pdf` static slide adapterを統合する
 - [x] 4.10 representative corpusのreference diffと性能budgetをformat別契約テストへ固定する
 - [x] 4.11 高圧縮DOCXの約8 GB memory回帰をpreflightまたはprocess limitで拒否する契約テストを追加する
+- [ ] 4.12 Windows AppContainer workerをdocument専用workspaceへstageし、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: PR作成後のWindows CI実行URLと実AppContainer契約テスト結果を追記する
 
 ---
 
@@ -100,13 +101,14 @@
 - [x] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する。証跡: release-preflight run `30773465236`
 - [x] 6.8 `v0.4.0` core crateの公開と別presentation crateの403およびcross-layer依存を検出し、別crateを削除した`v0.4.1` KDV document surfaceへrelease contractを修正する
 - [x] 6.9 KDV/KUC混成crateの不存在、KUC型のpublic API非露出、`KatanA -> KDV -> KUC/KRR`の依存方向をrelease gateへ固定する。証跡: file: `scripts/document-surface-boundary-check.sh` / test: `document-surface-boundary-check`
-- [ ] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する
+- [x] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する。証跡: test: GitHub Release `v0.4.1` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.1` / crate: `katana-document-viewer 0.4.1`
+- [ ] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する
 
 ---
 
 ## 7. KatanA handoff
 
-- [ ] 7.1 KDV `v0.4.1` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
+- [ ] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
 
@@ -118,6 +120,7 @@
 - [x] 8.2 `rtk just check` を実行する
 - [x] 8.3 KDV `v0.4.0` release gateを実行する。証跡: test: `v0.4.0-release-check`
 - [ ] 8.4 engine選定、quality profile、unsupported機能、security evidenceをユーザーへ報告する
+- [ ] 8.5 KDV `v0.4.2` release gateとWindows実worker acceptanceを実行する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: release-check結果、Windows CI実行URL、実AppContainer契約テスト結果を追記する
 
 <!-- subagent-spark-harness-strict-start -->
 - delegation-exception: `ユーザーがsubagent利用を禁止`

@@ -91,3 +91,26 @@ fn viewer_public_api_does_not_expose_kuc_or_vendor_types() -> Result<(), Box<dyn
     }
     Ok(())
 }
+
+#[test]
+fn windows_workers_launch_only_the_workspace_staged_executable()
+-> Result<(), Box<dyn std::error::Error>> {
+    let source_root = format!("{}/src/multi_format", env!("CARGO_MANIFEST_DIR"));
+    let staging = fs::read_to_string(format!("{source_root}/windows_worker_executable.rs"))?;
+    let office = fs::read_to_string(format!("{source_root}/office_worker_process_windows.rs"))?;
+    let spreadsheet =
+        fs::read_to_string(format!("{source_root}/spreadsheet_worker_spawn_windows.rs"))?;
+
+    assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
+    assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
+    for worker in [&office, &spreadsheet] {
+        assert!(worker.contains("stage_windows_worker(workspace, config)?"));
+        assert!(worker.contains("exe: staged_executable.to_path_buf()"));
+        assert!(worker.contains("staged_executable.to_string_lossy().into_owned()"));
+        assert!(worker.contains("office_worker_protocol::INPUT_NAME"));
+        assert!(!worker.contains("ResourcePath::File(config.executable.clone())"));
+    }
+    assert!(!office.contains("std::process::Command"));
+    assert!(!spreadsheet.contains("std::process::Command"));
+    Ok(())
+}

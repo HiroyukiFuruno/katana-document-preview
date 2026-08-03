@@ -63,6 +63,8 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs",
+    "crates/katana-document-viewer/src/multi_format/windows_worker_executable.rs",
     "crates/katana-document-viewer/src/document_surface/mod.rs",
     "crates/katana-document-viewer/src/document_surface/page_surface.rs",
     "crates/katana-document-viewer/src/document_surface/spreadsheet_grid.rs",

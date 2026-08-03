@@ -98,6 +98,16 @@ KatanAがKDVを飛び越えてKUCへ直接依存する誤った境界が判明�
 削除し、KDV所有のdocument surfaceへ置き換える。release対象は既存KDV crateだけとし、
 dependency方向を`KatanA -> KDV -> KUC/KRR`へ固定する。
 
+### D4.2 v0.4.2 Windows AppContainer correction
+
+`v0.4.1`のWindows経路は、KatanAのrelease directoryにあるworker fileへACLを付与して
+AppContainerから直接起動していた。file ACLだけでは親directoryのtraverse権限を保証
+できず、KatanA Windows release buildで`CreateProcessW`がworker開始前に失敗した。
+`v0.4.2`は各document専用workspaceへworkerを固定名でstageし、workspace、既存input、
+staged workerへ明示ACLを付与してから、そのstaged pathだけを起動する。KatanAのinstall
+directoryへ再帰ACLを付けず、unsandboxed fallbackも追加しない。network deny、memory / time
+limit、job close時kill、dedicated workspace cleanupは既存契約を維持する。
+
 ### D5. Feasibility評価後の候補状態
 
 - PDFはpure Rust `hayro` 0.7.1を推奨する。85/100、hard gate pass。

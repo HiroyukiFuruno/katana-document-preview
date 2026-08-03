@@ -1,5 +1,7 @@
 use super::{OfficeDocumentFormat, OfficeWorkerConfig, OfficeWorkerError};
+use crate::multi_format::office_worker_protocol::INPUT_NAME;
 use crate::multi_format::windows_command_line::WindowsCommandLine;
+use crate::multi_format::windows_worker_executable::stage_windows_worker;
 use rappct::acl::{AccessMask, ResourcePath, grant_to_package};
 use rappct::{AppContainerProfile, SecurityCapabilitiesBuilder};
 use std::path::Path;
@@ -12,8 +14,9 @@ impl OfficeWorkerWindowsProcess {
         format: OfficeDocumentFormat,
         config: &OfficeWorkerConfig,
     ) -> Result<Option<i64>, OfficeWorkerError> {
-        let capabilities = windows_capabilities(workspace, config)?;
-        let options = build_options(workspace, format, config);
+        let staged_executable = stage_windows_worker(workspace, config)?;
+        let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
+        let options = build_options(workspace, &staged_executable, format, config);
         let child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
             .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))?;
         child
@@ -25,6 +28,7 @@ impl OfficeWorkerWindowsProcess {
 
 fn windows_capabilities(
     workspace: &Path,
+    staged_executable: &Path,
     config: &OfficeWorkerConfig,
 ) -> Result<rappct::SecurityCapabilities, OfficeWorkerError> {
     let profile = app_container_profile(config)?;
@@ -34,7 +38,12 @@ fn windows_capabilities(
         config,
     )?;
     grant_access(
-        ResourcePath::File(config.executable.clone()),
+        ResourcePath::File(workspace.join(INPUT_NAME)),
+        &profile,
+        config,
+    )?;
+    grant_access(
+        ResourcePath::File(staged_executable.to_path_buf()),
         &profile,
         config,
     )?;
@@ -65,13 +74,19 @@ fn grant_access(
 
 fn build_options(
     workspace: &Path,
+    staged_executable: &Path,
     format: OfficeDocumentFormat,
     config: &OfficeWorkerConfig,
 ) -> rappct::LaunchOptions {
     use rappct::{JobLimits, StdioConfig};
     rappct::LaunchOptions {
-        exe: config.executable.clone(),
-        cmdline: Some(worker_command_line(workspace, format, config)),
+        exe: staged_executable.to_path_buf(),
+        cmdline: Some(worker_command_line(
+            workspace,
+            staged_executable,
+            format,
+            config,
+        )),
         cwd: Some(workspace.to_path_buf()),
         env: Some(rappct::launch::merge_parent_env(Vec::new())),
         stdio: StdioConfig::Null,
@@ -86,11 +101,12 @@ fn build_options(
 
 fn worker_command_line(
     workspace: &Path,
+    staged_executable: &Path,
     format: OfficeDocumentFormat,
     config: &OfficeWorkerConfig,
 ) -> String {
     WindowsCommandLine::from_arguments([
-        config.executable.to_string_lossy().into_owned(),
+        staged_executable.to_string_lossy().into_owned(),
         workspace.to_string_lossy().into_owned(),
         super::format_argument(format).to_owned(),
         config.max_memory_bytes.to_string(),

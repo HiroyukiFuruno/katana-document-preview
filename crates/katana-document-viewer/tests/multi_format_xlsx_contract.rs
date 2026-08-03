@@ -26,6 +26,16 @@ fn worker_config() -> OfficeWorkerConfig {
     OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")))
 }
 
+#[cfg(windows)]
+fn external_worker_config() -> TestResult<(tempfile::TempDir, OfficeWorkerConfig)> {
+    let directory = tempfile::tempdir()?;
+    let nested = directory.path().join("external").join("release");
+    std::fs::create_dir_all(&nested)?;
+    let executable = nested.join("kdv-office-worker.exe");
+    std::fs::copy(env!("CARGO_BIN_EXE_kdv-office-worker"), &executable)?;
+    Ok((directory, OfficeWorkerConfig::new(executable)))
+}
+
 fn preflight_valid_invalid_xlsx() -> TestResult<OfficeDocumentSource> {
     let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
     writer.start_file(
@@ -53,6 +63,17 @@ fn missing_spreadsheet_worker_is_a_typed_failure_without_in_process_fallback() -
         Ok(_) => return Err("missing worker did not fail closed".into()),
     };
     assert!(matches!(error, OfficeWorkerError::WorkerUnavailable { .. }));
+    Ok(())
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_appcontainer_stages_an_external_worker_before_launch() -> TestResult {
+    let (_directory, config) = external_worker_config()?;
+    let mut session = SpreadsheetViewerSession::open(fixture("representative.xlsx")?, config)?;
+    let cells = session.materialize_cells(0, vec![SpreadsheetCoordinate::new(0, 0)])?;
+
+    assert_eq!("Quarterly performance", cells[0].display_text);
     Ok(())
 }
 
