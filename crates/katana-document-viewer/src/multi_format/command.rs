@@ -110,3 +110,19 @@ impl DocumentViewerState {
         DocumentViewerEvent::IndexChanged(index)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{DEFAULT_ZOOM, DocumentViewerState};
+
+    #[test]
+    fn state_constructor_initializes_runtime_item_count() {
+        let item_count = std::hint::black_box(3);
+        let state = DocumentViewerState::new(item_count);
+
+        assert_eq!(item_count, state.item_count);
+        assert_eq!(0, state.active_index);
+        assert_eq!(DEFAULT_ZOOM, state.zoom);
+        assert_eq!(None, state.fit);
+    }
+}
