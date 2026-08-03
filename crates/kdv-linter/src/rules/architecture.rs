@@ -4,7 +4,6 @@ use crate::workspace::WorkspaceModel;
 use super::manifest_boundary::ManifestBoundaryRule;
 
 pub const VIEWER_CRATE: &str = "crates/katana-document-viewer";
-pub const LIB_CRATE: &str = "crates/katana-document-viewer";
 
 pub struct ArchitectureRule;
 

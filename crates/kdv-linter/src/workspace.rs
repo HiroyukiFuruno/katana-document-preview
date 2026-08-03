@@ -71,7 +71,6 @@ impl WorkspaceModel {
             root.join("crates/kdv-linter/src"),
             root.join("crates/kdv-linter/tests"),
             root.join("crates/katana-document-viewer/src"),
-            root.join("crates/katana-document-viewer-kuc/src"),
         ]
     }
 

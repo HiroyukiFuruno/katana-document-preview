@@ -35,8 +35,8 @@ wait_until_published() {
   exit 1
 }
 
-if is_published katana-document-viewer && is_published katana-document-viewer-kuc; then
-  echo "KDV ${version} crates are already published; skipping."
+if is_published katana-document-viewer; then
+  echo "KDV ${version} is already published; skipping."
   exit 0
 fi
 
@@ -46,10 +46,4 @@ require_token
 if ! is_published katana-document-viewer; then
   cargo publish -p katana-document-viewer --locked --token "${CARGO_REGISTRY_TOKEN}"
   wait_until_published katana-document-viewer
-fi
-
-if ! is_published katana-document-viewer-kuc; then
-  cargo publish -p katana-document-viewer-kuc --dry-run --locked
-  cargo publish -p katana-document-viewer-kuc --locked --token "${CARGO_REGISTRY_TOKEN}"
-  wait_until_published katana-document-viewer-kuc
 fi

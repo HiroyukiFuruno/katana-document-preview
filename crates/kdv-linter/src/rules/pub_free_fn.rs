@@ -131,12 +131,15 @@ mod tests {
     }
 
     #[test]
-    fn public_free_function_rule_counts_kuc_viewer_file() -> Result<(), KdvLintError> {
+    fn public_free_function_rule_counts_document_surface_file() -> Result<(), KdvLintError> {
         let fixture = FixtureWorkspace::new().with_default_manifests()?;
         let source = r#"
 pub fn ui_entry() {}
 "#;
-        fixture.write_rust_file("crates/katana-document-viewer-kuc/src/lib.rs", source)?;
+        fixture.write_rust_file(
+            "crates/katana-document-viewer/src/document_surface/public_entry.rs",
+            source,
+        )?;
         let workspace = fixture.workspace()?;
         let violations = PublicFreeFunctionRule::check(&workspace)?;
 

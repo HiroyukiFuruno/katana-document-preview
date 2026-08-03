@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-description = "KatanA document viewer artifact, render evaluation, and export foundation."
+description = "KatanA document viewer runtime, presentation, and export foundation."
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage)"] }
@@ -14,8 +14,13 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage)"] }
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = []
+egui = ["dep:egui", "dep:katana-ui-core"]
+
 [dependencies]
 cosmic-text = { workspace = true }
+egui = { version = "0.35", optional = true }
 epaint_default_fonts = { workspace = true }
 flate2 = { workspace = true }
 hayro = { workspace = true }
@@ -23,6 +28,7 @@ image = { workspace = true }
 ironcalc = { workspace = true }
 katana-markdown-model = { workspace = true }
 katana-render-runtime = { workspace = true }
+katana-ui-core = { version = "0.3.0", optional = true }
 office2pdf = { workspace = true }
 process_control = { workspace = true }
 quick-xml = { workspace = true }

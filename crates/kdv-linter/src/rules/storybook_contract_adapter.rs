@@ -12,7 +12,7 @@ impl<'a> AdapterContractChecker<'a> {
     }
 
     pub(super) fn violations(&self) -> Vec<Violation> {
-        if !self.is_kdv_kuc_source() {
+        if !self.is_document_surface_source() {
             return Vec::new();
         }
         let mut violations = Vec::new();
@@ -21,11 +21,11 @@ impl<'a> AdapterContractChecker<'a> {
         violations
     }
 
-    fn is_kdv_kuc_source(&self) -> bool {
+    fn is_document_surface_source(&self) -> bool {
         self.file
             .path()
             .to_string_lossy()
-            .contains("crates/katana-document-viewer-kuc/src")
+            .contains("crates/katana-document-viewer/src/document_surface")
     }
 
     fn style_class_contract_violations(&self) -> Vec<Violation> {
@@ -76,7 +76,7 @@ impl<'a> AdapterContractChecker<'a> {
                 index + 1,
                 column + 1,
                 "no_manual_interactive_preset_override",
-                "KDV-KUC must use KUC interactive presets instead of manual pointer cursor.",
+                "KDV document surface must use KUC interactive presets instead of a manual pointer cursor.",
             )
         })
     }

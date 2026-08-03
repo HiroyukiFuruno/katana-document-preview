@@ -10,7 +10,7 @@ VERSION_BARE := replace(VERSION, "v", "")
 TAG := "v" + VERSION_BARE
 COVERAGE_MIN_LINES := "100"
 COVERAGE_MAX_UNCOVERED_LINES := "0"
-COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer -p katana-document-viewer-kuc"
+COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer"
 COVERAGE_IGNORE_FILENAME_REGEX := "(^|/)(tests?|examples)(/|$)|(^|/)[^/]*(test|tests)[^/]*\\.rs$|/crates/kdv-linter/"
 RELEASE_REPO := env_var_or_default("RELEASE_REPO", "HiroyukiFuruno/katana-document-viewer")
 KAL_VERSION := env_var_or_default("KAL_VERSION", "0.5.1")
@@ -18,7 +18,7 @@ KAL_ROOT := env_var_or_default("KAL_ROOT", REPO_ROOT + "/target/kal")
 KAL := env_var_or_default("KAL", KAL_ROOT + "/bin/kal")
 STORYBOOK_TARGET_DIR := env_var_or_default("STORYBOOK_TARGET_DIR", REPO_ROOT + "/target")
 STORYBOOK_FRAMES := env_var_or_default("STORYBOOK_FRAMES", "0")
-KDV_FMT_PACKAGES := "--package kdv-linter --package katana-document-viewer --package katana-document-viewer-kuc --package kdv-storybook"
+KDV_FMT_PACKAGES := "--package kdv-linter --package katana-document-viewer --package kdv-storybook"
 KUC_ROOT := env_var_or_default("KUC_ROOT", replace(REPO_ROOT, "/katana-document-viewer", "/katana-ui-core"))
 
 export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings")
@@ -60,7 +60,7 @@ coverage-missing:
     {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --show-missing-lines --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Run the local quality gate
-check: fmt-check lint ast-lint storybook-entrypoint-check kuc-adapter-boundary-check test release-target-script-test multi-format-scorecard-script-test multi-format-scorecard-check check-subagent-harness
+check: fmt-check lint ast-lint storybook-entrypoint-check document-surface-boundary-check test release-target-script-test multi-format-scorecard-script-test multi-format-scorecard-check check-subagent-harness
     @echo "checks passed"
 
 # Run release-line mapping tests without contacting external services.
@@ -87,8 +87,8 @@ check-subagent-harness:
     bash scripts/check-subagent-spark-harness.sh
 
 # Ensure KDV/KUC preview entrypoints stay vendor-runtime independent
-kuc-adapter-boundary-check:
-    CARGO="{{CARGO}}" {{RTK_CMD}}bash scripts/kuc-adapter-boundary-check.sh
+document-surface-boundary-check:
+    CARGO="{{CARGO}}" {{RTK_CMD}}bash scripts/document-surface-boundary-check.sh
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked no_reintroduced_manual_storybook_action_contracts -- --test-threads=1
 
 # Open the vendor-free KUC preview Storybook window
@@ -532,7 +532,7 @@ storybook-score-check-core:
     {{RTK_CMD}}{{CARGO}} test -p katana-document-viewer --locked surface_equivalence -- --test-threads=1
 
 # Check the vendor-free Storybook contract
-storybook-check: storybook-entrypoint-check kuc-adapter-boundary-check storybook-tool-test storybook-content-check-core storybook-emoji-check-core storybook-kuc-visual-check-core storybook-treeview-check-core storybook-settings-contract-check-core storybook-coordinate-contract-check-core storybook-hover-contract-check-core storybook-media-control-clickability-check-full-core storybook-code-block-check-core storybook-window-code-copy-screenshot-smoke storybook-task-checkbox-check-core storybook-accordion-check-core storybook-link-footnote-check-core storybook-toc-check-core storybook-diagram-load-check-core storybook-slideshow-check-core storybook-search-check-core storybook-unresolved-metadata-check-core storybook-scroll-resize-contract-check storybook-interaction-check-core storybook-window-smoke storybook-clipboard-smoke storybook-clipboard-keyboard-smoke storybook-clipboard-drag-smoke storybook-selection-contract-check-core storybook-selection-screenshot-smoke storybook-window-hover-screenshot-smoke storybook-window-hover-wide-screenshot-smoke storybook-window-footnote-screenshot-smoke storybook-window-table-screenshot-smoke storybook-window-selection-screenshot-smoke storybook-slideshow-screenshot-smoke storybook-window-slideshow-screenshot-smoke storybook-window-sidebar-screenshot-smoke storybook-window-sidebar-narrow-screenshot-smoke storybook-window-sidebar-large-screenshot-smoke storybook-window-diagram-screenshot-smoke storybook-window-drawio-diagram-screenshot-smoke storybook-performance-check-core storybook-score-check
+storybook-check: storybook-entrypoint-check document-surface-boundary-check storybook-tool-test storybook-content-check-core storybook-emoji-check-core storybook-kuc-visual-check-core storybook-treeview-check-core storybook-settings-contract-check-core storybook-coordinate-contract-check-core storybook-hover-contract-check-core storybook-media-control-clickability-check-full-core storybook-code-block-check-core storybook-window-code-copy-screenshot-smoke storybook-task-checkbox-check-core storybook-accordion-check-core storybook-link-footnote-check-core storybook-toc-check-core storybook-diagram-load-check-core storybook-slideshow-check-core storybook-search-check-core storybook-unresolved-metadata-check-core storybook-scroll-resize-contract-check storybook-interaction-check-core storybook-window-smoke storybook-clipboard-smoke storybook-clipboard-keyboard-smoke storybook-clipboard-drag-smoke storybook-selection-contract-check-core storybook-selection-screenshot-smoke storybook-window-hover-screenshot-smoke storybook-window-hover-wide-screenshot-smoke storybook-window-footnote-screenshot-smoke storybook-window-table-screenshot-smoke storybook-window-selection-screenshot-smoke storybook-slideshow-screenshot-smoke storybook-window-slideshow-screenshot-smoke storybook-window-sidebar-screenshot-smoke storybook-window-sidebar-narrow-screenshot-smoke storybook-window-sidebar-large-screenshot-smoke storybook-window-diagram-screenshot-smoke storybook-window-drawio-diagram-screenshot-smoke storybook-performance-check-core storybook-score-check
 
 # Verify VERSION follows the published release line
 release-target-check:
@@ -557,7 +557,6 @@ release-verify: release-contract-check check coverage
     bash scripts/release/verify-version.sh "{{VERSION}}"
     {{CARGO}} package -p katana-document-viewer --locked --allow-dirty
     {{CARGO}} publish -p katana-document-viewer --dry-run --locked --allow-dirty
-    {{CARGO}} package -p katana-document-viewer-kuc --locked --allow-dirty --list
 
 # Verify release branch readiness before merging
 release-check: release-target-check release-verify

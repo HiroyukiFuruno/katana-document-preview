@@ -92,7 +92,7 @@ fn workspace_target_roots_is_stable() {
     let root = workspace_fixture("target-roots");
     let targets = WorkspaceModel::target_roots(&root);
 
-    assert_eq!(targets.len(), 4);
+    assert_eq!(targets.len(), 3);
     assert!(
         targets
             .first()
@@ -100,8 +100,8 @@ fn workspace_target_roots_is_stable() {
     );
     assert!(
         targets
-            .get(3)
-            .is_some_and(|path| path.ends_with("crates/katana-document-viewer-kuc/src"))
+            .get(2)
+            .is_some_and(|path| path.ends_with("crates/katana-document-viewer/src"))
     );
     let _ = std::fs::remove_dir_all(root);
 }

@@ -429,13 +429,13 @@ fn release_scripts_do_not_depend_on_obsolete_preview_egui_package()
 }
 
 #[test]
-fn kuc_boundary_check_resolves_cargo_dependency_when_sibling_repo_is_missing()
+fn document_surface_boundary_resolves_cargo_dependency_when_sibling_repo_is_missing()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
-    let script = std::fs::read_to_string(root.join("scripts/kuc-adapter-boundary-check.sh"))?;
+    let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
 
     assert_contains_all(
-        "kuc-adapter-boundary-check.sh",
+        "document-surface-boundary-check.sh",
         &script,
         &[
             "resolve_cargo_package_root",

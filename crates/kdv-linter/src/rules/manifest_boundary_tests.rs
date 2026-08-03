@@ -29,6 +29,34 @@ egui = "0.29"
 }
 
 #[test]
+fn manifest_boundary_check_accepts_feature_scoped_optional_host_dependency()
+-> Result<(), KdvLintError> {
+    let fixture = FixtureWorkspace::new().with_default_manifests()?;
+    let viewer_manifest = r#"
+[package]
+name = "katana-document-viewer"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+egui = ["dep:egui"]
+
+[dependencies]
+egui = { version = "0.35", optional = true }
+"#;
+    fixture.write_manifest(&format!("{VIEWER_CRATE}/Cargo.toml"), viewer_manifest)?;
+
+    let violations = ManifestBoundaryRule::check(&fixture.root)?;
+
+    assert!(
+        !violations
+            .iter()
+            .any(|violation| violation.rule == "preview-boundary")
+    );
+    Ok(())
+}
+
+#[test]
 fn manifest_boundary_check_rejects_removed_adapter_dependency() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     let viewer_manifest = r#"

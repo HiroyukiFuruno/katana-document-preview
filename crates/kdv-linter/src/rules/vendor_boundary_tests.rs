@@ -6,7 +6,7 @@ use crate::rules::test_helpers::FixtureWorkspace;
 fn vendor_boundary_rejects_core_source_vendor_refs() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/lib.rs",
+        "crates/katana-document-viewer/src/vendor_leak.rs",
         r#"
 use egui::Color32;
 
@@ -31,10 +31,10 @@ impl Core {
 fn vendor_boundary_rejects_core_manifest_vendor_refs() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_manifest(
-        "crates/katana-document-viewer-kuc/Cargo.toml",
+        "crates/katana-document-viewer/Cargo.toml",
         r#"
 [package]
-name = "katana-document-viewer-kuc"
+name = "katana-document-viewer"
 version = "0.1.0"
 edition = "2021"
 
@@ -54,7 +54,7 @@ katana-ui-core-egui = { path = "../katana-ui-core-egui" }
 fn vendor_boundary_rejects_core_source_cross_vendor_refs() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/lib.rs",
+        "crates/katana-document-viewer/src/document_surface/cross_vendor_leak.rs",
         r#"
 use floem::View;
 

@@ -45,7 +45,7 @@ fn write_storybook_violation_fixtures(fixture: &FixtureWorkspace) -> Result<(), 
         MANUAL_WINDOW_PRESENTATION_SOURCE,
     )?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/node_factory_link.rs",
+        "crates/katana-document-viewer/src/document_surface/node_factory_link.rs",
         INTERACTIVE_PRESET_OVERRIDE_SOURCE,
     )
 }
@@ -129,7 +129,7 @@ fn storybook_contract_ignores_window_presentation_terms_in_tests() -> Result<(),
 fn storybook_contract_flags_diagram_style_class_contract() -> Result<(), KdvLintError> {
     let fixture = FixtureWorkspace::new().with_default_manifests()?;
     fixture.write_rust_file(
-        "crates/katana-document-viewer-kuc/src/node_factory_media_diagram_controls.rs",
+        "crates/katana-document-viewer/src/document_surface/node_factory_media_diagram_controls.rs",
         r#"
 fn control(node: UiNode) -> UiNode {
     node

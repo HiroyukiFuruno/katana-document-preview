@@ -19,15 +19,17 @@
 
 ## Design
 
-Two-crate structure separates interface from implementation:
+The published crate owns the complete document-viewer boundary:
 
 ```
-kdv                            ← neutral trait + DTO (no egui, no framework)
-katana-document-viewer-kuc     ← katana-ui-core based viewer/export implementation
+KatanA -> katana-document-viewer -> katana-ui-core / katana-render-runtime
 ```
 
-KatanA depends on the neutral interface and the KUC implementation. KDV does
-not own editor-viewer synchronization control; KatanA commands viewer or editor.
+KatanA enables KDV's optional `egui` host feature and uses only KDV document
+surface, input, state, capability, and diagnostic APIs. KDV uses KUC internally;
+KUC types are not part of KDV's public API, and KatanA does not depend on KUC.
+KDV does not own editor-viewer synchronization control; KatanA commands viewer
+or editor.
 
 HTML/PDF/PNG/JPG export belongs to KDV so viewer display and export share the
 same render pipeline. Diagram and math rendering are delegated through KRR
