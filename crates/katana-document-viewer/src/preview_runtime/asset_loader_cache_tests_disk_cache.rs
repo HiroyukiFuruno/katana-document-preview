@@ -4,10 +4,9 @@ use katana_markdown_model::DiagramKind;
 
 #[path = "asset_loader_cache_tests_disk_cache_helpers.rs"]
 mod helpers;
-use helpers::{
-    clean_cache_root, count_svg_files, disk_cache_key_and_permissions, locate_svg_file, output_for,
-    restore_permissions, set_readonly, unique_cache_root,
-};
+use helpers::{clean_cache_root, count_svg_files, locate_svg_file, output_for, unique_cache_root};
+#[cfg(unix)]
+use helpers::{disk_cache_key_and_permissions, restore_permissions, set_readonly};
 
 #[test]
 fn diagram_disk_cache_discard_non_svg_payload() -> Result<(), Box<dyn std::error::Error>> {
@@ -80,6 +79,7 @@ fn diagram_disk_cache_put_disk_ignores_uncreateable_cache_root()
     Ok(())
 }
 
+#[cfg(unix)]
 #[test]
 fn diagram_disk_cache_put_disk_ignores_root_file_write_failure()
 -> Result<(), Box<dyn std::error::Error>> {

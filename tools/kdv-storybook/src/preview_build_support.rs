@@ -198,7 +198,11 @@ impl PreviewBuildSupport {
     }
 
     fn document_id_for_path(path: &Path) -> String {
-        path.display().to_string().replace('\\', "/")
+        let normalized = path.display().to_string().replace('\\', "/");
+        normalized
+            .strip_prefix("//?/")
+            .unwrap_or(&normalized)
+            .to_owned()
     }
 
     fn file_uri_for_document_id(document_id: &str) -> String {
@@ -428,6 +432,16 @@ mod tests {
         assert_eq!(
             "file:///D:/a/katana-document-viewer/assets/fixtures/direct/kdv-icon.png",
             PreviewBuildSupport::file_uri_for_document_id(document_id)
+        );
+    }
+
+    #[test]
+    fn windows_extended_drive_path_becomes_a_regular_document_id() {
+        let path = std::path::Path::new(r"\\?\D:\a\katana-document-viewer\index.html");
+
+        assert_eq!(
+            "D:/a/katana-document-viewer/index.html",
+            PreviewBuildSupport::document_id_for_path(path)
         );
     }
 }

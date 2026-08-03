@@ -104,7 +104,7 @@ fn window_loop_delegates_window_presentation_to_kuc() {
 
 #[test]
 fn diagram_screenshot_current_alias_keeps_initial_frame_not_mutated_control_state() {
-    let source = include_str!("window_loop.rs");
+    let source = include_str!("window_loop.rs").replace("\r\n", "\n");
 
     assert!(source.contains("let base = self.presented_frame_for_current_window(width, height)?;"));
     assert!(source.contains("let mut last = base.clone();"));

@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const UPDATE_TIMEOUT: Duration = Duration::from_secs(1);
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(10);
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 type RunningWorker = (
     Arc<BrowserSessionCommandQueue>,
