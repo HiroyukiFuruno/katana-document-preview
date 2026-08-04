@@ -1,6 +1,7 @@
 use super::KucCoreBoundaryRule;
 use crate::diagnostics::KdvLintError;
 use crate::rules::test_helpers::FixtureWorkspace;
+use crate::workspace::PortablePath;
 
 #[test]
 fn kuc_core_boundary_flags_viewer_media_semantic_leak() -> Result<(), KdvLintError> {
@@ -20,10 +21,7 @@ pub const PREFIX: &str = "viewer.diagram.zoom-in";
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "kuc-core-boundary"
-            && violation
-                .file
-                .to_string_lossy()
-                .contains("crates/katana-ui-core/src")
+            && PortablePath::new(&violation.file).contains("crates/katana-ui-core/src")
     }));
     Ok(())
 }
@@ -46,10 +44,7 @@ pub fn test_action() -> &'static str {
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "kuc-core-boundary"
-            && violation
-                .file
-                .to_string_lossy()
-                .contains("crates/katana-ui-core/src")
+            && PortablePath::new(&violation.file).contains("crates/katana-ui-core/src")
     }));
     Ok(())
 }
@@ -92,10 +87,7 @@ impl FileTree {
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "kuc-file-tree-facade"
-            && violation
-                .file
-                .to_string_lossy()
-                .contains("molecule/structured/file_tree.rs")
+            && PortablePath::new(&violation.file).contains("molecule/structured/file_tree.rs")
     }));
     Ok(())
 }
@@ -122,9 +114,7 @@ impl FileTree {
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "kuc-file-tree-facade"
-            && violation
-                .file
-                .to_string_lossy()
+            && PortablePath::new(&violation.file)
                 .contains("molecule/structured/file_tree/facade.rs")
     }));
     Ok(())

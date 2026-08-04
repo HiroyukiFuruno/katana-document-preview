@@ -1,6 +1,7 @@
 use super::ViewerMediaActionPrefixRule;
 use crate::diagnostics::{KdvLintError, Violation};
 use crate::rules::test_helpers::FixtureWorkspace;
+use crate::workspace::PortablePath;
 
 #[test]
 fn viewer_media_prefix_rule_flags_document_surface_duplicate_prefix() -> Result<(), KdvLintError> {
@@ -8,10 +9,7 @@ fn viewer_media_prefix_rule_flags_document_surface_duplicate_prefix() -> Result<
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "no_duplicate_viewer_media_action_prefix"
-            && violation
-                .file
-                .to_string_lossy()
-                .contains("document_surface")
+            && PortablePath::new(&violation.file).contains("document_surface")
     }));
     Ok(())
 }

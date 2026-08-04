@@ -186,6 +186,7 @@ fn loader_supports_default_clone_and_cache_root() -> Result<(), Box<dyn std::err
 
 fn file_uri_for_path(path: &Path) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
-    let prefix = if normalized.starts_with('/') { "" } else { "/" };
-    format!("file://{prefix}{normalized}")
+    let local = normalized.strip_prefix("//?/").unwrap_or(&normalized);
+    let prefix = if local.starts_with('/') { "" } else { "/" };
+    format!("file://{prefix}{local}")
 }

@@ -59,6 +59,14 @@ pub enum DocumentGridCommand {
     },
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum DocumentGridEvent {
+    #[default]
+    None,
+    SelectionChanged,
+    Scrolled,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocumentSurfaceCommand {
     Resize(DocumentViewport),

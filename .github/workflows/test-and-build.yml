@@ -124,11 +124,20 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: just ast-lint
 
-      - name: Run tests
-        run: |
-          cargo test --workspace --locked --exclude kdv-storybook
-          cargo test -p kdv-storybook --locked -- --test-threads=1 --skip katana_intro_text_keeps_readable_frame_band_heights --skip katana_language_link_underline_reaches_frame_pixels --skip direct_html_margin_left_fixture_reaches_frame_pixels --skip storybook_score_visual_ --skip storybook_sample_ --skip storybook_preview_crop_score_ --skip storybook_score_export_surface_excludes_overlay_controls --skip mouse_click_uses_external_scroll_for_scroll_independent_scene
-          cargo test -p kdv-storybook --locked mouse_click_uses_external_scroll_for_scroll_independent_scene -- --test-threads=1
+      - name: Run Windows AppContainer worker acceptance
+        if: matrix.os == 'windows-latest'
+        env:
+          RAPPCT_DEBUG_LAUNCH: "1"
+        run: cargo test -p katana-document-viewer --test multi_format_xlsx_contract windows_appcontainer_stages_an_external_worker_before_launch --locked -- --exact
+
+      - name: Run workspace tests
+        run: cargo test --workspace --locked --exclude kdv-storybook
+
+      - name: Run Storybook tests
+        run: cargo test -p kdv-storybook --locked -- --test-threads=1 --skip katana_intro_text_keeps_readable_frame_band_heights --skip katana_language_link_underline_reaches_frame_pixels --skip direct_html_margin_left_fixture_reaches_frame_pixels --skip storybook_score_visual_ --skip storybook_sample_ --skip storybook_preview_crop_score_ --skip storybook_score_export_surface_excludes_overlay_controls --skip mouse_click_uses_external_scroll_for_scroll_independent_scene
+
+      - name: Run isolated Storybook mouse test
+        run: cargo test -p kdv-storybook --locked mouse_click_uses_external_scroll_for_scroll_independent_scene -- --test-threads=1
 
       - name: Run coverage
         if: matrix.os == 'ubuntu-latest'

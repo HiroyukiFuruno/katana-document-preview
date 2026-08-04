@@ -1,4 +1,4 @@
-# v0.4.1 Multi-format Viewer Handoff
+# v0.4.2 Multi-format Viewer Handoff
 
 ## Ownership
 
@@ -52,5 +52,6 @@
    passes.
 2. Pass strict 100% coverage, cross-platform distribution, security,
    package, and release gates.
-3. Publish KDV 0.4.1 with the `egui` document-surface feature, integrate the registry
+3. Publish KDV 0.4.2 with the `egui` document-surface feature and Windows
+   AppContainer worker staging, integrate the registry
    version into KatanA, then complete native acceptance and the KatanA release.

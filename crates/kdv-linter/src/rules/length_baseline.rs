@@ -1,4 +1,5 @@
 use crate::diagnostics::Violation;
+use crate::workspace::PortablePath;
 use std::path::Path;
 
 const FILE_LENGTH_BASELINE: &[&str] = &[
@@ -133,17 +134,12 @@ pub(super) struct LengthBaseline;
 
 impl LengthBaseline {
     pub(super) fn contains(root: &Path, violation: &Violation) -> bool {
-        let Some(relative) = violation
-            .file
-            .strip_prefix(root)
-            .ok()
-            .and_then(|path| path.to_str())
-        else {
+        let Some(relative) = PortablePath::new(&violation.file).relative_to(root) else {
             return false;
         };
         match violation.rule {
-            "file-length" => FILE_LENGTH_BASELINE.contains(&relative),
-            "function-length" => function_is_baselined(relative, &violation.message),
+            "file-length" => FILE_LENGTH_BASELINE.contains(&relative.as_str()),
+            "function-length" => function_is_baselined(&relative, &violation.message),
             _ => false,
         }
     }

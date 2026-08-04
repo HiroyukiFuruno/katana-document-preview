@@ -91,3 +91,55 @@ fn viewer_public_api_does_not_expose_kuc_or_vendor_types() -> Result<(), Box<dyn
     }
     Ok(())
 }
+
+#[test]
+fn windows_workers_launch_only_the_workspace_staged_executable()
+-> Result<(), Box<dyn std::error::Error>> {
+    let source_root = format!("{}/src/multi_format", env!("CARGO_MANIFEST_DIR"));
+    let staging = fs::read_to_string(format!("{source_root}/windows_worker_executable.rs"))?;
+    let office = fs::read_to_string(format!("{source_root}/office_worker_process_windows.rs"))?;
+    let spreadsheet =
+        fs::read_to_string(format!("{source_root}/spreadsheet_worker_spawn_windows.rs"))?;
+    let workspace = fs::read_to_string(format!("{source_root}/office_worker_workspace.rs"))?;
+    let profile = fs::read_to_string(format!("{source_root}/windows_worker_profile.rs"))?;
+
+    assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
+    assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
+    assert!(workspace.contains("windows_worker_profile::workspace_root(config)?"));
+    assert!(workspace.contains("tempdir_in(root)"));
+    assert_windows_worker_profile_contract(&profile);
+    for worker in [&office, &spreadsheet] {
+        assert!(worker.contains("stage_windows_worker(workspace, config)?"));
+        assert!(worker.contains("exe: staged_executable.to_path_buf()"));
+        assert!(worker.contains("staged_executable.to_string_lossy().into_owned()"));
+        assert!(worker.contains("office_worker_protocol::INPUT_NAME"));
+        assert!(!worker.contains("ResourcePath::File(config.executable.clone())"));
+    }
+    assert!(!office.contains("std::process::Command"));
+    assert!(!spreadsheet.contains("std::process::Command"));
+    Ok(())
+}
+
+fn assert_windows_worker_profile_contract(profile: &str) {
+    for marker in [
+        ".join(PROFILE_NAME)",
+        ".join(\"AC\")",
+        ".join(\"Temp\")",
+        "std::env::vars_os()",
+        "OsString::from(\"TEMP\")",
+        "OsString::from(\"TMP\")",
+        "environment.sort_by",
+    ] {
+        assert!(profile.contains(marker), "missing profile marker: {marker}");
+    }
+}
+
+#[test]
+fn public_document_surface_does_not_expose_kuc_event_types() {
+    let surface = include_str!("document_surface/spreadsheet_grid.rs");
+    let api = include_str!("document_surface/mod.rs");
+
+    assert!(surface.contains("-> super::DocumentGridEvent"));
+    assert!(api.contains("pub enum DocumentGridEvent"));
+    assert!(!surface.contains("-> GridEvent"));
+}

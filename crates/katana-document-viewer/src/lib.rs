@@ -98,9 +98,9 @@ pub use document::{
 };
 #[cfg(feature = "egui")]
 pub use document_surface::{
-    DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceCommand, DocumentSurfaceError,
-    DocumentSurfaceFrame, DocumentSurfaceHost, DocumentSurfaceHostOutput, DocumentSurfaceKind,
-    DocumentViewport, SpreadsheetGridSurface,
+    DocumentGridCommand, DocumentGridEvent, DocumentGridNavigation, DocumentSurfaceCommand,
+    DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceHost, DocumentSurfaceHostOutput,
+    DocumentSurfaceKind, DocumentViewport, SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,

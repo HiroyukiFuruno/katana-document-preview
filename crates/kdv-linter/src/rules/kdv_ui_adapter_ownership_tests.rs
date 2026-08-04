@@ -1,6 +1,7 @@
 use super::KdvUiAdapterOwnershipRule;
 use crate::diagnostics::KdvLintError;
 use crate::rules::test_helpers::FixtureWorkspace;
+use crate::workspace::PortablePath;
 
 #[test]
 fn allows_kdv_owned_document_surface_without_a_mixed_crate() -> Result<(), KdvLintError> {
@@ -118,9 +119,7 @@ fn flags_storybook_owned_kuc_bridge_module() -> Result<(), KdvLintError> {
 
     assert!(violations.iter().any(|violation| {
         violation.rule == "no_kdv_ui_adapter_ownership"
-            && violation
-                .file
-                .to_string_lossy()
+            && PortablePath::new(&violation.file)
                 .contains("tools/kdv-storybook/src/kuc_bridge/mod.rs")
     }));
     Ok(())
@@ -147,9 +146,6 @@ fn assert_storybook_source_violations(
     assert_eq!(expected, violations.len());
     assert!(violations.iter().all(|violation| {
         violation.rule == "no_kdv_ui_adapter_ownership"
-            && violation
-                .file
-                .to_string_lossy()
-                .contains("tools/kdv-storybook/src")
+            && PortablePath::new(&violation.file).contains("tools/kdv-storybook/src")
     }));
 }

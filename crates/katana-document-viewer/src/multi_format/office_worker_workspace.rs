@@ -9,12 +9,32 @@ impl OfficeWorkerWorkspace {
         bytes: &[u8],
         config: &OfficeWorkerConfig,
     ) -> Result<tempfile::TempDir, OfficeWorkerError> {
-        let workspace = Self::created(config, tempfile::Builder::new().prefix(prefix).tempdir())?;
+        let workspace = Self::create(prefix, config)?;
         Self::input_written(
             config,
             std::fs::write(workspace.path().join(INPUT_NAME), bytes),
         )
         .map(|()| workspace)
+    }
+
+    #[cfg(not(windows))]
+    fn create(
+        prefix: &str,
+        config: &OfficeWorkerConfig,
+    ) -> Result<tempfile::TempDir, OfficeWorkerError> {
+        Self::created(config, tempfile::Builder::new().prefix(prefix).tempdir())
+    }
+
+    #[cfg(windows)]
+    fn create(
+        prefix: &str,
+        config: &OfficeWorkerConfig,
+    ) -> Result<tempfile::TempDir, OfficeWorkerError> {
+        let root = super::windows_worker_profile::workspace_root(config)?;
+        Self::created(
+            config,
+            tempfile::Builder::new().prefix(prefix).tempdir_in(root),
+        )
     }
 
     fn created(

@@ -72,6 +72,13 @@
 - [x] 4.9 PPTX chart fallback profileが承認された場合だけ `office2pdf` static slide adapterを統合する
 - [x] 4.10 representative corpusのreference diffと性能budgetをformat別契約テストへ固定する
 - [x] 4.11 高圧縮DOCXの約8 GB memory回帰をpreflightまたはprocess limitで拒否する契約テストを追加する
+- [x] 4.12 Windows AppContainer profile folder内のdocument専用workspaceへworkerをstageし、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: CI run `30868560652` / Windows job `91865557624` / test: `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
+- [x] 4.13 Windows AppContainer起動へ親processの完全なUnicode環境blockをcase-insensitive順で渡し、`TEMP` / `TMP`だけをdocument workspaceへ置換する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30865519677` / `CreateProcessW 0x800700CB` / file: `windows_worker_profile.rs` / test: `just check`, `just coverage`, `v0.4.2-release-check`, `cargo xwin check`
+- [x] 4.14 Windows verbatim pathの `?` をURL queryとして切断せず、direct imageの拡張子判定とfile URI生成を正規化する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30869935308` / Windows job `91869713856` / test: `windows_verbatim_image_source_keeps_extension_and_valid_file_uri`, `windows_verbatim_document_path_still_plans_direct_image_asset`, `loader_materializes_visible_direct_image_asset`
+- [x] 4.15 同一process内の並列document openで永続Windows AppContainer profileを重複作成せず共有し、失敗時は再試行可能なまま各document workspaceを分離する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30874173658` / Windows job `91882129198` / test: `multi_format_office_worker_contract`
+- [x] 4.16 KDV linterのsource scopeとtest path判定をpath separator非依存にし、Windowsでruleが偽陰性にならない契約テストを追加する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30876360020` / Windows job `91888519478` / test: `path_matching_is_separator_independent`, `kdv-linter --lib`
+- [x] 4.17 KDV linterのworkspace length baselineをOS非依存な正規化相対パスで照合し、Windowsの混在separatorでも既存baselineだけを許可する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30878695303` / Windows job `91895238013` / test: `contains_windows_mixed_separator_file_length_debt`, `contains_windows_mixed_separator_function_length_debt`, `rejects_windows_workspace_prefix_collision`
+- [x] 4.18 Storybookのdirect image source契約をWindows verbatim pathの文字列表現へ依存させず、正規化document IDが同じ実ファイルへ解決でき、`//?/`を外部へ漏らさないことを検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30881147000` / Windows job `91902623148` / test: `direct_image_fixture_source_uses_absolute_file_uri`, `relative_direct_image_fixture_source_uses_absolute_file_uri`, `windows_extended_drive_path_becomes_a_regular_document_id`
 
 ---
 
@@ -86,6 +93,7 @@
 - [x] 5.7 KDV coreの`egui` optional featureがKUCを内部利用するdocument surfaceを所有し、KatanAがKUCへ直接依存またはformat別presentation変換を持たないようにする
 - [x] 5.8 公開featureはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `Cargo.toml` / test: `document-surface-boundary-check`
 - [x] 5.9 XLSX sheetのgrid-line visibilityをKUC typed render propsへ欠落なく渡す
+- [x] 5.10 grid commandの結果をKDV所有eventへ変換し、KUC `GridEvent`をKDV public APIへ露出しない。証跡: test: `public_document_surface_does_not_expose_kuc_event_types`
 
 ---
 
@@ -100,13 +108,14 @@
 - [x] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する。証跡: release-preflight run `30773465236`
 - [x] 6.8 `v0.4.0` core crateの公開と別presentation crateの403およびcross-layer依存を検出し、別crateを削除した`v0.4.1` KDV document surfaceへrelease contractを修正する
 - [x] 6.9 KDV/KUC混成crateの不存在、KUC型のpublic API非露出、`KatanA -> KDV -> KUC/KRR`の依存方向をrelease gateへ固定する。証跡: file: `scripts/document-surface-boundary-check.sh` / test: `document-surface-boundary-check`
-- [ ] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する
+- [x] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する。証跡: test: GitHub Release `v0.4.1` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.1` / crate: `katana-document-viewer 0.4.1`
+- [ ] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する
 
 ---
 
 ## 7. KatanA handoff
 
-- [ ] 7.1 KDV `v0.4.1` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
+- [ ] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
 
@@ -118,6 +127,7 @@
 - [x] 8.2 `rtk just check` を実行する
 - [x] 8.3 KDV `v0.4.0` release gateを実行する。証跡: test: `v0.4.0-release-check`
 - [ ] 8.4 engine選定、quality profile、unsupported機能、security evidenceをユーザーへ報告する
+- [x] 8.5 KDV `v0.4.2` release gateとWindows実worker acceptanceを実行する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: local `just VERSION=0.4.2 release-check` success / CI run `30868560652` / Windows job `91865557624` / `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
 
 <!-- subagent-spark-harness-strict-start -->
 - delegation-exception: `ユーザーがsubagent利用を禁止`

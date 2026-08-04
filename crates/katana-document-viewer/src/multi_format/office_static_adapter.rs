@@ -99,25 +99,5 @@ fn engine_warning(message: String) -> ViewerDiagnostic {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{OfficeWorkerError, ViewerQualityProfile, static_profile};
-    use crate::multi_format::OfficeDocumentFormat;
-
-    #[test]
-    fn static_profiles_cover_every_office_format() {
-        assert_eq!(
-            Ok(ViewerQualityProfile::static_page()),
-            static_profile(OfficeDocumentFormat::Docx)
-        );
-        assert_eq!(
-            Ok(ViewerQualityProfile::static_slide_with_chart_fallback()),
-            static_profile(OfficeDocumentFormat::Pptx)
-        );
-        assert_eq!(
-            Err(OfficeWorkerError::UnsupportedFormat(
-                OfficeDocumentFormat::Xlsx
-            )),
-            static_profile(OfficeDocumentFormat::Xlsx)
-        );
-    }
-}
+#[path = "office_static_adapter_tests.rs"]
+mod tests;

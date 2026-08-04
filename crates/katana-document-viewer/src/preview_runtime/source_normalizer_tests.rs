@@ -138,6 +138,31 @@ fn windows_image_source_becomes_valid_file_uri() {
 }
 
 #[test]
+fn windows_verbatim_image_source_keeps_extension_and_valid_file_uri() {
+    let prepared =
+        PreviewSourceNormalizer::normalize(&source("", r"\\?\D:\repo\assets\sample.png"));
+
+    assert_eq!(crate::SourceKind::Image, prepared.source_kind);
+    assert_eq!(crate::DocumentKind::Image, prepared.document_kind);
+    assert_eq!(
+        "![sample.png](file:///D:/repo/assets/sample.png)",
+        prepared.content
+    );
+}
+
+#[test]
+fn windows_verbatim_unc_image_source_keeps_extension_and_valid_file_uri() {
+    let prepared =
+        PreviewSourceNormalizer::normalize(&source("", r"\\?\UNC\server\share\assets\sample.png"));
+
+    assert_eq!(crate::SourceKind::Image, prepared.source_kind);
+    assert_eq!(
+        "![sample.png](file://server/share/assets/sample.png)",
+        prepared.content
+    );
+}
+
+#[test]
 fn html_source_keeps_html_document_kind() {
     let prepared = PreviewSourceNormalizer::normalize(&source(
         r#"<main><h1>Title</h1><p align="center">Body</p></main>"#,
