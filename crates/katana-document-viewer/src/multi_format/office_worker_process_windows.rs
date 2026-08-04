@@ -1,9 +1,8 @@
 use super::{OfficeDocumentFormat, OfficeWorkerConfig, OfficeWorkerError};
 use crate::multi_format::office_worker_protocol::INPUT_NAME;
 use crate::multi_format::windows_command_line::WindowsCommandLine;
-use crate::multi_format::windows_worker_executable::{
-    grant_workspace_parent_traverse, stage_windows_worker,
-};
+use crate::multi_format::windows_worker_executable::stage_windows_worker;
+use crate::multi_format::windows_worker_profile::{app_container_profile, launch_error};
 use rappct::acl::{AccessMask, ResourcePath, grant_to_package};
 use rappct::{AppContainerProfile, SecurityCapabilitiesBuilder};
 use std::path::Path;
@@ -19,17 +18,8 @@ impl OfficeWorkerWindowsProcess {
         let staged_executable = stage_windows_worker(workspace, config)?;
         let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
         let options = build_options(workspace, &staged_executable, format, config);
-        let child = rappct::launch::launch_in_container_with_io(&capabilities, &options).map_err(
-            |error| {
-                OfficeWorkerError::unavailable(
-                    config,
-                    format!(
-                        "Windows AppContainer staged worker launch failed: executable=`{}`: {error}",
-                        staged_executable.display()
-                    ),
-                )
-            },
-        )?;
+        let child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
+            .map_err(|error| launch_error(config, &staged_executable, error))?;
         child
             .wait(Some(config.timeout))
             .map(|status| Some(i64::from(status)))
@@ -43,7 +33,6 @@ fn windows_capabilities(
     config: &OfficeWorkerConfig,
 ) -> Result<rappct::SecurityCapabilities, OfficeWorkerError> {
     let profile = app_container_profile(config)?;
-    grant_workspace_parent_traverse(workspace, &profile, config)?;
     grant_access(
         ResourcePath::Directory(workspace.to_path_buf()),
         &profile,
@@ -62,17 +51,6 @@ fn windows_capabilities(
     SecurityCapabilitiesBuilder::new(&profile.sid)
         .build()
         .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
-}
-
-fn app_container_profile(
-    config: &OfficeWorkerConfig,
-) -> Result<AppContainerProfile, OfficeWorkerError> {
-    AppContainerProfile::ensure(
-        "Katana.DocumentViewer.OfficeWorker",
-        "KatanA document viewer office worker",
-        Some("Network-denied Office conversion helper"),
-    )
-    .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
 }
 
 fn grant_access(

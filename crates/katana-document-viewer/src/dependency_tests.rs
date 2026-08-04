@@ -100,17 +100,18 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     let office = fs::read_to_string(format!("{source_root}/office_worker_process_windows.rs"))?;
     let spreadsheet =
         fs::read_to_string(format!("{source_root}/spreadsheet_worker_spawn_windows.rs"))?;
+    let workspace = fs::read_to_string(format!("{source_root}/office_worker_workspace.rs"))?;
+    let profile = fs::read_to_string(format!("{source_root}/windows_worker_profile.rs"))?;
 
     assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
     assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
-    assert!(staging.contains("AccessMask(FILE_TRAVERSE_MASK)"));
-    assert!(staging.contains("ResourcePath::File(parent.to_path_buf())"));
+    assert!(workspace.contains("windows_worker_profile::workspace_root(config)?"));
+    assert!(workspace.contains("tempdir_in(root)"));
+    assert!(profile.contains(".join(PROFILE_NAME)"));
+    assert!(profile.contains(".join(\"AC\")"));
+    assert!(profile.contains(".join(\"Temp\")"));
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
-        assert!(
-            worker.contains("grant_workspace_parent_traverse(workspace, &profile, config)?")
-                || worker.contains("grant_workspace_parent_traverse(workspace, profile, config)?")
-        );
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));
         assert!(worker.contains("staged_executable.to_string_lossy().into_owned()"));
         assert!(worker.contains("office_worker_protocol::INPUT_NAME"));

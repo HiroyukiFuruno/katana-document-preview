@@ -126,6 +126,8 @@ jobs:
 
       - name: Run Windows AppContainer worker acceptance
         if: matrix.os == 'windows-latest'
+        env:
+          RAPPCT_DEBUG_LAUNCH: "1"
         run: cargo test -p katana-document-viewer --test multi_format_xlsx_contract windows_appcontainer_stages_an_external_worker_before_launch --locked -- --exact
 
       - name: Run workspace tests

@@ -42,6 +42,8 @@ mod spreadsheet_worker_spawn_windows;
 mod windows_command_line;
 #[cfg(any(windows, test))]
 mod windows_worker_executable;
+#[cfg(windows)]
+mod windows_worker_profile;
 
 pub use artifact::{
     OfficeStaticDocumentArtifact, OfficeStaticItemArtifact, PdfDocumentArtifact, PdfPageArtifact,
