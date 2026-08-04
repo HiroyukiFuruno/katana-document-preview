@@ -51,9 +51,21 @@ pub(super) fn launch_error(
 }
 
 pub(super) fn worker_environment(workspace: &Path) -> Vec<(OsString, OsString)> {
+    let mut environment: Vec<_> = std::env::vars_os()
+        .filter(|(name, _)| !is_worker_temp_variable(name))
+        .collect();
     let workspace = workspace.as_os_str().to_owned();
-    rappct::launch::merge_parent_env(vec![
-        (OsString::from("TEMP"), workspace.clone()),
-        (OsString::from("TMP"), workspace),
-    ])
+    environment.push((OsString::from("TEMP"), workspace.clone()));
+    environment.push((OsString::from("TMP"), workspace));
+    environment.sort_by(|left, right| {
+        left.0
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .cmp(&right.0.to_string_lossy().to_ascii_lowercase())
+    });
+    environment
+}
+
+fn is_worker_temp_variable(name: &std::ffi::OsStr) -> bool {
+    name.eq_ignore_ascii_case("TEMP") || name.eq_ignore_ascii_case("TMP")
 }

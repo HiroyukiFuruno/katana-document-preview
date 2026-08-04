@@ -107,11 +107,7 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
     assert!(workspace.contains("windows_worker_profile::workspace_root(config)?"));
     assert!(workspace.contains("tempdir_in(root)"));
-    assert!(profile.contains(".join(PROFILE_NAME)"));
-    assert!(profile.contains(".join(\"AC\")"));
-    assert!(profile.contains(".join(\"Temp\")"));
-    assert!(profile.contains("OsString::from(\"TEMP\")"));
-    assert!(profile.contains("OsString::from(\"TMP\")"));
+    assert_windows_worker_profile_contract(&profile);
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));
@@ -122,6 +118,20 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     assert!(!office.contains("std::process::Command"));
     assert!(!spreadsheet.contains("std::process::Command"));
     Ok(())
+}
+
+fn assert_windows_worker_profile_contract(profile: &str) {
+    for marker in [
+        ".join(PROFILE_NAME)",
+        ".join(\"AC\")",
+        ".join(\"Temp\")",
+        "std::env::vars_os()",
+        "OsString::from(\"TEMP\")",
+        "OsString::from(\"TMP\")",
+        "environment.sort_by",
+    ] {
+        assert!(profile.contains(marker), "missing profile marker: {marker}");
+    }
 }
 
 #[test]

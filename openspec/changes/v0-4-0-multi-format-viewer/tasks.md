@@ -73,6 +73,7 @@
 - [x] 4.10 representative corpusのreference diffと性能budgetをformat別契約テストへ固定する
 - [x] 4.11 高圧縮DOCXの約8 GB memory回帰をpreflightまたはprocess limitで拒否する契約テストを追加する
 - [ ] 4.12 Windows AppContainer profile folder内のdocument専用workspaceへworkerをstageし、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: PR作成後のWindows CI実行URLと実AppContainer契約テスト結果を追記する
+- [x] 4.13 Windows AppContainer起動へ親processの完全なUnicode環境blockをcase-insensitive順で渡し、`TEMP` / `TMP`だけをdocument workspaceへ置換する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30865519677` / `CreateProcessW 0x800700CB` / file: `windows_worker_profile.rs` / test: `just check`, `just coverage`, `v0.4.2-release-check`, `cargo xwin check`
 
 ---
 
