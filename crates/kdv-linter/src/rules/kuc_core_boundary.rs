@@ -67,8 +67,7 @@ impl<'a> KucCoreBoundaryChecker<'a> {
     }
 
     fn is_test_source(&self) -> bool {
-        let path = self.file.path().to_string_lossy();
-        path.ends_with("_tests.rs") || path.ends_with("/tests.rs")
+        self.file.path_ends_with("_tests.rs") || self.file.path_ends_with("/tests.rs")
     }
 
     fn required_file_tree_patterns(&self) -> Vec<Violation> {

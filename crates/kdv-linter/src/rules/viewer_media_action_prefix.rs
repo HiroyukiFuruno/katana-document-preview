@@ -36,10 +36,12 @@ impl<'a> ViewerMediaActionPrefixChecker<'a> {
     }
 
     fn is_owner_or_linter_fixture(&self) -> bool {
-        let path = self.file.path().to_string_lossy();
-        path.contains("crates/katana-document-viewer/src/viewer/media_action")
-            || path.contains("crates/katana-document-viewer/src/viewer/media_control_spec")
-            || path.contains("crates/kdv-linter/")
+        self.file
+            .path_contains("crates/katana-document-viewer/src/viewer/media_action")
+            || self
+                .file
+                .path_contains("crates/katana-document-viewer/src/viewer/media_control_spec")
+            || self.file.path_contains("crates/kdv-linter/")
     }
 
     fn violation(&self, index: usize, line: &str) -> Option<Violation> {

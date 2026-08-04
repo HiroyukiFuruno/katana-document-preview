@@ -158,8 +158,9 @@ impl<'a> StorybookAdapterChecker<'a> {
     }
 
     fn is_test_only_file(&self) -> bool {
-        let path = self.file.path().to_string_lossy();
-        path.contains("/tests/") || path.ends_with("_tests.rs") || path.ends_with("test_support.rs")
+        self.file.path_contains("/tests/")
+            || self.file.path_ends_with("_tests.rs")
+            || self.file.path_ends_with("test_support.rs")
     }
 
     fn find_pattern(&self, pattern: StorybookAdapterPattern) -> Vec<Violation> {

@@ -1,6 +1,6 @@
 use crate::diagnostics::{KdvLintError, Violation};
 use crate::span::SpanOps;
-use crate::workspace::{SourceFile, WorkspaceModel};
+use crate::workspace::{PortablePath, SourceFile, WorkspaceModel};
 use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -26,9 +26,9 @@ struct RenderingContractScope;
 
 impl RenderingContractScope {
     fn contains(path: &Path) -> bool {
-        let text = path.to_string_lossy();
-        text.contains("crates/katana-document-viewer/src/viewer/")
-            || text.contains("crates/katana-document-viewer/src/document_surface/")
+        let path = PortablePath::new(path);
+        path.contains("crates/katana-document-viewer/src/viewer/")
+            || path.contains("crates/katana-document-viewer/src/document_surface/")
     }
 }
 

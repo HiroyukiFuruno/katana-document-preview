@@ -25,6 +25,40 @@ impl SourceFile {
     pub fn is_under(&self, root: &Path) -> bool {
         self.path.starts_with(root)
     }
+
+    pub(crate) fn path_contains(&self, fragment: &str) -> bool {
+        PortablePath::new(&self.path).contains(fragment)
+    }
+
+    pub(crate) fn path_ends_with(&self, fragment: &str) -> bool {
+        PortablePath::new(&self.path).ends_with(fragment)
+    }
+}
+
+pub(crate) struct PortablePath<'a> {
+    path: &'a Path,
+}
+
+impl<'a> PortablePath<'a> {
+    pub(crate) const fn new(path: &'a Path) -> Self {
+        Self { path }
+    }
+
+    pub(crate) fn contains(&self, fragment: &str) -> bool {
+        normalized_path(self.path).contains(&normalized_fragment(fragment))
+    }
+
+    pub(crate) fn ends_with(&self, fragment: &str) -> bool {
+        normalized_path(self.path).ends_with(&normalized_fragment(fragment))
+    }
+}
+
+fn normalized_path(path: &Path) -> String {
+    normalized_fragment(&path.to_string_lossy())
+}
+
+fn normalized_fragment(fragment: &str) -> String {
+    fragment.replace('\\', "/")
 }
 
 pub struct WorkspaceModel {
@@ -131,3 +165,7 @@ impl WorkspaceModel {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "workspace/path_matching_tests.rs"]
+mod path_matching_tests;

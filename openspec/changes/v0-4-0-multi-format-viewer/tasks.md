@@ -76,6 +76,7 @@
 - [x] 4.13 Windows AppContainer起動へ親processの完全なUnicode環境blockをcase-insensitive順で渡し、`TEMP` / `TMP`だけをdocument workspaceへ置換する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30865519677` / `CreateProcessW 0x800700CB` / file: `windows_worker_profile.rs` / test: `just check`, `just coverage`, `v0.4.2-release-check`, `cargo xwin check`
 - [x] 4.14 Windows verbatim pathの `?` をURL queryとして切断せず、direct imageの拡張子判定とfile URI生成を正規化する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30869935308` / Windows job `91869713856` / test: `windows_verbatim_image_source_keeps_extension_and_valid_file_uri`, `windows_verbatim_document_path_still_plans_direct_image_asset`, `loader_materializes_visible_direct_image_asset`
 - [x] 4.15 同一process内の並列document openで永続Windows AppContainer profileを重複作成せず共有し、失敗時は再試行可能なまま各document workspaceを分離する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30874173658` / Windows job `91882129198` / test: `multi_format_office_worker_contract`
+- [x] 4.16 KDV linterのsource scopeとtest path判定をpath separator非依存にし、Windowsでruleが偽陰性にならない契約テストを追加する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30876360020` / Windows job `91888519478` / test: `path_matching_is_separator_independent`, `kdv-linter --lib`
 
 ---
 

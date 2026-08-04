@@ -23,9 +23,7 @@ impl<'a> AdapterContractChecker<'a> {
 
     fn is_document_surface_source(&self) -> bool {
         self.file
-            .path()
-            .to_string_lossy()
-            .contains("crates/katana-document-viewer/src/document_surface")
+            .path_contains("crates/katana-document-viewer/src/document_surface")
     }
 
     fn style_class_contract_violations(&self) -> Vec<Violation> {
@@ -65,8 +63,7 @@ impl<'a> AdapterContractChecker<'a> {
     }
 
     fn is_test_source(&self) -> bool {
-        let path = self.file.path().to_string_lossy();
-        path.ends_with("_tests.rs") || path.ends_with("/tests.rs")
+        self.file.path_ends_with("_tests.rs") || self.file.path_ends_with("/tests.rs")
     }
 
     fn interactive_preset_violation(&self, index: usize, line: &str) -> Option<Violation> {

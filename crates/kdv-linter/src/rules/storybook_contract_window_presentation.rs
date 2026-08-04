@@ -26,8 +26,9 @@ impl<'a> WindowPresentationChecker<'a> {
     }
 
     fn is_test_source(&self) -> bool {
-        let path = self.file.path().to_string_lossy();
-        path.contains("/tests/") || path.ends_with("_tests.rs") || path.ends_with("test_support.rs")
+        self.file.path_contains("/tests/")
+            || self.file.path_ends_with("_tests.rs")
+            || self.file.path_ends_with("test_support.rs")
     }
 
     fn source_pattern_violations(&self) -> Vec<Violation> {
