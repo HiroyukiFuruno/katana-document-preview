@@ -70,8 +70,13 @@ fn grant_access(
     profile: &AppContainerProfile,
     config: &OfficeWorkerConfig,
 ) -> Result<(), OfficeWorkerError> {
-    grant_to_package(resource, &profile.sid, AccessMask::GENERIC_ALL)
-        .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
+    let resource_label = format!("{resource:?}");
+    grant_to_package(resource, &profile.sid, AccessMask::GENERIC_ALL).map_err(|error| {
+        OfficeWorkerError::unavailable(
+            config,
+            format!("Windows AppContainer ACL grant failed for {resource_label}: {error}"),
+        )
+    })
 }
 
 fn windows_options(

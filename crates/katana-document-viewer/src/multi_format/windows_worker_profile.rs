@@ -2,20 +2,36 @@ use super::{OfficeWorkerConfig, OfficeWorkerError};
 use rappct::AppContainerProfile;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 const PROFILE_NAME: &str = "Katana.DocumentViewer.OfficeWorker";
 const PROFILE_DISPLAY_NAME: &str = "KatanA document viewer office worker";
 const PROFILE_DESCRIPTION: &str = "Network-denied Office document helper";
 
+static APP_CONTAINER_PROFILE: OnceLock<Mutex<Option<AppContainerProfile>>> = OnceLock::new();
+
 pub(super) fn app_container_profile(
     config: &OfficeWorkerConfig,
 ) -> Result<AppContainerProfile, OfficeWorkerError> {
-    AppContainerProfile::ensure(
+    let cache = APP_CONTAINER_PROFILE.get_or_init(|| Mutex::new(None));
+    let mut cached = cache.lock().map_err(|error| {
+        OfficeWorkerError::unavailable(
+            config,
+            format!("Windows AppContainer profile cache is unavailable: {error}"),
+        )
+    })?;
+    if let Some(profile) = cached.as_ref() {
+        return Ok(profile.clone());
+    }
+
+    let profile = AppContainerProfile::ensure(
         PROFILE_NAME,
         PROFILE_DISPLAY_NAME,
         Some(PROFILE_DESCRIPTION),
     )
-    .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
+    .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))?;
+    *cached = Some(profile.clone());
+    Ok(profile)
 }
 
 pub(super) fn workspace_root(config: &OfficeWorkerConfig) -> Result<PathBuf, OfficeWorkerError> {

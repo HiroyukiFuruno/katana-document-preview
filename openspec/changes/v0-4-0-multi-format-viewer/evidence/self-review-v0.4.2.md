@@ -17,6 +17,8 @@
 - CI run `30865519677` reproduced `CreateProcessW` error `0x800700CB` because the previous explicit environment block was partial and unsorted.
 - GitHub Actions run `30868560652`, Windows job `91865557624`, passed the real AppContainer worker acceptance on Windows Server 2025.
 - CI run `30869935308`, Windows job `91869713856`, exposed a direct-image regression after the AppContainer acceptance passed. The `?` in Rust's canonical `\\?\D:\...` path was incorrectly treated as a URL query delimiter, so the image extension and asset request were lost.
+- CI run `30874173658`, Windows job `91882129198`, confirmed the direct-image fix and all 1674 unit tests, then exposed concurrent Office opens calling `CreateAppContainerProfile` for the same persistent profile at the same time. The profile is now initialized once per process, shared by DOCX/PPTX/XLSX workers, and failed initialization remains retryable; document workspaces remain unique and independently removed.
+- Windows ACL failures now identify the exact file or directory resource in the typed worker error instead of returning only the underlying `GetNamedSecurityInfoW` message.
 - `windows_verbatim_image_source_keeps_extension_and_valid_file_uri`, `windows_verbatim_unc_image_source_keeps_extension_and_valid_file_uri`, `windows_verbatim_document_path_still_plans_direct_image_asset`, and `loader_materializes_visible_direct_image_asset` pass after normalizing path syntax before URL syntax.
 
 ## Conclusion
