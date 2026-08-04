@@ -74,6 +74,7 @@
 - [x] 4.11 高圧縮DOCXの約8 GB memory回帰をpreflightまたはprocess limitで拒否する契約テストを追加する
 - [x] 4.12 Windows AppContainer profile folder内のdocument専用workspaceへworkerをstageし、workspace / input / staged workerへ明示ACLを付与した実Windows起動を検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: CI run `30868560652` / Windows job `91865557624` / test: `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
 - [x] 4.13 Windows AppContainer起動へ親processの完全なUnicode環境blockをcase-insensitive順で渡し、`TEMP` / `TMP`だけをdocument workspaceへ置換する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30865519677` / `CreateProcessW 0x800700CB` / file: `windows_worker_profile.rs` / test: `just check`, `just coverage`, `v0.4.2-release-check`, `cargo xwin check`
+- [x] 4.14 Windows verbatim pathの `?` をURL queryとして切断せず、direct imageの拡張子判定とfile URI生成を正規化する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30869935308` / Windows job `91869713856` / test: `windows_verbatim_image_source_keeps_extension_and_valid_file_uri`, `windows_verbatim_document_path_still_plans_direct_image_asset`, `loader_materializes_visible_direct_image_asset`
 
 ---
 

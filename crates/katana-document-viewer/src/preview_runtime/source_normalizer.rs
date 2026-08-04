@@ -1,5 +1,6 @@
 use crate::MarkdownSource;
 use crate::preview_runtime::direct_html_normalizer::DirectHtmlNormalizer;
+use crate::preview_runtime::source_path_normalizer::PreviewSourcePathNormalizer;
 use std::path::{Path, PathBuf};
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
@@ -96,7 +97,7 @@ impl PreviewSourceNormalizer {
             return trimmed.to_string();
         }
         let image_uri = Self::image_uri(trimmed, source_name);
-        let alt_source_name = source_name.replace('\\', "/");
+        let alt_source_name = PreviewSourcePathNormalizer::normalized_text(source_name);
         let alt = Path::new(&alt_source_name)
             .file_name()
             .and_then(|name| name.to_str())
@@ -115,20 +116,7 @@ impl PreviewSourceNormalizer {
     }
 
     fn file_uri(source_name: &str) -> String {
-        if source_name.starts_with("http://") || source_name.starts_with("https://") {
-            return source_name.to_string();
-        }
-        let normalized = source_name.replace('\\', "/");
-        if normalized.starts_with("file://") {
-            return normalized;
-        }
-        if normalized.starts_with('/') {
-            return format!("file://{normalized}");
-        }
-        if Self::starts_with_windows_drive(&normalized) {
-            return format!("file:///{normalized}");
-        }
-        format!("file://{normalized}")
+        PreviewSourcePathNormalizer::file_uri(source_name)
     }
 
     fn is_image_reference(value: &str) -> bool {
@@ -149,11 +137,6 @@ impl PreviewSourceNormalizer {
 
     fn normalize_newlines(content: &str) -> String {
         content.replace("\r\n", "\n").replace('\r', "\n")
-    }
-
-    fn starts_with_windows_drive(value: &str) -> bool {
-        let bytes = value.as_bytes();
-        bytes.len() >= 3 && bytes[1] == b':' && bytes[2] == b'/' && bytes[0].is_ascii_alphabetic()
     }
 
     fn is_image_path(path: &Path) -> bool {
@@ -182,16 +165,7 @@ impl PreviewSourceNormalizer {
     }
 
     fn extension(path: &Path) -> Option<String> {
-        let path_text = path.to_string_lossy();
-        let normalized = Self::strip_query_fragment(&path_text);
-        Path::new(normalized)
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .map(str::to_ascii_lowercase)
-    }
-
-    fn strip_query_fragment(value: &str) -> &str {
-        value.split(['?', '#']).next().unwrap_or(value)
+        PreviewSourcePathNormalizer::extension(path)
     }
 }
 

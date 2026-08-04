@@ -56,6 +56,20 @@ fn direct_image_empty_content_preserves_file_uri_document_id() -> Result<(), Pre
 }
 
 #[test]
+fn windows_verbatim_document_path_still_plans_direct_image_asset() -> Result<(), PreviewError> {
+    let output = direct_output(
+        "file:///D:/repo/assets/kdv-icon.png",
+        r"\\?\D:\repo\assets\kdv-icon.png",
+    )?;
+    let plan = ViewerNodePlanner::create(&output.input, 0.0);
+
+    assert_eq!(DocumentKind::Image, output.input.snapshot.kind);
+    assert_eq!(ViewerNodeKind::Image, plan.nodes[0].kind);
+    assert_eq!(ArtifactFormat::Png, plan.asset_requests[0].format);
+    Ok(())
+}
+
+#[test]
 fn direct_png_source_accepts_katana_reference_image_buffer() -> Result<(), PreviewError> {
     let output = direct_output("![](file:///tmp/kdv-icon.png)", "/tmp/kdv-icon.png")?;
     let node = first_document_node(&output)?;

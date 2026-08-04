@@ -16,6 +16,7 @@ mod direct_html_table_normalizer;
 mod engine;
 mod output_factory;
 mod source_normalizer;
+mod source_path_normalizer;
 #[cfg(test)]
 mod storybook_score_gate;
 pub mod types;
