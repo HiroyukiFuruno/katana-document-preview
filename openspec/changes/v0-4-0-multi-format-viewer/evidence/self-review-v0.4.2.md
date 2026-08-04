@@ -12,8 +12,8 @@
 ## Findings
 
 - CI run `30865519677` reproduced `CreateProcessW` error `0x800700CB` because the previous explicit environment block was partial and unsorted.
-- The real Windows AppContainer acceptance remains pending until the corrected commit runs in GitHub Actions.
+- GitHub Actions run `30868560652`, Windows job `91865557624`, passed the real AppContainer worker acceptance on Windows Server 2025.
 
 ## Conclusion
 
-PASS for local and cross-compiled gates. Windows runtime acceptance is intentionally still an open release gate.
+PASS for local, cross-compiled, and real Windows AppContainer runtime gates. The final three-OS matrix remains the release gate.
