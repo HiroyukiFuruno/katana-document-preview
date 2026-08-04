@@ -1,5 +1,6 @@
 use super::{OfficeWorkerConfig, OfficeWorkerError};
 use rappct::AppContainerProfile;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 const PROFILE_NAME: &str = "Katana.DocumentViewer.OfficeWorker";
@@ -47,4 +48,12 @@ pub(super) fn launch_error(
             executable.display()
         ),
     )
+}
+
+pub(super) fn worker_environment(workspace: &Path) -> Vec<(OsString, OsString)> {
+    let workspace = workspace.as_os_str().to_owned();
+    rappct::launch::merge_parent_env(vec![
+        (OsString::from("TEMP"), workspace.clone()),
+        (OsString::from("TMP"), workspace),
+    ])
 }

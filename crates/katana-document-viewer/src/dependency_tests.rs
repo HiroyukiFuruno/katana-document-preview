@@ -110,6 +110,8 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     assert!(profile.contains(".join(PROFILE_NAME)"));
     assert!(profile.contains(".join(\"AC\")"));
     assert!(profile.contains(".join(\"Temp\")"));
+    assert!(profile.contains("OsString::from(\"TEMP\")"));
+    assert!(profile.contains("OsString::from(\"TMP\")"));
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));

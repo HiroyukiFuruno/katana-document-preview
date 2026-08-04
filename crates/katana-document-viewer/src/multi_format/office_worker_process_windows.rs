@@ -2,7 +2,9 @@ use super::{OfficeDocumentFormat, OfficeWorkerConfig, OfficeWorkerError};
 use crate::multi_format::office_worker_protocol::INPUT_NAME;
 use crate::multi_format::windows_command_line::WindowsCommandLine;
 use crate::multi_format::windows_worker_executable::stage_windows_worker;
-use crate::multi_format::windows_worker_profile::{app_container_profile, launch_error};
+use crate::multi_format::windows_worker_profile::{
+    app_container_profile, launch_error, worker_environment,
+};
 use rappct::acl::{AccessMask, ResourcePath, grant_to_package};
 use rappct::{AppContainerProfile, SecurityCapabilitiesBuilder};
 use std::path::Path;
@@ -78,7 +80,7 @@ fn build_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(rappct::launch::merge_parent_env(Vec::new())),
+        env: Some(worker_environment(workspace)),
         stdio: StdioConfig::Null,
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
