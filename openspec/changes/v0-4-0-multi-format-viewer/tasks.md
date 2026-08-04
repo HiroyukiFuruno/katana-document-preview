@@ -78,6 +78,7 @@
 - [x] 4.15 同一process内の並列document openで永続Windows AppContainer profileを重複作成せず共有し、失敗時は再試行可能なまま各document workspaceを分離する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30874173658` / Windows job `91882129198` / test: `multi_format_office_worker_contract`
 - [x] 4.16 KDV linterのsource scopeとtest path判定をpath separator非依存にし、Windowsでruleが偽陰性にならない契約テストを追加する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30876360020` / Windows job `91888519478` / test: `path_matching_is_separator_independent`, `kdv-linter --lib`
 - [x] 4.17 KDV linterのworkspace length baselineをOS非依存な正規化相対パスで照合し、Windowsの混在separatorでも既存baselineだけを許可する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30878695303` / Windows job `91895238013` / test: `contains_windows_mixed_separator_file_length_debt`, `contains_windows_mixed_separator_function_length_debt`, `rejects_windows_workspace_prefix_collision`
+- [x] 4.18 Storybookのdirect image source契約をWindows verbatim pathの文字列表現へ依存させず、正規化document IDが同じ実ファイルへ解決でき、`//?/`を外部へ漏らさないことを検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30881147000` / Windows job `91902623148` / test: `direct_image_fixture_source_uses_absolute_file_uri`, `relative_direct_image_fixture_source_uses_absolute_file_uri`, `windows_extended_drive_path_becomes_a_regular_document_id`
 
 ---
 

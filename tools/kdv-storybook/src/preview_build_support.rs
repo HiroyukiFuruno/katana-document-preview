@@ -252,6 +252,7 @@ mod tests {
         ViewerInteractionConfig, ViewerMode, ViewerSearchState, ViewerTypographyConfig,
         ViewerViewport,
     };
+    use std::path::Path;
 
     #[test]
     fn preview_config_uses_kuc_document_line_height_ratio() {
@@ -381,19 +382,19 @@ mod tests {
     {
         let path = std::env::temp_dir().join("kdv storybook direct image.png");
         std::fs::write(&path, b"image bytes")?;
-        let expected_path = path
-            .canonicalize()?
-            .display()
-            .to_string()
-            .replace('\\', "/");
         let source = PreviewBuildSupport::source_for_fixture(&crate::catalog::StorybookFixture {
             label: "direct/kdv-icon.png".to_string(),
             path: path.clone(),
         })?;
+        let document_id = source
+            .document_id
+            .as_deref()
+            .ok_or_else(|| std::io::Error::other("missing document id"))?;
 
-        assert_eq!(Some(expected_path.clone()), source.document_id);
+        assert!(!document_id.starts_with("//?/"));
+        assert_eq!(path.canonicalize()?, Path::new(document_id).canonicalize()?);
         assert_eq!(
-            PreviewBuildSupport::file_uri_for_document_id(&expected_path),
+            PreviewBuildSupport::file_uri_for_document_id(document_id),
             source.content
         );
         let _ = std::fs::remove_file(path);
@@ -409,18 +410,21 @@ mod tests {
             std::fs::create_dir_all(parent)?;
         }
         std::fs::write(&relative_path, b"image bytes")?;
-        let absolute_path = relative_path
-            .canonicalize()?
-            .display()
-            .to_string()
-            .replace('\\', "/");
         let source = PreviewBuildSupport::source_for_fixture(&crate::catalog::StorybookFixture {
             label: "direct/kdv-icon.png".to_string(),
             path: relative_path.clone(),
         })?;
+        let document_id = source
+            .document_id
+            .as_deref()
+            .ok_or_else(|| std::io::Error::other("missing document id"))?;
 
         assert!(source.content.starts_with("file:///"));
-        assert_eq!(Some(absolute_path), source.document_id);
+        assert!(!document_id.starts_with("//?/"));
+        assert_eq!(
+            relative_path.canonicalize()?,
+            Path::new(document_id).canonicalize()?
+        );
         let _ = std::fs::remove_file(relative_path);
         Ok(())
     }
