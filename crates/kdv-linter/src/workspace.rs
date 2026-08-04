@@ -51,6 +51,16 @@ impl<'a> PortablePath<'a> {
     pub(crate) fn ends_with(&self, fragment: &str) -> bool {
         normalized_path(self.path).ends_with(&normalized_fragment(fragment))
     }
+
+    pub(crate) fn relative_to(&self, root: &Path) -> Option<String> {
+        if let Ok(relative) = self.path.strip_prefix(root) {
+            return Some(normalized_path(relative));
+        }
+        let normalized = normalized_path(self.path);
+        let normalized_root = normalized_path(root);
+        let prefix = format!("{}/", normalized_root.trim_end_matches('/'));
+        normalized.strip_prefix(&prefix).map(str::to_owned)
+    }
 }
 
 fn normalized_path(path: &Path) -> String {
