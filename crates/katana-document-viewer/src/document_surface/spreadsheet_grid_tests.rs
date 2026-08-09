@@ -4,11 +4,12 @@ use super::{
     test_support::{sample_cell, sample_sheet},
 };
 use crate::{
-    DocumentGridCommand, DocumentGridEvent, DocumentGridNavigation, DocumentSurfaceError,
-    DocumentViewport, SpreadsheetCoordinate, SpreadsheetMergedCellArtifact,
+    DocumentGridCell, DocumentGridCommand, DocumentGridCoordinate, DocumentGridEvent,
+    DocumentGridHorizontalAlignment, DocumentGridNavigation, DocumentGridSurfaceFrame,
+    DocumentGridVerticalAlignment, DocumentSurfaceError, DocumentViewport, SpreadsheetCoordinate,
+    SpreadsheetMergedCellArtifact,
 };
-use katana_ui_core::molecule::{GridCoordinate, GridHorizontalAlignment, GridVerticalAlignment};
-use katana_ui_core::render_model::{UiNode, UiNodeKind};
+use katana_ui_core::molecule::GridCoordinate;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -18,7 +19,11 @@ fn large_sheet_requests_only_the_visible_window_and_maps_cells() -> TestResult {
         SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(360, 140))?;
     let _ = surface.apply_command(DocumentGridCommand::ScrollTo { x: 80, y: 0 });
     assert_eq!(3, surface.sheet_index());
-    assert!(surface.frame().node().props().grid.show_grid_lines);
+    let frame = surface.frame()?;
+    let Some(grid) = frame.grid() else {
+        return Err("spreadsheet did not produce a grid frame".into());
+    };
+    assert!(grid.show_grid_lines);
     let request = surface.materialization_request();
     assert!(request.len() < 100);
     assert!(request.contains(&SpreadsheetCoordinate::new(0, 0)));
@@ -26,7 +31,11 @@ fn large_sheet_requests_only_the_visible_window_and_maps_cells() -> TestResult {
     assert!(!request.contains(&SpreadsheetCoordinate::new(2, 3)));
 
     surface.supply_cells(vec![sample_cell(SpreadsheetCoordinate::new(2, 2))])?;
-    assert_materialized_cell(surface.frame().node())?;
+    let frame = surface.frame()?;
+    let Some(grid) = frame.grid() else {
+        return Err("spreadsheet did not produce a grid frame".into());
+    };
+    assert_materialized_cell(grid)?;
     Ok(())
 }
 
@@ -37,22 +46,20 @@ fn sheet_grid_line_visibility_reaches_document_surface() -> TestResult {
 
     let surface = SpreadsheetGridSurface::new(&sheet, DocumentViewport::new(320, 120))?;
 
-    assert!(!surface.frame().node().props().grid.show_grid_lines);
+    let frame = surface.frame()?;
+    let Some(grid) = frame.grid() else {
+        return Err("spreadsheet did not produce a grid frame".into());
+    };
+    assert!(!grid.show_grid_lines);
     Ok(())
 }
 
-fn assert_materialized_cell(node: &UiNode) -> TestResult {
-    assert_eq!(UiNodeKind::Grid, node.kind());
-    assert_eq!(
-        (1_000, 100),
-        (node.props().grid.row_count, node.props().grid.column_count)
-    );
-    let Some(cell) = node
-        .props()
-        .grid
+fn assert_materialized_cell(grid: &DocumentGridSurfaceFrame) -> TestResult {
+    assert_eq!((1_000, 100), (grid.row_count, grid.column_count));
+    let Some(cell) = grid
         .cells
         .iter()
-        .find(|cell| cell.coordinate == GridCoordinate::new(2, 2))
+        .find(|cell| cell.coordinate == DocumentGridCoordinate { row: 2, column: 2 })
     else {
         return Err("materialized cell is missing from the document grid".into());
     };
@@ -62,14 +69,14 @@ fn assert_materialized_cell(node: &UiNode) -> TestResult {
     Ok(())
 }
 
-fn assert_materialized_appearance(cell: &katana_ui_core::render_model::UiGridCell) {
+fn assert_materialized_appearance(cell: &DocumentGridCell) {
     assert_eq!(12, cell.appearance.font_size_px);
     assert_eq!(
-        GridHorizontalAlignment::Center,
+        DocumentGridHorizontalAlignment::Center,
         cell.appearance.horizontal_alignment
     );
     assert_eq!(
-        GridVerticalAlignment::Center,
+        DocumentGridVerticalAlignment::Center,
         cell.appearance.vertical_alignment
     );
     assert_eq!(

@@ -1,0 +1,261 @@
+use katana_document_viewer::{
+    BinaryDocumentSource, DocumentFitMode, DocumentGridCommand, DocumentGridEvent,
+    DocumentGridNavigation, DocumentSession, DocumentSessionCommand, DocumentSessionCommandKind,
+    DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent, DocumentSurfaceCommand,
+    DocumentSurfaceKind, DocumentViewerCommand, DocumentViewerEvent, DocumentViewport,
+    OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, ViewerDocumentFormat,
+    ViewerFeature, ViewerFeatureStatus, ViewerSource, ViewerSourceIdentity,
+};
+use std::path::{Path, PathBuf};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn fixture_path(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/fixtures/multi-format")
+        .join(name)
+}
+
+fn office_source(
+    name: &str,
+    format: OfficeDocumentFormat,
+) -> Result<ViewerSource, Box<dyn std::error::Error>> {
+    let mime = match format {
+        OfficeDocumentFormat::Docx => {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }
+        OfficeDocumentFormat::Xlsx => {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+        OfficeDocumentFormat::Pptx => {
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        }
+    };
+    Ok(ViewerSource::Office(OfficeDocumentSource::new(
+        ViewerSourceIdentity::new(format!("file:///fixtures/{name}"), format!("sha256:{name}")),
+        format,
+        mime,
+        std::fs::read(fixture_path(name))?,
+    )))
+}
+
+fn config() -> DocumentSessionConfig {
+    DocumentSessionConfig::new(DocumentViewport::new(640, 480)).office_worker(
+        OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker"))),
+    )
+}
+
+#[test]
+fn pdf_uses_the_unified_session_for_fit_zoom_resize_and_typed_errors() -> TestResult {
+    let bytes = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/reference/katana/pdf/sample.pdf"),
+    )?;
+    let source = ViewerSource::Pdf(BinaryDocumentSource::new(
+        ViewerSourceIdentity::new("file:///fixtures/representative.pdf", "sha256:pdf"),
+        "application/pdf",
+        bytes,
+    ));
+    let mut session = DocumentSession::open(source, config())?;
+    assert_eq!(
+        "file:///fixtures/representative.pdf",
+        session.info().identity.uri
+    );
+    assert_eq!("application/pdf", session.info().mime);
+    assert_eq!(ViewerDocumentFormat::Pdf, session.info().format);
+    assert_frame(
+        &mut session,
+        ViewerDocumentFormat::Pdf,
+        DocumentSurfaceKind::Page,
+    )?;
+
+    for command in [
+        DocumentSessionCommand::Viewer(DocumentViewerCommand::Fit(DocumentFitMode::Width)),
+        DocumentSessionCommand::Viewer(DocumentViewerCommand::Fit(DocumentFitMode::Page)),
+        DocumentSessionCommand::Viewer(DocumentViewerCommand::SetZoom(1.5)),
+        DocumentSessionCommand::Surface(DocumentSurfaceCommand::Resize(DocumentViewport::new(
+            900, 700,
+        ))),
+    ] {
+        let _ = session.apply(command)?;
+        assert_frame(
+            &mut session,
+            ViewerDocumentFormat::Pdf,
+            DocumentSurfaceKind::Page,
+        )?;
+    }
+    let state_before_rejected_command = session.frame()?.state;
+    assert_eq!(
+        Err(DocumentSessionError::UnsupportedCommand {
+            format: ViewerDocumentFormat::Pdf,
+            command: DocumentSessionCommandKind::Grid,
+        }),
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Grid(DocumentGridCommand::ScrollTo { x: 10, y: 20 })
+        ))
+    );
+    assert_eq!(state_before_rejected_command, session.frame()?.state);
+    assert!(matches!(
+        session.apply(DocumentSessionCommand::Viewer(
+            DocumentViewerCommand::JumpTo(usize::MAX)
+        )),
+        Err(DocumentSessionError::State(_))
+    ));
+    session.close();
+    Ok(())
+}
+
+#[test]
+fn docx_and_pptx_use_the_unified_paged_session() -> TestResult {
+    for (name, source_format, frame_format) in [
+        (
+            "representative.docx",
+            OfficeDocumentFormat::Docx,
+            ViewerDocumentFormat::Docx,
+        ),
+        (
+            "representative.pptx",
+            OfficeDocumentFormat::Pptx,
+            ViewerDocumentFormat::Pptx,
+        ),
+    ] {
+        let mut session = DocumentSession::open(office_source(name, source_format)?, config())?;
+        assert_frame(&mut session, frame_format, DocumentSurfaceKind::Page)?;
+        assert!(matches!(
+            session.apply(DocumentSessionCommand::Viewer(DocumentViewerCommand::Next))?,
+            DocumentSessionEvent::Viewer(_)
+        ));
+        assert_frame(&mut session, frame_format, DocumentSurfaceKind::Page)?;
+        session.close();
+    }
+    Ok(())
+}
+
+#[test]
+fn xlsx_uses_the_unified_session_for_sheet_grid_and_materialization() -> TestResult {
+    let mut session = DocumentSession::open(
+        office_source("representative.xlsx", OfficeDocumentFormat::Xlsx)?,
+        config(),
+    )?;
+    assert_frame(
+        &mut session,
+        ViewerDocumentFormat::Xlsx,
+        DocumentSurfaceKind::Grid,
+    )?;
+    assert_eq!(ViewerDocumentFormat::Xlsx, session.info().format);
+    assert_eq!(
+        ViewerFeatureStatus::Supported,
+        session
+            .info()
+            .capabilities
+            .status(ViewerFeature::SheetNavigation)
+    );
+
+    assert_eq!(
+        DocumentSessionEvent::Grid(DocumentGridEvent::Scrolled),
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Grid(DocumentGridCommand::ScrollTo { x: 40, y: 20 })
+        ))?
+    );
+    assert_eq!(
+        DocumentSessionEvent::Grid(DocumentGridEvent::SelectionChanged),
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Grid(DocumentGridCommand::Navigate {
+                intent: DocumentGridNavigation::Down,
+                extend: false,
+            })
+        ))?
+    );
+    assert_eq!(
+        DocumentSessionEvent::None,
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Resize(DocumentViewport::new(800, 600))
+        ))?
+    );
+    assert!(matches!(
+        session.apply(DocumentSessionCommand::Viewer(DocumentViewerCommand::Next))?,
+        DocumentSessionEvent::Viewer(_)
+    ));
+    assert_eq!(
+        DocumentSessionEvent::Viewer(DocumentViewerEvent::CopyRequested),
+        session.apply(DocumentSessionCommand::Viewer(
+            DocumentViewerCommand::CopySelection
+        ))?
+    );
+    assert_frame(
+        &mut session,
+        ViewerDocumentFormat::Xlsx,
+        DocumentSurfaceKind::Grid,
+    )?;
+
+    for (command, kind) in [
+        (
+            DocumentViewerCommand::SetZoom(1.25),
+            DocumentSessionCommandKind::SetZoom,
+        ),
+        (
+            DocumentViewerCommand::Fit(DocumentFitMode::Width),
+            DocumentSessionCommandKind::Fit,
+        ),
+        (
+            DocumentViewerCommand::OpenTarget,
+            DocumentSessionCommandKind::OpenTarget,
+        ),
+    ] {
+        let state_before_rejected_command = session.frame()?.state;
+        assert_eq!(
+            Err(DocumentSessionError::UnsupportedCommand {
+                format: ViewerDocumentFormat::Xlsx,
+                command: kind,
+            }),
+            session.apply(DocumentSessionCommand::Viewer(command))
+        );
+        assert_eq!(state_before_rejected_command, session.frame()?.state);
+    }
+    session.close();
+    Ok(())
+}
+
+#[test]
+fn unified_session_preserves_worker_startup_failures_for_office_formats() -> TestResult {
+    for (name, format) in [
+        ("representative.docx", OfficeDocumentFormat::Docx),
+        ("representative.xlsx", OfficeDocumentFormat::Xlsx),
+    ] {
+        let result = DocumentSession::open(
+            office_source(name, format)?,
+            DocumentSessionConfig::new(DocumentViewport::new(320, 240)).office_worker(
+                OfficeWorkerConfig::new(PathBuf::from("/missing/kdv-office-worker")),
+            ),
+        );
+        assert!(matches!(result, Err(DocumentSessionError::Office(_))));
+    }
+    Ok(())
+}
+
+#[test]
+fn unified_session_preserves_invalid_pdf_failures() {
+    let source = ViewerSource::Pdf(BinaryDocumentSource::new(
+        ViewerSourceIdentity::new("file:///invalid.pdf", "sha256:invalid"),
+        "application/pdf",
+        b"not a pdf".to_vec(),
+    ));
+    assert!(matches!(
+        DocumentSession::open(
+            source,
+            DocumentSessionConfig::new(DocumentViewport::new(320, 240))
+        ),
+        Err(DocumentSessionError::Pdf(_))
+    ));
+}
+
+fn assert_frame(
+    session: &mut DocumentSession,
+    format: ViewerDocumentFormat,
+    kind: DocumentSurfaceKind,
+) -> TestResult {
+    let frame = session.frame()?;
+    assert_eq!(format, frame.format);
+    assert_eq!(kind, frame.surface.kind());
+    assert!(frame.state.item_count > 0);
+    Ok(())
+}

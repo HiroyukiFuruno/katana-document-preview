@@ -2,7 +2,7 @@
 
 Markdown を PDF export する際、現在はページ境界の制御がなく、見出し・コードブロック・ダイアグラムがページ途中で分断される。印刷・配布用途では読みやすいページ分割が必要。
 
-また、用紙サイズ、余白、見出し前改ページ、keep-together、強制改ページ記法を暗黙デフォルトだけで実装すると、KatanAが期待するページ分割と高確率でずれる。`v0.5.0` は固有の pagination profile JSON を入力契約にし、同じJSONからviewer確認とPDF出力を作る。
+また、用紙サイズ、余白、見出し前改ページ、keep-together、強制改ページ記法を暗黙デフォルトだけで実装すると、KatanAが期待するページ分割と高確率でずれる。`v0.6.0` は固有の pagination profile JSON を入力契約にし、同じJSONからviewer確認とPDF出力を作る。
 
 ## What Changes
 
@@ -14,7 +14,7 @@ Markdown を PDF export する際、現在はページ境界の制御がなく�
   - コードブロック・ダイアグラム・テーブルが分断される場合に前ページに留めるか次ページへ送る
   - 強制改ページ記法をJSONで指定する
 - PDF export 前にページ分割viewerで同じ `PaginationPlan` を確認できるようにする（KDV内部のviewer/export共通pipelineを使う）
-- `katana-document-viewer-kuc` にページ分割viewer modeを追加する
+- KDVのKUC-backed document surfaceにページ分割viewer modeを追加し、KDV所有の中立frameとして公開する
 - export 設定（用紙サイズ・余白・改ページルール）を `KdvPdfPaginationProfile` として注入できる設計にする
 
 ## Capabilities
@@ -32,5 +32,5 @@ Markdown を PDF export する際、現在はページ境界の制御がなく�
 
 - DoR: `v0.1.0` のrender/export foundationと `v0.2.0` のKUC viewer integrationが完了していること
 - `crates/katana-document-viewer/` — `KdvPdfPaginationProfile`、JSON schema、`PaginationPlan`、PDF export接続の追加
-- `crates/katana-document-viewer-kuc/` — pagination viewer modeの追加
+- `crates/katana-document-viewer/` — KUC-backed pagination viewer modeとKDV所有の中立frame契約の追加
 - KatanA — pagination profile JSONを渡し、保存前確認と実際の保存を制御する

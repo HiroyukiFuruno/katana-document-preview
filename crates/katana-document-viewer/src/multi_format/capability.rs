@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum ViewerFeature {
     PageNavigation,
     SlideNavigation,
+    SheetNavigation,
     GridNavigation,
     Zoom,
     Fit,
@@ -161,7 +162,8 @@ const fn static_page_status(feature: ViewerFeature) -> ViewerFeatureStatus {
 
 const fn interactive_grid_status(feature: ViewerFeature) -> ViewerFeatureStatus {
     match feature {
-        ViewerFeature::GridNavigation
+        ViewerFeature::SheetNavigation
+        | ViewerFeature::GridNavigation
         | ViewerFeature::CopyText
         | ViewerFeature::TextSelection
         | ViewerFeature::FormulaValue

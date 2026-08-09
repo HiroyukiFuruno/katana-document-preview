@@ -1,4 +1,4 @@
-<!-- KDV v0.5.0 deferred change -->
+<!-- KDV v0.6.0 deferred change -->
 
 ## ADDED Requirements
 

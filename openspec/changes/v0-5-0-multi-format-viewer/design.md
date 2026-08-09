@@ -1,8 +1,8 @@
 ## Context
 
 KDV `v0.3.x` はin-process Rust/V8 HTML browser session adapterとして完了し、
-`v0.3.5` まで公開された。以前 `v0.5.0` へ繰り延べたmulti-format viewerを
-`v0.4.0` へ戻し、PDF / DOCX / XLSX / PPTXを次のdocument viewer対象にする。
+`v0.3.5` まで公開された。PDF / DOCX / XLSX / PPTX viewerは`v0.4.x`で公開されたが、
+KDVへegui hostを混入させたため、backend-neutral境界を`v0.5.0`で復元する。
 
 KRRの正本 `renderer-runtime-interface` はCSV / PDF / Word / Excel / PPTX viewer
 renderingをKDVへ移譲している。したがって、KDV側の古い「KRR候補」という分類は
@@ -85,18 +85,20 @@ Microsoft Officeとのpixel identityを保証しない。formatごとに選択�
   semantic model、diagnostics。
 - `ViewerCommand`: previous/next、index jump、zoom、fit、copy、open。
 
-engine固有型、KUC型、KatanA型をKDV public APIへ露出しない。
-既存の`katana-document-viewer` crateのoptional `egui` featureがKUCを内部利用し、
-KDV所有の`DocumentSurfaceFrame` / `DocumentSurfaceCommand` / `DocumentSurfaceHost`を
-公開する。KatanAはこのKDV APIだけを利用し、KUC dependency、`UiNode`、`GridAction`、
-page/grid painterを持たない。KDVとKUCを混成した別crateを作らない。
+engine固有型、KUC型、KatanA型をKDV public APIへ露出しない。KDVはKUCを内部利用して
+layout、selection、hit-test対象、page/grid frameを生成し、KDV所有の
+`DocumentSurfaceFrame` / `DocumentSurfaceCommand`を公開する。KDVはegui/eframeまたは
+別application backendへ依存しない。KatanAはこのKDV APIだけを利用し、KUC dependency、
+`UiNode`、`GridAction`、format別layout/stateを持たない。現在のKatanAだけが中立frameを
+既存egui backendへ投影し、将来のKUC移行でそのbackend integrationを削除する。
+KDVとKUCを混成した別crateを作らない。
 
 ### D4.1 v0.4.1 release correction
 
 `v0.4.0`ではcore crate公開後に別presentation crateのuploadが403となり、さらに
 KatanAがKDVを飛び越えてKUCへ直接依存する誤った境界が判明した。`v0.4.1`は別crateを
-削除し、KDV所有のdocument surfaceへ置き換える。release対象は既存KDV crateだけとし、
-dependency方向を`KatanA -> KDV -> KUC/KRR`へ固定する。
+削除してdependency方向を`KatanA -> KDV -> KUC/KRR`へ戻したが、KDV coreへoptional
+egui hostを追加したためbackend-neutral要件は未達のまま残った。
 
 ### D4.2 v0.4.2 Windows AppContainer correction
 
@@ -108,6 +110,50 @@ stageする。workspace、既存input、staged workerへ明示ACLを付与して
 だけを起動する。KatanAのinstall directory、ユーザーprofile、Temp配下へACLを付けず、
 unsandboxed fallbackも追加しない。network deny、memory / time limit、job close時kill、
 dedicated workspace cleanupは既存契約を維持する。
+
+### D4.3 v0.5.0 framework-neutral correction
+
+KUCは汎用UI framework、KDVとKLEはKUCに依存するdomain library、KatanAはapplication
+hostである。現行移行期間でもegui依存を許可するのはKatanAだけとし、KUC/KDV/KLEへ
+eguiを追加しない。KDVからoptional egui featureと`DocumentSurfaceHost`を削除し、KUCの
+`GenericGrid` / `ImageSurface`を内部利用してKDV所有の中立frame DTOへ変換する。
+KUC型はprivate field、re-export、type aliasを含めpublic APIへ漏らさない。
+
+KUCはlayout、geometry、hit-test、interaction stateを所有する。KDVは文書domainをKUCへ
+組み立て、KUCが計算したframeをKDV所有DTOへ変換し、KDV commandをKUC actionへ委譲して
+結果をKDV eventへ戻す。KDVはgrid geometry、hit-test、selection algorithmを再実装しない。
+
+KatanAは中立frameのbackend投影とegui inputからKDV commandへの変換だけを持つ。
+pointer座標もKDV commandとして渡し、KatanA側でdocument hit-testを行わない。Office/PDF
+semanticsはKDVに残す。これはKatanAのdocument adapter層を新設するものではなく、既存
+application backend boundaryの一部とする。
+
+### D4.4 統一session command境界の是正
+
+公開前自己レビューで、現在の`DocumentSession::apply`がKUC由来eventを破棄し、
+format非対応commandを成功扱いする経路を検出した。paged sessionへのgrid commandは
+黙って無視され、XLSXへのzoom / fitはviewer stateだけを変更してgrid frameへ反映しない。
+また、統一sessionはsource metadataを公開する`info`と明示的な`close`を持たず、
+OpenSpecのopen / apply / frame / close契約を満たしていない。この状態のlocal release gate
+成功は公開可の証拠として扱わない。
+
+是正案は次の公開境界とする。
+
+- `DocumentSession::apply`は`Result<DocumentSessionEvent, DocumentSessionError>`を返し、
+  navigation、grid interaction、copy/open host requestを破棄しない。
+- formatとcapabilityに適合しないcommandは、formatとcommand kindを含む
+  `UnsupportedCommand` typed errorとして拒否する。
+- PDF / DOCX / PPTXはpageまたはslide navigation、zoom、fit、resizeを受け付け、
+  grid commandを拒否する。
+- XLSXはsheet navigation、grid interaction、resize、copyを受け付け、zoom、fit、
+  open targetを拒否する。sheet navigationはgrid内navigationと別capabilityにする。
+- `DocumentSession::info`はidentity、revision、MIME、format、capabilities、diagnosticsを
+  KDV所有DTOとして返す。
+- `DocumentSession::close(self)`を明示し、session lifecycleをKatanAへ推測させない。
+- KatanAはKDV eventを受け、clipboardや外部openなどのplatform I/Oだけを実行する。
+
+この是正案は2026-08-09にユーザーが明示承認した。spec、契約テスト、実装、境界guardを
+同じ変更として更新し、全release gateを再実行する。
 
 ### D5. Feasibility評価後の候補状態
 
@@ -171,9 +217,9 @@ sibling path dependencyを使用しない。
 ## Release Order
 
 1. conditional KUC grid contract（必要な場合のみ）
-2. KDV `v0.4.0` multi-format viewer
+2. KDV `v0.5.0` backend-neutral multi-format viewer
 3. KatanA adjacent releaseでpublished KDVをintake
-4. KDV `v0.5.0` PDF export pagination
+4. KDV `v0.6.0` PDF export pagination
 
 ## Risks / Trade-offs
 

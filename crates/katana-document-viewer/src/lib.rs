@@ -8,7 +8,6 @@ pub mod backend;
 pub mod browser_session;
 pub mod cli_api;
 pub mod document;
-#[cfg(feature = "egui")]
 mod document_surface;
 mod emoji_text;
 pub mod evaluation;
@@ -96,11 +95,13 @@ pub use document::{
     DocumentOutlineItem, DocumentSnapshot, DocumentSnapshotFactory, DocumentSource, SourceKind,
     SourceRevision, SourceUri,
 };
-#[cfg(feature = "egui")]
 pub use document_surface::{
-    DocumentGridCommand, DocumentGridEvent, DocumentGridNavigation, DocumentSurfaceCommand,
-    DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceHost, DocumentSurfaceHostOutput,
-    DocumentSurfaceKind, DocumentViewport, SpreadsheetGridSurface,
+    DocumentGridCell, DocumentGridCellAppearance, DocumentGridCommand, DocumentGridCoordinate,
+    DocumentGridDataBar, DocumentGridEvent, DocumentGridHorizontalAlignment, DocumentGridIcon,
+    DocumentGridNavigation, DocumentGridRating, DocumentGridSurfaceFrame,
+    DocumentGridVerticalAlignment, DocumentGridViewport, DocumentPageSurfaceFrame, DocumentRect,
+    DocumentSurfaceCommand, DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceKind,
+    DocumentViewport, SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,
@@ -133,20 +134,22 @@ pub use katana_markdown_model::{
 };
 pub use markdown_fence_normalizer::MarkdownFenceNormalizer;
 pub use multi_format::{
-    BinaryDocumentSource, DocumentFitMode, DocumentViewerCommand, DocumentViewerEvent,
-    DocumentViewerState, DocumentViewerStateError, OfficeDocumentFormat, OfficeDocumentSource,
-    OfficePackagePreflight, OfficePreflightError, OfficePreflightLimits, OfficePreflightReport,
-    OfficeResourceLimitKind, OfficeStaticDocumentArtifact, OfficeStaticItemArtifact,
-    OfficeStaticViewerSession, OfficeWorkerConfig, OfficeWorkerEntrypoint, OfficeWorkerError,
-    PdfDocumentArtifact, PdfPageArtifact, PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage,
-    PdfResourceLimitKind, PdfViewerError, PdfViewerLimits, PdfViewerSession,
-    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
-    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
-    SpreadsheetDocumentArtifact, SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact,
-    SpreadsheetMergedCellArtifact, SpreadsheetRatingArtifact, SpreadsheetSheetArtifact,
-    SpreadsheetTrackArtifact, SpreadsheetVerticalAlignment, SpreadsheetViewerLimits,
-    SpreadsheetViewerSession, ViewerCapabilities, ViewerDiagnostic, ViewerDiagnosticCode,
-    ViewerDiagnosticSeverity, ViewerFeature, ViewerFeatureStatus, ViewerQualityProfile,
+    BinaryDocumentSource, DocumentFitMode, DocumentFrame, DocumentSession, DocumentSessionCommand,
+    DocumentSessionCommandKind, DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent,
+    DocumentSessionInfo, DocumentViewerCommand, DocumentViewerEvent, DocumentViewerState,
+    DocumentViewerStateError, OfficeDocumentFormat, OfficeDocumentSource, OfficePackagePreflight,
+    OfficePreflightError, OfficePreflightLimits, OfficePreflightReport, OfficeResourceLimitKind,
+    OfficeStaticDocumentArtifact, OfficeStaticItemArtifact, OfficeStaticViewerSession,
+    OfficeWorkerConfig, OfficeWorkerEntrypoint, OfficeWorkerError, PdfDocumentArtifact,
+    PdfPageArtifact, PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage, PdfResourceLimitKind,
+    PdfViewerError, PdfViewerLimits, PdfViewerSession, SpreadsheetCellArtifact,
+    SpreadsheetCellStyleArtifact, SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact,
+    SpreadsheetCoordinate, SpreadsheetDataBarArtifact, SpreadsheetDocumentArtifact,
+    SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,
+    SpreadsheetRatingArtifact, SpreadsheetSheetArtifact, SpreadsheetTrackArtifact,
+    SpreadsheetVerticalAlignment, SpreadsheetViewerLimits, SpreadsheetViewerSession,
+    ViewerCapabilities, ViewerDiagnostic, ViewerDiagnosticCode, ViewerDiagnosticSeverity,
+    ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus, ViewerQualityProfile,
     ViewerQualityProfileKind, ViewerSource, ViewerSourceIdentity,
 };
 pub use preview_runtime::{

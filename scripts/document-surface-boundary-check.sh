@@ -22,7 +22,7 @@ packages=(
 )
 
 vendor_pattern='(^|[[:space:]├└─│])((eframe|egui|gpui|floem|floem_reactive|floem_renderer|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui))[[:space:]]'
-source_pattern='gpui|floem|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui'
+source_pattern='eframe|egui|gpui|floem|winit|vello|katana-ui-core-(egui|gpui|floem)|katana-document-preview-egui'
 storybook_sidebar="$repo_root/tools/kdv-storybook/src/sidebar.rs"
 storybook_sidebar_sources=(
   "$repo_root/tools/kdv-storybook/src/sidebar.rs"
@@ -235,13 +235,13 @@ for package in "${packages[@]}"; do
   fi
 done
 
-if ! grep -q '^katana-ui-core = { version = "0[.]3[.]0", optional = true }$' "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV document surface must use optional crates.io KUC 0.3.0" >&2
+if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV document surface must use required crates.io KUC 0.3.0" >&2
   exit 1
 fi
 
-if ! grep -q '^egui = \["dep:egui", "dep:katana-ui-core"\]$' "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV egui feature must own its KUC presentation dependency" >&2
+if grep -n -E '(^|[[:space:]])(eframe|egui)[[:space:]]*=' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV must remain independent from egui and eframe" >&2
   exit 1
 fi
 
@@ -326,7 +326,6 @@ matches="$(
     \( -name '*.rs' -o -name 'Cargo.toml' \) \
     ! -name '*tests.rs' \
     ! -path '*/tests/*' \
-    ! -path '*/document_surface/*' \
     -print0 \
     | xargs -0 grep -n -E "$source_pattern" || true
 )"
@@ -334,25 +333,6 @@ matches="$(
 if [[ -n "$matches" ]]; then
   printf '%s\n' "$matches"
   echo "document-surface-boundary-check: vendor runtime source reference leaked into KDV/KUC neutral implementation" >&2
-  exit 1
-fi
-
-egui_matches="$(
-  find "${neutral_source_roots[@]}" "${neutral_extra_roots[@]}" \
-    -type f \
-    -name '*.rs' \
-    ! -name '*tests.rs' \
-    ! -path '*/tests/*' \
-    ! -path '*/document_surface/*' \
-    -print0 \
-    | xargs -0 grep -n -E 'egui' \
-    | grep -v -E '/katana-document-viewer/src/lib.rs:[0-9]+:#\[cfg\(feature = "egui"\)\]$' \
-    || true
-)"
-
-if [[ -n "$egui_matches" ]]; then
-  printf '%s\n' "$egui_matches"
-  echo "document-surface-boundary-check: egui must remain private to the KDV document surface" >&2
   exit 1
 fi
 

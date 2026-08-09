@@ -243,7 +243,7 @@ def main() -> None:
         "--evidence",
         type=Path,
         default=Path(
-            "openspec/changes/v0-4-0-multi-format-viewer/evidence/benchmark-summary.json"
+            "openspec/changes/v0-5-0-multi-format-viewer/evidence/benchmark-summary.json"
         ),
     )
     parser.add_argument("--require-approved", action="store_true")

@@ -1,4 +1,4 @@
-# Tasks: katana-document-viewer v0.5.0 PDF export pagination
+# Tasks: katana-document-viewer v0.6.0 PDF export pagination
 
 ## Definition of Ready (DoR)
 
@@ -9,7 +9,7 @@
 
 ## Definition of Done (DoD)
 
-- [ ] `rtk ./scripts/openspec validate v0-5-0-pdf-export-pagination --strict --no-interactive` が通る
+- [ ] `rtk ./scripts/openspec validate v0-6-0-pdf-export-pagination --strict --no-interactive` が通る
 - [ ] `rtk just check` が通る
 - [ ] 固有JSON fixture、正規化済みprofile snapshot、`PaginationPlan` snapshot、PDF page count検査が通る
 - [ ] profile JSON欠落、不正version、未知field、必須field欠落の失敗テストが通る
@@ -60,5 +60,5 @@
 ## 5. Final Verification
 
 - [ ] 5.1 `rtk just check` を実行する
-- [ ] 5.2 `rtk ./scripts/openspec validate v0-5-0-pdf-export-pagination --strict --no-interactive` を実行する
+- [ ] 5.2 `rtk ./scripts/openspec validate v0-6-0-pdf-export-pagination --strict --no-interactive` を実行する
 - [ ] 5.3 生成したPDF artifactと `*.pagination-plan.json` の絶対パスを提示し、必要な場合はユーザー目視確認を依頼する

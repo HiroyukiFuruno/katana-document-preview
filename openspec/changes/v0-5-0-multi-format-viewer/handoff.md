@@ -1,13 +1,15 @@
-# v0.4.2 Multi-format Viewer Handoff
+# v0.5.0 Backend-neutral Multi-format Viewer Handoff
 
 ## Ownership
 
 - KDV owns format detection, private engine adapters, bounded preflight,
   isolated processes, neutral artifacts, diagnostics, viewer state, and commands.
 - KUC owns only generic page, grid, slide, viewport, and control contracts.
-- KDV owns the document surface and uses KUC internally without exposing KUC types.
-- KatanA owns file/URL intake and native host command handling, depends directly
-  on KDV only for document viewing, and does not depend on KUC.
+- KDV owns the backend-neutral document frame and uses KUC internally without
+  exposing KUC types or depending on egui/eframe.
+- KatanA owns file/URL intake, native host command handling, and the current
+  application-backend projection. It depends directly on KDV only for document
+  viewing and does not depend on KUC in this release.
 - KRR remains unchanged. Existing public APIs may be used only indirectly for
   diagram or math content embedded in an approved document artifact.
 
@@ -31,7 +33,7 @@
   1,588 workspace tests, Storybook tests, scorecard, and handoff harness.
 - `rtk just coverage` passes with `--fail-under-lines 100` and
   `--fail-uncovered-lines 0`; 1,587 tests passed and 1 was ignored.
-- `rtk ./scripts/openspec validate v0-4-0-multi-format-viewer --strict --no-interactive`
+- `rtk ./scripts/openspec validate v0-5-0-multi-format-viewer --strict --no-interactive`
   passes.
 - Release mode correctly fails with
   the first selected candidate that has not yet passed every hard gate.
@@ -47,11 +49,13 @@
 
 ## Remaining Preconditions
 
-1. Implement and score the approved KUC/KDV paths. A proposed profile is not a
+1. Implement the typed command/event/info/close correction approved on
+   2026-08-09 and reject the previous silent-command behavior in contract tests.
+2. Implement and score the approved KUC/KDV paths. A proposed profile is not a
    release pass until its representative corpus reaches 80 and every hard gate
    passes.
-2. Pass strict 100% coverage, cross-platform distribution, security,
+3. Pass strict 100% coverage, cross-platform distribution, security,
    package, and release gates.
-3. Publish KDV 0.4.2 with the `egui` document-surface feature and Windows
-   AppContainer worker staging, integrate the registry
-   version into KatanA, then complete native acceptance and the KatanA release.
+4. Publish KDV 0.5.0 without an application UI backend dependency, integrate
+   the registry version into KatanA, then complete native acceptance and the
+   KatanA release.

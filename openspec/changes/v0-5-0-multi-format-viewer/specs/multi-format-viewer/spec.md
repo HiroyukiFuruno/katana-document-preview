@@ -35,16 +35,55 @@
 
 ### Requirement: document viewerの責務をKDVへ固定しなければならない
 
-システムは、PDF / DOCX / XLSX / PPTXのformat adapter、neutral artifact、viewer state、diagnostics、viewer commandをKDVの責務として実装しなければならない（MUST）。
+システムは、PDF / DOCX / XLSX / PPTXのformat routing、engine session、worker、materialization、neutral artifact、viewer state、diagnostics、viewer commandを統合したdocument sessionをKDVの責務として実装しなければならない（MUST）。
 
 #### Scenario: PDFまたはOffice文書を開く
 
 - **WHEN** ホストが選定済みengineに対応するPDF / DOCX / XLSX / PPTX sourceを渡す
 - **THEN** KDVはsource identity、revision、MIME、format、capability、diagnosticsを保持する
+- **THEN** KDVはformat routing、engine session、worker lifecycle、render scale、XLSX materializationを所有する
 - **THEN** KDVはengine固有型をneutral page / document / sheet / slide artifactへ変換する
 - **THEN** KDVはnavigation、zoom、fit、copy、openのうち対応済みcommandを公開する
 - **THEN** KUCはneutral artifactとgeneric controlsだけを表示する
-- **THEN** KatanAはsource intakeとhost command処理だけを担当する
+- **THEN** KatanAはsource intake、host command処理、中立frameのapplication backend投影だけを担当する
+
+#### Scenario: 統一document sessionを操作する
+
+- **WHEN** ホストがKDV document source、初期viewport、必要なplatform worker resourceを渡す
+- **THEN** KDVはformat固有sessionを公開せず、統一されたopen / apply / frame / close契約を提供する
+- **THEN** pointer座標、navigation、zoom、fit、resize、scrollはKDV所有commandとして受け取る
+- **THEN** KDVはpointer座標をKUC hit-testへ委譲し、KUC interaction結果をKDV所有eventへ変換する
+- **THEN** ホストはPDF / Office engine、KUC grid、cell materializationを直接操作しない
+
+#### Scenario: formatが対応するcommandを適用する
+
+- **WHEN** ホストが現在のformatとcapabilityで対応済みのnavigation、zoom、fit、resize、grid interaction、copy、open commandを適用する
+- **THEN** KDVはstateまたはKUC interactionを一度だけ更新する
+- **THEN** KDVは結果をKDV所有のdocument session eventとして返し、破棄しない
+- **THEN** KatanAはcopyまたはopen eventに必要なplatform I/Oだけを実行する
+
+#### Scenario: formatが対応しないcommandを適用する
+
+- **WHEN** paged documentへgrid commandを渡す、またはXLSXへzoom、fit、open targetを渡す
+- **THEN** KDVはformatとcommand kindを含むtyped unsupported command errorを返す
+- **THEN** KDVはstateを変更せず、silent successまたは別経路へのfallbackを行わない
+
+#### Scenario: 統一document sessionのmetadataとlifecycleを扱う
+
+- **WHEN** ホストがopen済みsessionのmetadataを取得またはsessionを終了する
+- **THEN** KDVはidentity、revision、MIME、format、capabilities、diagnosticsをKDV所有info DTOで返す
+- **THEN** KDVは明示的なconsuming close契約を提供する
+- **THEN** KatanAはformat engineまたはworker lifecycleを直接管理しない
+
+#### Scenario: application UI backendとの境界を検証する
+
+- **WHEN** KDVのmanifest、source、public APIを検査する
+- **THEN** KDVはKUC 0.3.0をrequired registry dependencyとして内部利用する
+- **THEN** KDVはegui、eframe、または別application UI backendへ依存しない
+- **THEN** KDVはKUC型をpublic field、return type、re-export、type aliasとして公開しない
+- **THEN** KDVはKDV所有のpage/grid frame、command、eventだけを公開する
+- **THEN** 現行KatanAだけがegui inputとpaint処理をapplication backend boundaryで変換する
+- **THEN** KDVとKatanAはKUCのlayout、geometry、hit-test、interaction stateを再実装しない
 
 #### Scenario: KRRとの責務境界を検証する
 
@@ -136,13 +175,13 @@
 
 ### Requirement: release対象をPDFとOffice viewerへ限定しなければならない
 
-システムは、KDV `v0.4.x` のrelease contractをPDF / DOCX / XLSX / PPTX viewerに限定しなければならない（MUST）。
+システムは、KDV `v0.5.x` のrelease contractをPDF / DOCX / XLSX / PPTX viewerに限定しなければならない（MUST）。
 
-#### Scenario: v0.4.x release targetを検証する
+#### Scenario: v0.5.x release targetを検証する
 
-- **WHEN** release gateがKDV `v0.4.x` を検証する
-- **THEN** current OpenSpec changeは `v0-4-0-multi-format-viewer` である
-- **THEN** PDF export paginationはKDV `v0.5.0` のdeferred targetである
+- **WHEN** release gateがKDV `v0.5.x` を検証する
+- **THEN** current OpenSpec changeは `v0-5-0-multi-format-viewer` である
+- **THEN** PDF export paginationはKDV `v0.6.0` のdeferred targetである
 - **THEN** CSV / SVG / WebP / AVIFは本changeのDoDに含まれない
 - **THEN** coverage thresholdまたは既存quality gateを緩和していない
 

@@ -1,18 +1,18 @@
 use std::fs;
 
-const FORBIDDEN_VIEWER_DEPENDENCIES: [&str; 2] = ["winit", "vello"];
-const FORBIDDEN_PUBLIC_API_FRAGMENTS: [&str; 3] = ["katana_ui_core", "winit::", "vello::"];
+const FORBIDDEN_VIEWER_DEPENDENCIES: [&str; 4] = ["eframe", "egui", "winit", "vello"];
+const FORBIDDEN_PUBLIC_API_FRAGMENTS: [&str; 4] =
+    ["egui::", "katana_ui_core", "winit::", "vello::"];
 
 #[test]
-fn viewer_manifest_scopes_presentation_dependencies_to_the_egui_feature()
+fn viewer_manifest_is_backend_neutral_and_uses_registry_kuc()
 -> Result<(), Box<dyn std::error::Error>> {
     let value = viewer_manifest()?;
     let dependencies = manifest_dependencies(&value)?;
 
     assert_neutral_dependencies(dependencies);
-    assert_optional_registry_dependency(dependencies, "egui", "0.35")?;
-    assert_optional_registry_dependency(dependencies, "katana-ui-core", "0.3.0")?;
-    assert_egui_feature(&value)?;
+    assert_registry_dependency(dependencies, "katana-ui-core", "0.3.0")?;
+    assert_no_egui_feature(&value);
     Ok(())
 }
 
@@ -40,40 +40,23 @@ fn assert_neutral_dependencies(dependencies: &toml::Table) {
     );
 }
 
-fn assert_egui_feature(value: &toml::Value) -> Result<(), Box<dyn std::error::Error>> {
+fn assert_no_egui_feature(value: &toml::Value) {
     let feature = value
         .get("features")
         .and_then(toml::Value::as_table)
-        .and_then(|features| features.get("egui"))
-        .and_then(toml::Value::as_array)
-        .ok_or_else(|| std::io::Error::other("egui feature is missing"))?;
-    let feature = feature
-        .iter()
-        .filter_map(toml::Value::as_str)
-        .collect::<Vec<_>>();
-    assert_eq!(vec!["dep:egui", "dep:katana-ui-core"], feature);
-    Ok(())
+        .and_then(|features| features.get("egui"));
+    assert!(feature.is_none());
 }
 
-fn assert_optional_registry_dependency(
+fn assert_registry_dependency(
     dependencies: &toml::Table,
     name: &str,
     version: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let dependency = dependencies
-        .get(name)
-        .and_then(toml::Value::as_table)
-        .ok_or_else(|| std::io::Error::other(format!("{name} dependency is missing")))?;
-    assert_eq!(
-        Some(version),
-        dependency.get("version").and_then(toml::Value::as_str)
-    );
-    assert_eq!(
-        Some(true),
-        dependency.get("optional").and_then(toml::Value::as_bool)
-    );
-    assert!(!dependency.contains_key("path"));
-    assert!(!dependency.contains_key("git"));
+    let Some(dependency) = dependencies.get(name) else {
+        return Err(std::io::Error::other(format!("{name} dependency is missing")).into());
+    };
+    assert_eq!(Some(version), dependency.as_str());
     Ok(())
 }
 

@@ -9,8 +9,9 @@ KRRの正本仕様はCSV / PDF / Word / Excel / PPTX viewer renderingをKDVへ�
 KDVは成熟した既存engine/libraryをadapter経由で利用し、PDF parser、Office parser、
 layout engineを独自実装しない。
 
-このchangeはKDV `v0.4.0` をPDF / DOCX / XLSX / PPTX viewerへ繰り上げる。
-PDF export paginationは独立したKDV `v0.5.0` changeへ繰り延べる。
+このchangeは公開済みKDV `v0.4.x` のPDF / DOCX / XLSX / PPTX viewerから
+誤って混入したegui host境界を除去し、backend-neutralなKDV `v0.5.0`として完成させる。
+PDF export paginationは独立したKDV `v0.6.0` changeへ繰り延べる。
 
 ## What Changes
 
@@ -42,7 +43,7 @@ PDF export paginationは独立したKDV `v0.5.0` changeへ繰り延べる。
 ### Deferred
 
 - CSV / SVG / WebP / AVIF viewerは本releaseへ混ぜず、後続changeへ残す。
-- PDF export paginationはKDV `v0.5.0` へ繰り延べる。
+- PDF export paginationはKDV `v0.6.0` へ繰り延べる。
 
 ## Capabilities
 
@@ -54,9 +55,9 @@ PDF export paginationは独立したKDV `v0.5.0` changeへ繰り延べる。
 
 ## Impact
 
-- `crates/katana-document-viewer/` — format adapter、neutral artifact、viewer state、diagnostics
-- `katana-document-viewer`のdocument surface — KUCを内部利用するpage/grid host API
+- `crates/katana-document-viewer/` — format routing、engine/worker lifecycle、materialization、neutral artifact、viewer state、diagnosticsを統合したdocument session
+- `katana-document-viewer`のdocument surface — KUCを内部利用するbackend-neutral page/grid frame API
 - `katana-ui-core` — 公開済みv0.3.0契約のgeneric 2D grid-line visibilityと既存surface/controlを利用する
-- `katana-document-viewer`の`egui` feature — KUC型を露出しないKDV所有のdocument surfaceを追加する
-- KatanA — published KDVだけを直接利用するthin host integration。KUCへ直接依存しない
+- `katana-document-viewer` — egui/eframe featureとhost widgetを持たず、KUC型を露出しない
+- KatanA — published KDVの統一sessionと中立frameだけを利用するthin backend integration。KUC、format別session、document engineへ直接依存しない
 - `katana-render-runtime` — 変更なし
