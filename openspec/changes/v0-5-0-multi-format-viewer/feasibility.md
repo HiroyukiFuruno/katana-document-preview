@@ -357,4 +357,4 @@ XLSX `interactive-grid`とPPTX typed chart fallbackは2026-07-30に明示承認�
 1. 全formatで承認済みengineが揃ってからKDV private adapterへ実装する。
 2. KDV `v0.4.0`を80/100以上かつ全hard gate passでreleaseする。
 3. KatanAの隣接patchで公開済みKDVを統合する。
-4. KDV `v0.5.0` PDF export paginationを実装する。
+4. KDV `v0.6.0` PDF export paginationを実装する。

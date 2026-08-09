@@ -1,24 +1,43 @@
-# Tasks: katana-document-viewer v0.4.0 multi-format viewer
+# Tasks: katana-document-viewer v0.5.0 backend-neutral multi-format viewer
+
+## Priority and boundary invariant
+
+- 正しい設計と実装境界の確定・維持を、検証、ゴール達成、リリース速度より優先する。
+- KUCは汎用UI Frameworkとしてlayout、geometry、hit-test、interaction stateを所有する。
+- KDV/KLEはKUCに依存するdomain libraryであり、application UI backendへ依存しない。
+- KDVはKUC型をpublic APIへ露出せず、KDV所有のframe / command / eventを公開する。
+- KatanAはKDVだけを直接利用し、現行egui input / paintを中立契約へ投影する。KatanAでdocument geometryやhit-testを再実装しない。
+- この不変条件がOpenSpec、public API、依存graph、自動guardで一致するまでpublish / releaseへ進まない。
+
+## 0. Boundary design gate
+
+- [x] 0.1 KUC / KDV / KLE / KatanAの所有権をdesign、spec、project正本で一致させる。証跡: file: `design.md` / file: `specs/multi-format-viewer/spec.md` / file: `openspec/project.md`
+- [x] 0.2 KDV public APIにKUC型またはapplication backend型が露出しないことを検証する。証跡: test: `dependency_tests` / command: `rtk just release-check`
+- [x] 0.3 KDV/KatanAにKUCのlayout、geometry、hit-test、interaction stateを再実装させない設計とsource guardを定義する。KatanA実装への適用確認は7.4で行う。証跡: file: `design.md` / file: `scripts/document-surface-boundary-check.sh` / KatanA file: `scripts/release/check-multi-format-document-contract.py`
+- [x] 0.4 KatanAのdocument viewerがKDV以外のKUC / KRR / document engineへ直接依存しない設計とdependency guardを定義する。KatanA実装への適用確認は7.4で行う。証跡: file: `handoff.md` / KatanA file: `scripts/release/check-multi-format-document-contract.py`
+- [x] 0.5 上記4項目の設計レビュー、自動guard定義、ユーザー承認をrelease task開始条件として満たす。証跡: user approval `2026-08-09` / command: `rtk just release-check`
+- [x] 0.6 統一sessionのtyped command/event/info/close是正案についてユーザーの明示承認を得る。証跡: user approval `2026-08-09`
 
 ## Definition of Ready (DoR)
 
 - [x] KDV browser session adapterは公開済み `v0.3.5` で完了している
 - [x] KRRの正本仕様はPDF / Word / Excel / PPTX viewer renderingをKDVの責務として固定している
 - [x] KUC `v0.3.0` のgeneric 2D grid-line visibilityを公開crate/tagから確認している。証跡: GitHub Release `v0.3.0` / crates.io `katana-ui-core 0.3.0` / tag commit `1256fdd08ecc01bcc09066180e1a05d0503ba382`
-- [x] PDF export paginationを独立したKDV `v0.5.0` targetへ繰り延べている
-- [x] formatごとのengine、quality profile、dependency modelを比較し、ユーザーの明示承認を得ている。証跡: file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/benchmark-summary.json`
+- [x] PDF export paginationを独立したKDV `v0.6.0` targetへ繰り延べている
+- [x] formatごとのengine、quality profile、dependency modelを比較し、ユーザーの明示承認を得ている。証跡: file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/benchmark-summary.json`
 
 ## Definition of Done (DoD)
 
 - [x] PDF / DOCX / XLSX / PPTXを承認済みquality profileで表示できる
 - [x] 独自parser、独自layout engine、Chromium、WebView、PDFiumを利用していない
 - [x] KRRにdocument viewer APIを追加せず、KDVがformat adapterとviewer semanticsを所有している
-- [x] macro / script非実行、external resource blocking、resource limits、crash isolationを検証している。証跡: test: `multi_format_office_preflight_contract` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/office2pdf.json`
-- [x] unsupported featureとfailureがtyped capability / diagnosticsとして追跡可能である
+- [x] macro / script非実行、external resource blocking、resource limits、crash isolationを検証している。証跡: test: `multi_format_office_preflight_contract` / file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/office2pdf.json`
+- [x] unsupported feature、非対応command、failureがtyped capability / diagnostics / errorとして追跡可能である。証跡: test: `multi_format_document_session_contract` / error: `DocumentSessionError::UnsupportedCommand`
 - [x] strict coverage 100% / uncovered 0を閾値緩和・除外追加なしで満たしている
 - [x] macOS / Linux / Windowsのrelease artifactとdependency supply chainを検証している。証跡: test: GitHub Actions PR #31 macOS / Ubuntu / Windows jobs / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/31/checks`
-- [x] `rtk ./scripts/openspec validate v0-4-0-multi-format-viewer --strict --no-interactive` が通る
+- [x] `rtk ./scripts/openspec validate v0-5-0-multi-format-viewer --strict --no-interactive` が通る
 - [x] `rtk just check` とKDV `v0.4.0` release gateが通る。証跡: test: `just-check` / test: `v0.4.0-release-check`
+- [ ] KDVがegui/eframeへ依存せず、中立frame契約を公開した`v0.5.0`のstrict gateと公開確認が完了している
 
 ---
 
@@ -30,10 +49,10 @@
 - [x] 1.4 Chromium / WebView / PDFium / hand-written parser・layoutを候補から除外し、理由を記録する
 - [x] 1.5 reference image差分、first frame、navigation latency、peak memory、cache sizeを測定する
 - [x] 1.6 direct / transitive license、cross-platform配布、security update経路を監査する
-- [x] 1.7 macro非実行、external resource blocking、archive expansion / time / memory limit、cleanupを検証する。証跡: file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/office2pdf.json` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/onlyoffice-document-builder.json` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/libreoffice-loaded-images.json`
-- [x] 1.8 PDF / DOCX採用候補とXLSX / PPTXのformat別profile選択肢をscore・hard gate付きで提示する。証跡: file: `openspec/changes/v0-4-0-multi-format-viewer/feasibility.md` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/benchmark-summary.json`
+- [x] 1.7 macro非実行、external resource blocking、archive expansion / time / memory limit、cleanupを検証する。証跡: file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/office2pdf.json` / file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/onlyoffice-document-builder.json` / file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/libreoffice-loaded-images.json`
+- [x] 1.8 PDF / DOCX採用候補とXLSX / PPTXのformat別profile選択肢をscore・hard gate付きで提示する。証跡: file: `openspec/changes/v0-5-0-multi-format-viewer/feasibility.md` / file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/benchmark-summary.json`
 - [x] 1.9 fixed score、hard gate、採否、4 format selectionをlocal/release gateで機械検証する。証跡: `scripts/feasibility/verify-multi-format-scorecard.py` / `rtk just multi-format-scorecard-script-test` / `rtk just multi-format-scorecard-check`
-- [x] 1.10 ユーザーの明示承認後にだけproduction dependencyとformat実装へ進む。証跡: file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/benchmark-summary.json`
+- [x] 1.10 ユーザーの明示承認後にだけproduction dependencyとformat実装へ進む。証跡: file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/benchmark-summary.json`
 
 ---
 
@@ -42,9 +61,10 @@
 - [x] 2.1 承認済みformatだけに `ViewerSource::Pdf` と `ViewerSource::Office` を追加する
 - [x] 2.2 source identity、revision、MIME、format、capability、typed diagnosticsを定義する
 - [x] 2.3 PDF page、Office document / sheet / slideのneutral artifactを定義する
-- [x] 2.4 navigation、index jump、zoom、fit、copy、openのneutral commandを定義する
+- [x] 2.4 navigation、index jump、zoom、fit、copy、openのneutral commandと結果eventを定義する。証跡: type: `DocumentSessionCommand` / type: `DocumentSessionEvent`
 - [x] 2.5 engine固有型、KUC型、KatanA型をKDV public APIへ露出しない
-- [x] 2.6 unsupported format / featureをsilent fallbackせずtyped diagnosticsへ落とす
+- [x] 2.6 unsupported format / feature / commandをsilent successまたはfallbackせずtyped diagnostics / errorへ落とす。証跡: test: `multi_format_document_session_contract`
+- [x] 2.7 統一sessionがsource metadataを返す`info`と明示的な`close`を提供する。証跡: API: `DocumentSession::info` / API: `DocumentSession::close`
 
 ---
 
@@ -67,7 +87,7 @@
 - [x] 4.4 DOCXは `office2pdf` -> canonical PDF -> `hayro`をKDV private adapterとして統合する
 - [x] 4.5 macro / scriptを実行せず、external resourceを自動取得しない
 - [x] 4.6 bounded OOXML preflightでentry数、圧縮率、展開量、active content、external relationshipを検査する
-- [x] 4.7 Office engineを別processへ隔離し、network deny、dedicated temp、timeout、memory limit、kill、cleanup、crash isolationを実装する。delegation-exception: `ユーザーがsubagent利用を禁止` / file: `openspec/changes/v0-4-0-multi-format-viewer/evidence/linux-sandbox-supply-chain.json` / test: `multi_format::office_worker_constraints::network_seccomp::tests`
+- [x] 4.7 Office engineを別processへ隔離し、network deny、dedicated temp、timeout、memory limit、kill、cleanup、crash isolationを実装する。delegation-exception: `ユーザーがsubagent利用を禁止` / file: `openspec/changes/v0-5-0-multi-format-viewer/evidence/linux-sandbox-supply-chain.json` / test: `multi_format::office_worker_constraints::network_seccomp::tests`
 - [x] 4.8 XLSX `interactive-grid`が承認された場合だけIronCalc model adapterを統合する
 - [x] 4.9 PPTX chart fallback profileが承認された場合だけ `office2pdf` static slide adapterを統合する
 - [x] 4.10 representative corpusのreference diffと性能budgetをformat別契約テストへ固定する
@@ -90,10 +110,11 @@
 - [x] 5.4 KUC `v0.3.0` 公開release完了後にregistry dependencyとして取り込む
 - [x] 5.5 private table/grid代替実装をKDVへ追加していないことを機械検証する。証跡: test: `document-surface-boundary-check` / file: `scripts/document-surface-boundary-check.sh`
 - [x] 5.6 PPTX chart fallbackはKDV typed diagnosticとして保持し、KUCにOffice semanticsを追加しない
-- [x] 5.7 KDV coreの`egui` optional featureがKUCを内部利用するdocument surfaceを所有し、KatanAがKUCへ直接依存またはformat別presentation変換を持たないようにする
-- [x] 5.8 公開featureはKUC core crates.io `0.3.0`、開発用Storybook一式は同一 `v0.3.0` tagを使用し、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `Cargo.toml` / test: `document-surface-boundary-check`
+- [x] 5.7 KDV coreからegui/eframe dependency、feature、host widgetを除去し、KUCを内部利用するbackend-neutral document frameを公開する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `document_surface/frame.rs` / test: `dependency_tests`, `document_surface_tests` / command: `rtk just release-check`
+- [x] 5.8 KUC core crates.io `0.3.0`をrequired dependency、開発用Storybook一式を同一 `v0.3.0` tagとし、sibling path dependencyを禁止する。証跡: file: `crates/katana-document-viewer/Cargo.toml` / file: `Cargo.toml` / test: `document-surface-boundary-check` / command: `rtk just release-check`
 - [x] 5.9 XLSX sheetのgrid-line visibilityをKUC typed render propsへ欠落なく渡す
-- [x] 5.10 grid commandの結果をKDV所有eventへ変換し、KUC `GridEvent`をKDV public APIへ露出しない。証跡: test: `public_document_surface_does_not_expose_kuc_event_types`
+- [x] 5.10 pointer inputをKDV commandとして受け、KUC hit-test / interactionへ委譲した結果を破棄せずKDV所有eventへ変換する。KUC `GridEvent`をKDV public APIへ露出しない。delegation-exception: `ユーザーがsubagent利用を禁止`
+- [x] 5.11 KDV中立frameがKUCの計算したpage pixels、grid geometry/style、selection、scroll stateをKUC型なしで保持し、geometryを再計算しない。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: test: `neutral_grid_frame_keeps_backend_independent_geometry`, `rendered_page_becomes_a_document_surface_without_reinterpreting_pixels` / command: `rtk just release-check`
 
 ---
 
@@ -101,33 +122,36 @@
 
 - [x] 6.1 source usageとdependency declarationの両方でKRR document viewer依存がないことを検査する
 - [x] 6.2 Chromium / WebView / PDFiumおよび禁止engineの依存がないことを検査する
-- [x] 6.3 `multi-format-viewer` release contractを実装し、current target `v0.4.x` を機械検証する。証跡: test: `release-contract-check` / file: `scripts/release/verify-release-contract.py`
-- [x] 6.4 PDF export paginationだけがdeferred `v0.5.0` であることを機械検証する。証跡: file: `openspec/release-targets.json` / file: `openspec/changes/v0-5-0-pdf-export-pagination/tasks.md`
-- [x] 6.5 strict coverage 100% / uncovered 0、AST lint、clippy、package verify、publish dry-runを通す
+- [x] 6.3 `multi-format-viewer` release contractを実装し、current target `v0.5.x` を機械検証する。証跡: test: `release-contract-check` / file: `scripts/release/verify-release-contract.py`
+- [x] 6.4 PDF export paginationだけがdeferred `v0.6.0` であることを機械検証する。証跡: file: `openspec/release-targets.json` / file: `openspec/changes/v0-6-0-pdf-export-pagination/tasks.md`
+- [x] 6.5 command境界是正後にstrict coverage 100% / uncovered 0、AST lint、clippy、package verify、publish dry-runを再実行する。証跡: command: `rtk just release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success
 - [x] 6.6 macOS / Linux / Windowsのartifactとruntime dependencyを検証する。証跡: test: GitHub Actions PR #31 macOS / Ubuntu / Windows jobs / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/31/checks`
 - [x] 6.7 Linux CIでtest moduleをproduction coverage対象から分離し、親子process profileを保持したままstrict coverage 100% / uncovered 0を再通過する。証跡: release-preflight run `30773465236`
 - [x] 6.8 `v0.4.0` core crateの公開と別presentation crateの403およびcross-layer依存を検出し、別crateを削除した`v0.4.1` KDV document surfaceへrelease contractを修正する
 - [x] 6.9 KDV/KUC混成crateの不存在、KUC型のpublic API非露出、`KatanA -> KDV -> KUC/KRR`の依存方向をrelease gateへ固定する。証跡: file: `scripts/document-surface-boundary-check.sh` / test: `document-surface-boundary-check`
 - [x] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する。証跡: test: GitHub Release `v0.4.1` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.1` / crate: `katana-document-viewer 0.4.1`
-- [ ] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する
+- [x] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: command: `gh run view 30885769177` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.2` / crates.io `katana-document-viewer 0.4.2` / tag commit `dff8f1e9ebb6212181c73d0aa93d11a6a38417b1`
+- [ ] 6.12 KDV `v0.5.0`のstrict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。ローカル証跡: `rtk just release-check` success / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success。残件: 3 OS CI、GitHub Release、crates.io publication
 
 ---
 
 ## 7. KatanA handoff
 
-- [ ] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す
+- [x] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す。証跡: KatanA `release/v0.22.38`
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
+- [ ] 7.4 KDV `v0.5.0`公開後にKatanAへregistry dependencyとして取り込み、KatanAだけがegui backend integrationを持つことを検証する
 
 ---
 
 ## 8. Final verification
 
-- [x] 8.1 `rtk ./scripts/openspec validate v0-4-0-multi-format-viewer --strict --no-interactive` を実行する
-- [x] 8.2 `rtk just check` を実行する
+- [x] 8.1 command境界是正後に`rtk ./scripts/openspec validate v0-5-0-multi-format-viewer --strict --no-interactive`を再実行する。証跡: command: `rtk ./scripts/openspec validate v0-5-0-multi-format-viewer --strict --no-interactive`
+- [x] 8.2 command境界是正後に`rtk just check`を再実行する。証跡: command: `rtk just check`
 - [x] 8.3 KDV `v0.4.0` release gateを実行する。証跡: test: `v0.4.0-release-check`
 - [ ] 8.4 engine選定、quality profile、unsupported機能、security evidenceをユーザーへ報告する
 - [x] 8.5 KDV `v0.4.2` release gateとWindows実worker acceptanceを実行する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: local `just VERSION=0.4.2 release-check` success / CI run `30868560652` / Windows job `91865557624` / `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
+- [ ] 8.6 KDV `v0.5.0`のbackend-neutral release gateを実行し、公開後にKatanA `v0.22.38`の最終gateへ進む
 
 <!-- subagent-spark-harness-strict-start -->
 - delegation-exception: `ユーザーがsubagent利用を禁止`

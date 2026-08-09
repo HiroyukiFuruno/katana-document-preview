@@ -4,9 +4,9 @@ KDV v0.1.0 のUI非依存render/export foundation、KMM/KRR境界、HTML/PDF/PNG
 
 ## Requirements
 
-### Requirement: KDVはUI非依存の文書成果物契約を提供しなければならない
+### Requirement: KDVはapplication UI backend非依存の文書成果物契約を提供しなければならない
 
-システムは、KUC / eguiに依存しない `katana-document-viewer` neutral crateで、文書入力、文書snapshot、成果物（artifact）、診断を表す型を提供しなければならない（MUST）。
+システムは、汎用UI FrameworkであるKUCを内部利用しつつ、egui / eframeなどのapplication UI backendに依存しない `katana-document-viewer` crateで、文書入力、文書snapshot、成果物（artifact）、診断を表すKDV所有型を提供しなければならない（MUST）。
 
 #### Scenario: KMM documentをsnapshot化する
 
@@ -22,14 +22,16 @@ KDV v0.1.0 のUI非依存render/export foundation、KMM/KRR境界、HTML/PDF/PNG
 - **THEN** manifestはartifact id、format、source revision、diagnostics、生成backendを含む
 - **THEN** manifestはsnapshot testで比較できる安定した構造を持つ
 
-### Requirement: KDV forge はUI frameworkに依存してはならない
+### Requirement: KDV forge はapplication UI backendに依存してはならない
 
 システムは、`katana-document-viewer::forge` をUIなしでcompileできるようにしなければならない（MUST）。
 
 #### Scenario: no-UI dependency guardを実行する
 
 - **WHEN** `cargo tree -p katana-document-viewer` を実行する
-- **THEN** `egui`、`katana-ui-core`、`winit`、`vello` は含まれない
+- **THEN** `katana-ui-core` はKDVの内部UI Framework依存として含まれてよい
+- **THEN** `egui`、`eframe`、`winit`、`vello` は含まれない
+- **THEN** KUC型はKDV public APIへ露出しない
 - **THEN** KRRへは公開契約またはadapter境界だけで接続する
 
 #### Scenario: forge pipelineを構築する

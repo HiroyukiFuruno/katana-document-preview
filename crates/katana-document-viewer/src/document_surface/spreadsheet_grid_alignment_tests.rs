@@ -3,10 +3,10 @@ use super::{
     test_support::{sample_cell, sample_sheet},
 };
 use crate::{
-    DocumentSurfaceError, DocumentViewport, SpreadsheetCoordinate, SpreadsheetHorizontalAlignment,
+    DocumentGridHorizontalAlignment, DocumentGridVerticalAlignment, DocumentSurfaceError,
+    DocumentViewport, SpreadsheetCoordinate, SpreadsheetHorizontalAlignment,
     SpreadsheetVerticalAlignment,
 };
-use katana_ui_core::molecule::{GridHorizontalAlignment, GridVerticalAlignment};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -17,12 +17,11 @@ fn every_alignment_variant_maps_without_host_format_semantics() -> TestResult {
         cell.style.horizontal_alignment = source;
         let mut surface = surface()?;
         surface.supply_cells(vec![cell])?;
-        assert_eq!(
-            expected,
-            surface.frame().node().props().grid.cells[0]
-                .appearance
-                .horizontal_alignment
-        );
+        let frame = surface.frame()?;
+        let Some(grid) = frame.grid() else {
+            return Err("spreadsheet did not produce a grid frame".into());
+        };
+        assert_eq!(expected, grid.cells[0].appearance.horizontal_alignment);
     }
     assert_vertical_alignments()
 }
@@ -33,12 +32,11 @@ fn assert_vertical_alignments() -> TestResult {
         cell.style.vertical_alignment = source;
         let mut surface = surface()?;
         surface.supply_cells(vec![cell])?;
-        assert_eq!(
-            expected,
-            surface.frame().node().props().grid.cells[0]
-                .appearance
-                .vertical_alignment
-        );
+        let frame = surface.frame()?;
+        let Some(grid) = frame.grid() else {
+            return Err("spreadsheet did not produce a grid frame".into());
+        };
+        assert_eq!(expected, grid.cells[0].appearance.vertical_alignment);
     }
     Ok(())
 }
@@ -47,8 +45,11 @@ fn surface() -> Result<SpreadsheetGridSurface, DocumentSurfaceError> {
     SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(100, 40))
 }
 
-fn horizontal_cases() -> [(SpreadsheetHorizontalAlignment, GridHorizontalAlignment); 8] {
-    use GridHorizontalAlignment as Target;
+fn horizontal_cases() -> [(
+    SpreadsheetHorizontalAlignment,
+    DocumentGridHorizontalAlignment,
+); 8] {
+    use DocumentGridHorizontalAlignment as Target;
     use SpreadsheetHorizontalAlignment as Source;
     [
         (Source::General, Target::General),
@@ -62,8 +63,8 @@ fn horizontal_cases() -> [(SpreadsheetHorizontalAlignment, GridHorizontalAlignme
     ]
 }
 
-fn vertical_cases() -> [(SpreadsheetVerticalAlignment, GridVerticalAlignment); 5] {
-    use GridVerticalAlignment as Target;
+fn vertical_cases() -> [(SpreadsheetVerticalAlignment, DocumentGridVerticalAlignment); 5] {
+    use DocumentGridVerticalAlignment as Target;
     use SpreadsheetVerticalAlignment as Source;
     [
         (Source::Bottom, Target::Bottom),

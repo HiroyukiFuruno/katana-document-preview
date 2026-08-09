@@ -1,0 +1,198 @@
+use super::{
+    BinaryDocumentSource, DocumentFitMode, DocumentFrame, DocumentSessionCommand,
+    DocumentSessionError, DocumentSessionEvent, DocumentViewerCommand, DocumentViewerState,
+    OfficeDocumentSource, OfficeStaticViewerSession, OfficeWorkerConfig, PdfPageRenderRequest,
+    PdfRenderedPage, PdfViewerSession, ViewerCapabilities, ViewerDiagnostic, ViewerDocumentFormat,
+};
+use crate::{DocumentSurfaceCommand, DocumentSurfaceFrame, DocumentViewport};
+
+const VIEWPORT_HORIZONTAL_CHROME: u32 = 32;
+const VIEWPORT_VERTICAL_CHROME: u32 = 72;
+const MIN_RENDER_SCALE: f32 = 0.25;
+const MAX_RENDER_SCALE: f32 = 4.0;
+
+enum PagedEngine {
+    Pdf(PdfViewerSession),
+    Office(OfficeStaticViewerSession),
+}
+
+pub(super) struct PagedDocumentSession {
+    engine: PagedEngine,
+    format: ViewerDocumentFormat,
+    state: DocumentViewerState,
+    capabilities: ViewerCapabilities,
+    diagnostics: Vec<ViewerDiagnostic>,
+    item_sizes: Vec<(f32, f32)>,
+    viewport: DocumentViewport,
+}
+
+impl PagedDocumentSession {
+    pub(super) fn open_pdf(
+        source: BinaryDocumentSource,
+        viewport: DocumentViewport,
+    ) -> Result<Self, DocumentSessionError> {
+        let session = PdfViewerSession::open(source)?;
+        let (item_count, capabilities, diagnostics, item_sizes) = {
+            let artifact = session.artifact();
+            (
+                artifact.page_count,
+                artifact.capabilities.clone(),
+                artifact.diagnostics.clone(),
+                artifact
+                    .pages
+                    .iter()
+                    .map(|page| (page.width, page.height))
+                    .collect(),
+            )
+        };
+        Ok(Self::new(
+            PagedEngine::Pdf(session),
+            ViewerDocumentFormat::Pdf,
+            item_count,
+            capabilities,
+            diagnostics,
+            item_sizes,
+            viewport,
+        ))
+    }
+
+    pub(super) fn open_office(
+        source: OfficeDocumentSource,
+        worker: OfficeWorkerConfig,
+        viewport: DocumentViewport,
+    ) -> Result<Self, DocumentSessionError> {
+        let format = ViewerDocumentFormat::from(source.format);
+        let session = OfficeStaticViewerSession::open(source, worker)?;
+        let (item_count, capabilities, diagnostics, item_sizes) = {
+            let artifact = session.artifact();
+            (
+                artifact.item_count,
+                artifact.capabilities.clone(),
+                artifact.diagnostics.clone(),
+                artifact
+                    .items
+                    .iter()
+                    .map(|item| (item.width, item.height))
+                    .collect(),
+            )
+        };
+        Ok(Self::new(
+            PagedEngine::Office(session),
+            format,
+            item_count,
+            capabilities,
+            diagnostics,
+            item_sizes,
+            viewport,
+        ))
+    }
+
+    fn new(
+        engine: PagedEngine,
+        format: ViewerDocumentFormat,
+        item_count: usize,
+        capabilities: ViewerCapabilities,
+        diagnostics: Vec<ViewerDiagnostic>,
+        item_sizes: Vec<(f32, f32)>,
+        viewport: DocumentViewport,
+    ) -> Self {
+        let mut state = DocumentViewerState::new(item_count);
+        let _ = state.apply(DocumentViewerCommand::Fit(DocumentFitMode::Page));
+        Self {
+            engine,
+            format,
+            state,
+            capabilities,
+            diagnostics,
+            item_sizes,
+            viewport,
+        }
+    }
+
+    pub(super) fn apply(
+        &mut self,
+        command: DocumentSessionCommand,
+    ) -> Result<DocumentSessionEvent, DocumentSessionError> {
+        Ok(match command {
+            DocumentSessionCommand::Viewer(command) => {
+                DocumentSessionEvent::Viewer(self.state.apply(command)?)
+            }
+            DocumentSessionCommand::Surface(DocumentSurfaceCommand::Resize(viewport)) => {
+                self.viewport = viewport;
+                DocumentSessionEvent::None
+            }
+            DocumentSessionCommand::Surface(DocumentSurfaceCommand::Grid(_)) => {
+                return Err(DocumentSessionError::UnsupportedCommand {
+                    format: self.format,
+                    command: super::DocumentSessionCommandKind::Grid,
+                });
+            }
+        })
+    }
+
+    pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let page_index = self.state.active_index;
+        self.render_scale().and_then(|scale| {
+            let request = PdfPageRenderRequest::new(page_index, scale);
+            let rendered = match &mut self.engine {
+                PagedEngine::Pdf(session) => session.render_page(request),
+                PagedEngine::Office(session) => session.render_item(request),
+            };
+            rendered
+                .map_err(DocumentSessionError::from)
+                .and_then(|rendered| self.frame_from_rendered(rendered))
+        })
+    }
+
+    fn frame_from_rendered(
+        &self,
+        rendered: PdfRenderedPage,
+    ) -> Result<DocumentFrame, DocumentSessionError> {
+        DocumentSurfaceFrame::from_rendered_page("Document page", rendered)
+            .map(|surface| DocumentFrame {
+                surface,
+                state: self.state,
+                capabilities: self.capabilities.clone(),
+                diagnostics: self.diagnostics.clone(),
+                format: self.format,
+            })
+            .map_err(DocumentSessionError::from)
+    }
+
+    fn render_scale(&self) -> Result<f32, DocumentSessionError> {
+        self.item_sizes
+            .get(self.state.active_index)
+            .copied()
+            .ok_or(super::DocumentViewerStateError::IndexOutsideDocument {
+                requested: self.state.active_index,
+                item_count: self.item_sizes.len(),
+            })
+            .map(|(width, height)| {
+                let available_width =
+                    self.viewport
+                        .width
+                        .saturating_sub(VIEWPORT_HORIZONTAL_CHROME) as f32;
+                let available_height =
+                    self.viewport
+                        .height
+                        .saturating_sub(VIEWPORT_VERTICAL_CHROME) as f32;
+                let fit_width = available_width / width.max(1.0);
+                let fit_page = fit_width.min(available_height / height.max(1.0));
+                match self.state.fit {
+                    Some(DocumentFitMode::Width) => fit_width,
+                    Some(DocumentFitMode::Page) => fit_page,
+                    None => self.state.zoom,
+                }
+                .clamp(MIN_RENDER_SCALE, MAX_RENDER_SCALE)
+            })
+            .map_err(DocumentSessionError::from)
+    }
+
+    pub(super) fn info_parts(&self) -> super::document_session_types::DocumentRuntimeInfo<'_> {
+        (self.format, &self.capabilities, &self.diagnostics)
+    }
+}
+
+#[cfg(test)]
+#[path = "document_session_paged_tests.rs"]
+mod tests;

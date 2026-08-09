@@ -3,6 +3,7 @@ use super::{ViewerFeature, ViewerFeatureStatus, ViewerQualityProfile, ViewerQual
 const FEATURES: &[ViewerFeature] = &[
     ViewerFeature::PageNavigation,
     ViewerFeature::SlideNavigation,
+    ViewerFeature::SheetNavigation,
     ViewerFeature::GridNavigation,
     ViewerFeature::Zoom,
     ViewerFeature::Fit,

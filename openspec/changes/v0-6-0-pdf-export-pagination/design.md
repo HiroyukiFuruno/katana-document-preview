@@ -1,6 +1,6 @@
 ## Context
 
-`v0.1.x` でPDF/PNG/JPGのnative surface exportは成立しているが、現状のpage planは固定の内部ルールに近い。`v0.5.0` では、KatanAが期待する用紙、余白、見出し前改ページ、keep-together、強制改ページ記法を明示した固有JSONを入力にし、viewer確認とPDF出力が同じ `PaginationPlan` を使うようにする。
+`v0.1.x` でPDF/PNG/JPGのnative surface exportは成立しているが、現状のpage planは固定の内部ルールに近い。`v0.6.0` では、KatanAが期待する用紙、余白、見出し前改ページ、keep-together、強制改ページ記法を明示した固有JSONを入力にし、viewer確認とPDF出力が同じ `PaginationPlan` を使うようにする。
 
 画面上では、PDF保存前にページごとの区切り、分断回避、強制改ページの結果を確認するpreview modeが必要になる。保存ダイアログや実ファイル保存はKDVではなくホストが行う。
 
@@ -10,7 +10,7 @@
 
 - `KdvPdfPaginationProfile` JSON schemaを定義する。
 - `BuildGraph` とpagination profile JSONから `PaginationPlan` を作る。
-- KUC viewerで `PaginationPlan` を確認できるpreview modeを提供する。
+- KDVがKUCを内部利用して `PaginationPlan` を確認できるbackend-neutral preview modeを提供する。
 - PDF artifactのpage countと `PaginationPlan` を一致させる。
 - profile JSON欠落、未知version、不正fieldをFail Fastにする。
 
@@ -59,11 +59,11 @@ KDVはこのJSONから正規化済みprofileを作り、unknown field、unknown 
 
 ### PaginationPlanをviewerとPDFで共有する
 
-`PaginationPlan` はpage size、margin、page index、block id、source range、break reasonを持つ。KUC preview modeとPDF exportは同じ `PaginationPlan` を参照する。
+`PaginationPlan` はpage size、margin、page index、block id、source range、break reasonを持つ。KDVのKUC-backed preview modeとPDF exportは同じ `PaginationPlan` を参照する。KUC型はKDV public APIへ露出せず、KatanAはKDV所有の中立frameだけを現在のapplication backendへ投影する。
 
 ### 既存surface page planを置き換え対象として扱う
 
-既存の `export_surface::page_plan` は内部実装の出発点として使えるが、`v0.5.0` ではprofile JSONを受け取らない固定ルールのまま完了にしない。
+既存の `export_surface::page_plan` は内部実装の出発点として使えるが、`v0.6.0` ではprofile JSONを受け取らない固定ルールのまま完了にしない。
 
 ## Risks / Trade-offs
 

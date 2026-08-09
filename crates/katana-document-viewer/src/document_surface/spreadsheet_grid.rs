@@ -77,11 +77,13 @@ impl SpreadsheetGridSurface {
     }
 
     pub fn apply_command(&mut self, command: DocumentGridCommand) -> super::DocumentGridEvent {
-        document_grid_event(self.grid.apply_action(grid_action(command)))
+        let Some(action) = grid_action(&self.grid, command) else {
+            return super::DocumentGridEvent::None;
+        };
+        document_grid_event(self.grid.apply_action(action))
     }
 
-    #[must_use]
-    pub fn frame(&self) -> DocumentSurfaceFrame {
+    pub fn frame(&self) -> Result<DocumentSurfaceFrame, DocumentSurfaceError> {
         DocumentSurfaceFrame::from_node(self.grid.clone().into())
     }
 }
@@ -94,8 +96,12 @@ const fn document_grid_event(event: GridEvent) -> super::DocumentGridEvent {
     }
 }
 
-fn grid_action(command: DocumentGridCommand) -> GridAction {
-    match command {
+fn grid_action(grid: &GenericGrid, command: DocumentGridCommand) -> Option<GridAction> {
+    Some(match command {
+        DocumentGridCommand::SelectAt { x, y, extend } => GridAction::Select {
+            coordinate: grid.hit_test(x, y)?.coordinate,
+            extend,
+        },
         DocumentGridCommand::ScrollTo { x, y } => GridAction::ScrollTo { x, y },
         DocumentGridCommand::Select {
             row,
@@ -109,7 +115,7 @@ fn grid_action(command: DocumentGridCommand) -> GridAction {
             intent: navigation_intent(intent),
             extend,
         },
-    }
+    })
 }
 
 const fn navigation_intent(intent: DocumentGridNavigation) -> GridNavigationIntent {
@@ -131,6 +137,9 @@ mod alignment_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_command_tests.rs"]
 mod command_tests;
+#[cfg(test)]
+#[path = "spreadsheet_grid_pointer_tests.rs"]
+mod pointer_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_test_support.rs"]
 mod test_support;

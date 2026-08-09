@@ -4,6 +4,10 @@ mod command;
 #[cfg(all(coverage, not(windows)))]
 mod coverage_profile;
 mod diagnostic;
+mod document_session;
+mod document_session_paged;
+mod document_session_spreadsheet;
+mod document_session_types;
 mod office_preflight;
 mod office_preflight_archive;
 mod office_preflight_nested;
@@ -58,6 +62,11 @@ pub use command::{
     DocumentViewerStateError,
 };
 pub use diagnostic::{ViewerDiagnostic, ViewerDiagnosticCode, ViewerDiagnosticSeverity};
+pub use document_session::DocumentSession;
+pub use document_session_types::{
+    DocumentFrame, DocumentSessionCommand, DocumentSessionCommandKind, DocumentSessionConfig,
+    DocumentSessionError, DocumentSessionEvent, DocumentSessionInfo, ViewerDocumentFormat,
+};
 pub use office_preflight::{
     OfficePackagePreflight, OfficePreflightError, OfficePreflightLimits, OfficePreflightReport,
     OfficeResourceLimitKind,

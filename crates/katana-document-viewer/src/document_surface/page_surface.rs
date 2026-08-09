@@ -22,7 +22,7 @@ impl DocumentSurfaceFrame {
         .display_size_exact(surface.display_width, surface.display_height)
         .accessibility_label(format!("Page {}", rendered.page_index + 1))
         .into();
-        Ok(Self::from_node(node))
+        Self::from_node(node)
     }
 }
 
@@ -36,19 +36,29 @@ mod tests {
     #[test]
     fn rendered_page_becomes_a_document_surface_without_reinterpreting_pixels() -> TestResult {
         let frame = DocumentSurfaceFrame::from_rendered_page("PDF page", rendered_page())?;
-        let node = frame.node();
-
         assert_eq!(DocumentSurfaceKind::Page, frame.kind());
-        let surface = &node.props().image_surface;
-        assert_eq!("pdf-page-3", surface.fingerprint);
-        assert_eq!((2, 1), (surface.width, surface.height));
         assert_eq!(
-            (1_500, 750),
-            (surface.display_width_milli, surface.display_height_milli)
+            Some(("pdf-page-3", 2, 1)),
+            frame.page().map(|surface| (
+                surface.fingerprint.as_str(),
+                surface.width,
+                surface.height
+            ))
         );
-        assert_eq!(150, surface.content_scale);
-        assert_eq!("Page 3", surface.accessibility_label);
-        assert_eq!(8, surface.rgba.len());
+        assert_eq!(
+            Some((1_500, 750, 150)),
+            frame.page().map(|surface| (
+                surface.display_width_milli,
+                surface.display_height_milli,
+                surface.content_scale
+            ))
+        );
+        assert_eq!(
+            Some(("Page 3", 8)),
+            frame
+                .page()
+                .map(|surface| (surface.accessibility_label.as_str(), surface.rgba.len()))
+        );
         Ok(())
     }
 

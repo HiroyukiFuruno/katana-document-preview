@@ -25,11 +25,11 @@ The published crate owns the complete document-viewer boundary:
 KatanA -> katana-document-viewer -> katana-ui-core / katana-render-runtime
 ```
 
-KatanA enables KDV's optional `egui` host feature and uses only KDV document
-surface, input, state, capability, and diagnostic APIs. KDV uses KUC internally;
-KUC types are not part of KDV's public API, and KatanA does not depend on KUC.
-KDV does not own editor-viewer synchronization control; KatanA commands viewer
-or editor.
+KDV uses KUC internally and exposes only backend-neutral KDV document frames,
+input, state, capability, and diagnostic APIs. KDV does not depend on egui,
+eframe, or another application UI backend. KUC types are not part of KDV's
+public API, and KatanA does not depend on KUC for this integration. KDV does not
+own editor-viewer synchronization control; KatanA commands viewer or editor.
 
 HTML/PDF/PNG/JPG export belongs to KDV so viewer display and export share the
 same render pipeline. Diagram and math rendering are delegated through KRR

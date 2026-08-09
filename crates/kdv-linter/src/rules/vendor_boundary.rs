@@ -1,5 +1,5 @@
 use crate::diagnostics::{KdvLintError, Violation};
-use crate::workspace::{PortablePath, WorkspaceModel};
+use crate::workspace::WorkspaceModel;
 
 use super::vendor_boundary_manifest::VendorBoundaryManifestRule;
 use super::vendor_boundary_source::VendorBoundarySourceRule;
@@ -45,18 +45,16 @@ pub(super) fn is_vendor_ref(name: &str) -> bool {
     )
 }
 
-pub(super) fn is_allowed_ref(scope: VendorScope, name: &str) -> bool {
-    scope.path == "crates/katana-document-viewer" && name.replace('-', "_") == "egui"
+pub(super) const fn is_allowed_ref(_scope: VendorScope, _name: &str) -> bool {
+    false
 }
 
 pub(super) fn is_allowed_source_ref(
-    scope: VendorScope,
-    path: &std::path::Path,
-    name: &str,
+    _scope: VendorScope,
+    _path: &std::path::Path,
+    _name: &str,
 ) -> bool {
-    scope.path == "crates/katana-document-viewer/src"
-        && PortablePath::new(path).contains("/document_surface/")
-        && name.replace('-', "_") == "egui"
+    false
 }
 
 #[cfg(test)]

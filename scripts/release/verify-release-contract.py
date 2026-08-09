@@ -66,11 +66,9 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs",
     "crates/katana-document-viewer/src/multi_format/windows_worker_executable.rs",
     "crates/katana-document-viewer/src/document_surface/mod.rs",
+    "crates/katana-document-viewer/src/document_surface/frame.rs",
     "crates/katana-document-viewer/src/document_surface/page_surface.rs",
     "crates/katana-document-viewer/src/document_surface/spreadsheet_grid.rs",
-    "crates/katana-document-viewer/src/document_surface/host.rs",
-    "crates/katana-document-viewer/src/document_surface/host/grid.rs",
-    "crates/katana-document-viewer/src/document_surface/host/page.rs",
 )
 MULTI_FORMAT_TESTS = (
     "crates/katana-document-viewer/tests/multi_format_office_preflight_contract.rs",
@@ -197,22 +195,16 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
     )
     core_dependencies = core_manifest.get("dependencies", {})
     core_kuc = core_dependencies.get("katana-ui-core")
-    if not isinstance(core_kuc, dict) or core_kuc.get("version") != KUC_VERSION:
+    if dependency_version(core_kuc) != KUC_VERSION:
         errors.append("KDV document surface must depend on crates.io katana-ui-core 0.3.0.")
-    elif core_kuc.get("optional") is not True or any(
-        key in core_kuc for key in ("path", "git")
-    ):
-        errors.append("KDV document surface KUC dependency must be optional and registry-only.")
-    core_egui = core_dependencies.get("egui")
-    if not isinstance(core_egui, dict) or core_egui.get("version") != "0.35":
-        errors.append("KDV document surface must use egui 0.35 through its host feature.")
-    elif core_egui.get("optional") is not True or any(
-        key in core_egui for key in ("path", "git")
-    ):
-        errors.append("KDV egui host dependency must be optional and registry-only.")
+    elif isinstance(core_kuc, dict) and any(key in core_kuc for key in ("path", "git", "optional")):
+        errors.append("KDV document surface KUC dependency must be required and registry-only.")
+    for dependency in ("eframe", "egui"):
+        if dependency in core_dependencies:
+            errors.append(f"KDV must remain UI-backend neutral and must not depend on {dependency}.")
     features = core_manifest.get("features", {})
-    if features.get("egui") != ["dep:egui", "dep:katana-ui-core"]:
-        errors.append("KDV must own KUC presentation behind its egui feature.")
+    if "egui" in features:
+        errors.append("KDV must not expose an egui feature.")
     return errors
 
 
@@ -270,7 +262,8 @@ def multi_format_source_errors(root: Path) -> list[str]:
         "GenericGrid",
         "ImageSurface",
         "DocumentSurfaceFrame",
-        "DocumentSurfaceHost",
+        "DocumentPageSurfaceFrame",
+        "DocumentGridSurfaceFrame",
         "SpreadsheetGridSurface",
     )
     missing = [token for token in required if token not in production]
@@ -281,6 +274,8 @@ def multi_format_source_errors(root: Path) -> list[str]:
     )
     if "katana_ui_core" in public_surface or "katana-document-viewer-kuc" in public_surface:
         errors.append("KDV public API must not expose KUC types or the forbidden cross-layer crate.")
+    if "egui" in production:
+        errors.append("KDV multi-format production source must remain egui-independent.")
     return errors
 
 
