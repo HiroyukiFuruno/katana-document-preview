@@ -198,7 +198,7 @@ check_file() {
   line_no=0
   while IFS= read -r line; do
     line_no=$((line_no + 1))
-    if [[ "$line" != *"証跡:"* ]] || [[ "$line" != *"command:"* ]]; then
+    if [[ "$line" != *"証跡:"* ]] || [[ "$line" != *"${SPAWN_COMMAND_TOKEN}"* ]]; then
       continue
     fi
     if [[ "$line" =~ $pattern ]]; then

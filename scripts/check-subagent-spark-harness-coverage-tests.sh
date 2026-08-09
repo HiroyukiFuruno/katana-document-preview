@@ -189,6 +189,22 @@ expect_non_task_handoff_command_only_evidence_is_checked() {
   fi
 }
 
+expect_generic_command_evidence_is_not_subagent_evidence() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap "rm -rf '$workspace'" RETURN
+
+  write_workspace "$workspace" \
+    '- [/] main agentで検証する。delegation-exception: `ユーザーがsubagent利用を禁止`'
+  printf '%s\n' '- 通常の検証結果。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: command: `rtk just release-check`' \
+    >"${workspace}/openspec/changes/subagent-coverage/handoff.md"
+
+  if ! run_harness "$workspace"; then
+    cat "${workspace}/stderr" >&2
+    fail_test "generic command evidence should not be parsed as subagent evidence"
+  fi
+}
+
 expect_unquoted_extra_command_field_fails() {
   expect_failure \
     "unquoted extra command field" \
@@ -205,6 +221,7 @@ expect_strict_line_with_allowed_exception_passes
 expect_optional_delegation_regex_terms_fail
 expect_started_change_without_handoff_fails
 expect_non_task_handoff_command_only_evidence_is_checked
+expect_generic_command_evidence_is_not_subagent_evidence
 expect_unquoted_extra_command_field_fails
 
 echo "check-subagent-spark-harness-coverage-tests: ok"
