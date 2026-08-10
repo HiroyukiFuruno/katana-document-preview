@@ -2514,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "katana-document-viewer"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "cosmic-text",
  "epaint_default_fonts",
@@ -2562,9 +2562,9 @@ dependencies = [
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.14"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68f73aa12cbaa226a7d099943370c87132d51ba4f8772f5df07fdb141149400"
+checksum = "04446db1e84e7b7be42a213db753ed71a682b283320caf4a156cb958d6e8af2b"
 dependencies = [
  "anyhow",
  "base64 0.23.0",
@@ -2630,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "kdv-linter"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "ignore",
  "proc-macro2",
@@ -2641,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "kdv-storybook"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "image",
  "katana-document-viewer",

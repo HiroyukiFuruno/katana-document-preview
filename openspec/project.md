@@ -27,7 +27,7 @@ KDVは、KMM公開データ型（public DTO）を入力にしたMarkdown viewer�
 
 ## Consumers
 
-- [KatanA](https://github.com/HiroyukiFuruno/KatanA) — crates.io公開版をregistry dependencyとして利用する（KDV v0.5.0はKatanA v0.22.38で取り込む）
+- [KatanA](https://github.com/HiroyukiFuruno/KatanA) — crates.io公開版をregistry dependencyとして利用する（KDV v0.5.1はKatanA v0.22.38で取り込む）
 
 ---
 
