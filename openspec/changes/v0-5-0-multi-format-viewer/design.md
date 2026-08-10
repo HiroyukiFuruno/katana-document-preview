@@ -155,6 +155,18 @@ OpenSpecのopen / apply / frame / close契約を満たしていない。この�
 この是正案は2026-08-09にユーザーが明示承認した。spec、契約テスト、実装、境界guardを
 同じ変更として更新し、全release gateを再実行する。
 
+### D4.5 v0.5.2 Office font determinism correction
+
+KatanA v0.22.38 の3 OS headless証跡で、同じPPTXがLinuxでは行配置崩れ、
+Windowsでは日本語欠け字になった。原因はKDV workerがoffice2pdfを既定設定で呼び、
+Calibriの代替とCJK glyph fallbackをOSのインストール済みfontへ委ねていたことである。
+
+KDVはSIL OFL 1.1のCarlito 4書体とNoto Sans JPを固定し、isolated workerのdocument専用
+workspaceへ展開してoffice2pdfの公開font_pathsへ渡す。KatanA、KUC、KRRへ
+font解決を移さず、OOXMLの書換え、独自parser、独自layout補正は追加しない。font source
+commit、SHA-256、licenseをpackage内へ記録し、macOS / Linux / Windowsの実artifactで
+日本語glyphとtext box配置を検査する。
+
 ### D5. Feasibility評価後の候補状態
 
 - PDFはpure Rust `hayro` 0.7.1を推奨する。85/100、hard gate pass。

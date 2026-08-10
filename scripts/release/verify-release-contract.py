@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import tempfile
@@ -59,6 +60,7 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/office_static_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_constraints.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_entrypoint.rs",
+    "crates/katana-document-viewer/src/multi_format/office_worker_fonts.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_network_seccomp.rs",
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
@@ -83,6 +85,14 @@ FORBIDDEN_ENGINE_PACKAGES = {
     "pdfium-render",
     "web-view",
     "wry",
+}
+OFFICE_FONT_SOURCE_COMMIT = "2d85e20401920891efb7cd6272d6339685df2820"
+OFFICE_FONT_HASHES = {
+    "Carlito-Bold.ttf": "bb5d20f79b82599ec72983597437373a80f2d2085fa91fc144fd74e876a594db",
+    "Carlito-BoldItalic.ttf": "b32928186c119599e03ca6a1ffc680fdcb7fac95772f4b95d989cf6cd3861517",
+    "Carlito-Italic.ttf": "0b019225e58d702bfedcbd35c21696769f8ee115cb6343f84c2f240312450d1c",
+    "Carlito-Regular.ttf": "f6418f708baede9789daef5d458c0f53d2a888af9820e8062934e504fedc6595",
+    "NotoSansJP-VariableFont_wght.ttf": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
 }
 
 
@@ -279,6 +289,34 @@ def multi_format_source_errors(root: Path) -> list[str]:
     return errors
 
 
+def office_font_contract_errors(root: Path) -> list[str]:
+    font_root = root / "crates/katana-document-viewer/assets/fonts"
+    errors: list[str] = []
+    for name, expected in OFFICE_FONT_HASHES.items():
+        path = font_root / name
+        if not path.is_file():
+            errors.append(f"deterministic Office font is missing: {name}.")
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            errors.append(f"deterministic Office font checksum changed: {name}.")
+    source = font_root / "SOURCE.md"
+    source_text = source.read_text(encoding="utf-8") if source.is_file() else ""
+    if OFFICE_FONT_SOURCE_COMMIT not in source_text:
+        errors.append("Office font source commit is missing from SOURCE.md.")
+    license_path = font_root / "OFL.txt"
+    license_text = license_path.read_text(encoding="utf-8") if license_path.is_file() else ""
+    if "SIL OPEN FONT LICENSE Version 1.1" not in license_text:
+        errors.append("Office fallback font OFL 1.1 license is missing.")
+    contract = (
+        root / "crates/katana-document-viewer/tests/multi_format_office_worker_contract.rs"
+    ).read_text(encoding="utf-8")
+    for token in ("text_row_bands", "each Japanese glyph must render as ink instead of tofu"):
+        if token not in contract:
+            errors.append(f"Office cross-platform pixel contract is missing: {token}.")
+    return errors
+
+
 def cargo_config_errors(config: Path) -> list[str]:
     if not config.exists():
         return []
@@ -388,6 +426,7 @@ def validate(root: Path, target_version: str) -> list[str]:
     errors.extend(adapter_source_errors(root))
     errors.extend(integration_contract_errors(root))
     errors.extend(multi_format_source_errors(root))
+    errors.extend(office_font_contract_errors(root))
     errors.extend(justfile_errors((root / "Justfile").read_text(encoding="utf-8")))
     errors.extend(
         staged_publish_errors(

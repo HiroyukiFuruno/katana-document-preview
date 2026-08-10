@@ -4,6 +4,7 @@ use katana_document_viewer::{
     PdfViewerError, ViewerDiagnosticCode, ViewerFeature, ViewerFeatureStatus, ViewerSourceIdentity,
 };
 use std::ffi::OsString;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -34,6 +35,31 @@ fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumen
 
 fn worker_config() -> OfficeWorkerConfig {
     OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")))
+}
+
+fn dark_pixels(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> usize {
+    y_range
+        .flat_map(|y| x_range.clone().map(move |x| (y * width + x) as usize * 4))
+        .filter(|offset| {
+            rgba[*offset..*offset + 3]
+                .iter()
+                .any(|channel| *channel < 180)
+        })
+        .count()
+}
+
+fn text_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
+    let mut bands: Vec<(u32, u32)> = Vec::new();
+    for y in 120..220 {
+        if dark_pixels(rgba, width, 660..900, y..y + 1) < 25 {
+            continue;
+        }
+        match bands.last_mut() {
+            Some((_, end)) if *end + 1 == y => *end = y,
+            _ => bands.push((y, y)),
+        }
+    }
+    bands
 }
 
 #[cfg(unix)]
@@ -73,7 +99,7 @@ fn docx_isolated_worker_produces_bounded_static_pages() -> TestResult {
 
 #[test]
 fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> TestResult {
-    let session = OfficeStaticViewerSession::open(
+    let mut session = OfficeStaticViewerSession::open(
         fixture("representative.pptx", OfficeDocumentFormat::Pptx)?,
         worker_config(),
     )?;
@@ -93,6 +119,21 @@ fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> Te
         diagnostic.code == ViewerDiagnosticCode::DegradedRendering
             && diagnostic.message.to_ascii_lowercase().contains("fallback")
     }));
+    let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
+    assert_eq!((959, 540), (page.surface.width, page.surface.height));
+    let bands = text_row_bands(&page.surface.rgba, page.surface.width);
+    assert_eq!(
+        4,
+        bands.len(),
+        "PPTX text lines must not overlap: {bands:?}"
+    );
+    assert!(bands.windows(2).all(|pair| pair[0].1 + 5 < pair[1].0));
+    for x_range in [744..756, 759..776, 777..793] {
+        assert!(
+            dark_pixels(&page.surface.rgba, page.surface.width, x_range, 190..215) > 70,
+            "each Japanese glyph must render as ink instead of tofu"
+        );
+    }
     Ok(())
 }
 

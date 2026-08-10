@@ -99,6 +99,7 @@
 - [x] 4.16 KDV linterのsource scopeとtest path判定をpath separator非依存にし、Windowsでruleが偽陰性にならない契約テストを追加する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30876360020` / Windows job `91888519478` / test: `path_matching_is_separator_independent`, `kdv-linter --lib`
 - [x] 4.17 KDV linterのworkspace length baselineをOS非依存な正規化相対パスで照合し、Windowsの混在separatorでも既存baselineだけを許可する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30878695303` / Windows job `91895238013` / test: `contains_windows_mixed_separator_file_length_debt`, `contains_windows_mixed_separator_function_length_debt`, `rejects_windows_workspace_prefix_collision`
 - [x] 4.18 Storybookのdirect image source契約をWindows verbatim pathの文字列表現へ依存させず、正規化document IDが同じ実ファイルへ解決でき、`//?/`を外部へ漏らさないことを検証する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: failure: CI run `30881147000` / Windows job `91902623148` / test: `direct_image_fixture_source_uses_absolute_file_uri`, `relative_direct_image_fixture_source_uses_absolute_file_uri`, `windows_extended_drive_path_becomes_a_regular_document_id`
+- [/] 4.19 Office workerへsource commit、SHA-256、OFL licenseを固定したCarlito / Noto Sans JPをstageし、既存office2pdf font search APIだけで3 OSの日本語glyphとtext box配置を再現可能にする。OOXML書換え・独自parser・独自layout補正は禁止する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: KatanA CI run `31354395814` のLinux配置崩れ / Windows日本語欠け字 / local test: `pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics` / 残件: KDV macOS / Linux / Windows CI artifact
 
 ---
 
@@ -132,7 +133,8 @@
 - [x] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する。証跡: test: GitHub Release `v0.4.1` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.1` / crate: `katana-document-viewer 0.4.1`
 - [x] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: command: `gh run view 30885769177` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.2` / crates.io `katana-document-viewer 0.4.2` / tag commit `dff8f1e9ebb6212181c73d0aa93d11a6a38417b1`
 - [x] 6.12 KDV `v0.5.0`のstrict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。証跡: command: `rtk just release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/35/checks` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.5.0` / URL: `https://crates.io/crates/katana-document-viewer/0.5.0`
-- [ ] 6.13 KRR `v0.4.15`を最低registry dependencyとするKDV `v0.5.1`について、strict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。ローカル証跡: command: `rtk just VERSION=0.5.1 release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success。残件: 3 OS CI、GitHub Release、crates.io publication、KatanA registry update
+- [x] 6.13 KRR `v0.4.15`を最低registry dependencyとするKDV `v0.5.1`について、strict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。証跡: command: `rtk just VERSION=0.5.1 release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / PR `#36` / GitHub Release `v0.5.1` / crates.io `katana-document-viewer 0.5.1`
+- [/] 6.14 deterministic Office font修正を含むKDV `v0.5.2`について、strict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。ローカル証跡: command: `rtk just VERSION=0.5.2 release-check` / functions `3020/3020` / lines `24715/24715` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success。残件: 3 OS CI、GitHub Release、crates.io publication
 
 ---
 
@@ -141,7 +143,7 @@
 - [x] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す。証跡: KatanA `release/v0.22.38`
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
-- [ ] 7.4 KDV `v0.5.1`公開後にKatanAへregistry dependencyとして取り込み、KatanAだけがegui backend integrationを持つことを検証する
+- [ ] 7.4 KDV `v0.5.2`公開後にKatanAへregistry dependencyとして取り込み、KatanAだけがegui backend integrationを持つことを検証する
 
 ---
 
@@ -152,7 +154,7 @@
 - [x] 8.3 KDV `v0.4.0` release gateを実行する。証跡: test: `v0.4.0-release-check`
 - [ ] 8.4 engine選定、quality profile、unsupported機能、security evidenceをユーザーへ報告する
 - [x] 8.5 KDV `v0.4.2` release gateとWindows実worker acceptanceを実行する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: local `just VERSION=0.4.2 release-check` success / CI run `30868560652` / Windows job `91865557624` / `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
-- [ ] 8.6 KDV `v0.5.1`のbackend-neutral release gateを実行し、公開後にKatanA `v0.22.38`の最終gateへ進む
+- [/] 8.6 KDV `v0.5.2`のbackend-neutral release gateを実行し、公開後にKatanA `v0.22.38`の最終gateへ進む。証跡: local `rtk just VERSION=0.5.2 release-check` success / 残件: 3 OS CIと公開
 
 <!-- subagent-spark-harness-strict-start -->
 - delegation-exception: `ユーザーがsubagent利用を禁止`

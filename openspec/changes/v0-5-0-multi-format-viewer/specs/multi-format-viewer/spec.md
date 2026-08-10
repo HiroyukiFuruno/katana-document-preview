@@ -157,6 +157,14 @@
 - **THEN** KDVは該当chartをtyped unsupported diagnostic付きの明示fallbackとして表示する
 - **THEN** text、image、shape、tableとslide geometryは承認済みhard gateを満たす
 
+#### Scenario: Office文書を異なるOSで表示する
+
+- **WHEN** 同じDOCXまたはPPTXをmacOS / Linux / Windowsのisolated workerで変換する
+- **THEN** KDVはsource commit、SHA-256、licenseを固定したmetric-compatible Latin fontと日本語fallback fontをworker workspaceへ展開する
+- **THEN** KDVは既存engineのfont search APIへ固定font directoryを渡し、OSのfont在庫だけに結果を依存させない
+- **THEN** 日本語glyphを欠け字にせず、font substitutionによるtext boxの行重なりを発生させない
+- **THEN** KDVはOOXMLを書換えず、独自font substitution parserまたはlayout engineを追加しない
+
 #### Scenario: active contentを含むOffice文書を開く
 
 - **WHEN** 文書がmacro、embedded script、external link、remote image、template、data connectionを含む

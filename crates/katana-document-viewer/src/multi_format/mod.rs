@@ -17,6 +17,7 @@ mod office_preflight_zip_entries;
 mod office_static_adapter;
 mod office_worker_constraints;
 mod office_worker_entrypoint;
+mod office_worker_fonts;
 mod office_worker_monitor;
 mod office_worker_output;
 mod office_worker_parent;

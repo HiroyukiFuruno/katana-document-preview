@@ -1,5 +1,6 @@
 use super::OfficeDocumentFormat;
 use super::office_worker_constraints::OfficeWorkerConstraints;
+use super::office_worker_fonts::stage_deterministic_fonts;
 use super::office_worker_protocol::{INPUT_NAME, OUTPUT_NAME, OfficeWorkerResponse};
 use super::spreadsheet_worker_entrypoint::SpreadsheetWorkerEntrypoint;
 use super::spreadsheet_worker_protocol::SPREADSHEET_MODE;
@@ -81,7 +82,8 @@ fn execute_with_constraints(
         arguments.max_cpu_seconds,
     )?;
     let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
-    let result = convert_document(arguments, &input)?;
+    let font_path = stage_deterministic_fonts(&arguments.workspace)?;
+    let result = convert_document(arguments, &input, font_path)?;
     validate_output_size(arguments, result.pdf.len())?;
     std::fs::write(arguments.workspace.join(OUTPUT_NAME), result.pdf).map_err(output_failure)?;
     Ok(OfficeWorkerResponse::Completed {
@@ -96,13 +98,18 @@ fn execute_with_constraints(
 fn convert_document(
     arguments: &WorkerArguments,
     input: &[u8],
+    font_path: PathBuf,
 ) -> Result<office2pdf::error::ConvertResult, (String, String)> {
-    office2pdf::convert_bytes(
-        input,
-        engine_format(arguments.format),
-        &ConvertOptions::default(),
-    )
-    .map_err(engine_failure)
+    let options = conversion_options(font_path);
+    office2pdf::convert_bytes(input, engine_format(arguments.format), &options)
+        .map_err(engine_failure)
+}
+
+fn conversion_options(font_path: PathBuf) -> ConvertOptions {
+    ConvertOptions {
+        font_paths: vec![font_path],
+        ..ConvertOptions::default()
+    }
 }
 
 fn validate_output_size(
