@@ -37,7 +37,7 @@
 - [x] macOS / Linux / Windowsのrelease artifactとdependency supply chainを検証している。証跡: test: GitHub Actions PR #31 macOS / Ubuntu / Windows jobs / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/31/checks`
 - [x] `rtk ./scripts/openspec validate v0-5-0-multi-format-viewer --strict --no-interactive` が通る
 - [x] `rtk just check` とKDV `v0.4.0` release gateが通る。証跡: test: `just-check` / test: `v0.4.0-release-check`
-- [ ] KDVがegui/eframeへ依存せず、中立frame契約を公開した`v0.5.0`のstrict gateと公開確認が完了している
+- [x] KDVがegui/eframeへ依存せず、中立frame契約を公開した`v0.5.0`のstrict gateと公開確認が完了している。証跡: command: `gh release view v0.5.0` / command: `cargo info katana-document-viewer@0.5.0 --registry crates-io` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.5.0` / URL: `https://crates.io/crates/katana-document-viewer/0.5.0` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/35`
 
 ---
 
@@ -131,7 +131,8 @@
 - [x] 6.9 KDV/KUC混成crateの不存在、KUC型のpublic API非露出、`KatanA -> KDV -> KUC/KRR`の依存方向をrelease gateへ固定する。証跡: file: `scripts/document-surface-boundary-check.sh` / test: `document-surface-boundary-check`
 - [x] 6.10 KDV `v0.4.1` strict gate、GitHub Release、crates.io publicationを確認する。証跡: test: GitHub Release `v0.4.1` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.1` / crate: `katana-document-viewer 0.4.1`
 - [x] 6.11 Windows AppContainer回帰を修正したKDV `v0.4.2`のstrict gate、GitHub Release、crates.io publicationを確認する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: command: `gh run view 30885769177` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.4.2` / crates.io `katana-document-viewer 0.4.2` / tag commit `dff8f1e9ebb6212181c73d0aa93d11a6a38417b1`
-- [ ] 6.12 KDV `v0.5.0`のstrict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。ローカル証跡: `rtk just release-check` success / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success。残件: 3 OS CI、GitHub Release、crates.io publication
+- [x] 6.12 KDV `v0.5.0`のstrict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。証跡: command: `rtk just release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/pull/35/checks` / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/releases/tag/v0.5.0` / URL: `https://crates.io/crates/katana-document-viewer/0.5.0`
+- [ ] 6.13 KRR `v0.4.15`を最低registry dependencyとするKDV `v0.5.1`について、strict coverage 100% / uncovered 0、3 OS CI、package、publish dry-run、GitHub Release、crates.io publicationを確認する。ローカル証跡: command: `rtk just VERSION=0.5.1 release-check` / functions `3015/3015` / lines `24679/24679` / uncovered functions `0` / uncovered lines `0` / package success / publish dry-run success。残件: 3 OS CI、GitHub Release、crates.io publication、KatanA registry update
 
 ---
 
@@ -140,7 +141,7 @@
 - [x] 7.1 KDV `v0.4.2` 公開後にKatanAのadjacent patch OpenSpecへregistry versionとcapabilityを引き渡す。証跡: KatanA `release/v0.22.38`
 - [x] 7.2 KatanAがformat parser / rendererを持たないことをhandoff条件にする
 - [x] 7.3 PDF / DOCX / XLSX / PPTXのfile/URL intake、navigation、diagnosticsのacceptance corpusを引き渡す
-- [ ] 7.4 KDV `v0.5.0`公開後にKatanAへregistry dependencyとして取り込み、KatanAだけがegui backend integrationを持つことを検証する
+- [ ] 7.4 KDV `v0.5.1`公開後にKatanAへregistry dependencyとして取り込み、KatanAだけがegui backend integrationを持つことを検証する
 
 ---
 
@@ -151,7 +152,7 @@
 - [x] 8.3 KDV `v0.4.0` release gateを実行する。証跡: test: `v0.4.0-release-check`
 - [ ] 8.4 engine選定、quality profile、unsupported機能、security evidenceをユーザーへ報告する
 - [x] 8.5 KDV `v0.4.2` release gateとWindows実worker acceptanceを実行する。delegation-exception: `ユーザーがsubagent利用を禁止` / 証跡: local `just VERSION=0.4.2 release-check` success / CI run `30868560652` / Windows job `91865557624` / `Run Windows AppContainer worker acceptance` success / URL: `https://github.com/HiroyukiFuruno/katana-document-viewer/actions/runs/30868560652/job/91865557624`
-- [ ] 8.6 KDV `v0.5.0`のbackend-neutral release gateを実行し、公開後にKatanA `v0.22.38`の最終gateへ進む
+- [ ] 8.6 KDV `v0.5.1`のbackend-neutral release gateを実行し、公開後にKatanA `v0.22.38`の最終gateへ進む
 
 <!-- subagent-spark-harness-strict-start -->
 - delegation-exception: `ユーザーがsubagent利用を禁止`
