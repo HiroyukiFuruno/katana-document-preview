@@ -291,6 +291,7 @@ def multi_format_source_errors(root: Path) -> list[str]:
 
 def office_font_contract_errors(root: Path) -> list[str]:
     font_root = root / "crates/katana-document-viewer/assets/fonts"
+    font_workflow_path = "crates/katana-document-viewer/assets/fonts/**"
     errors: list[str] = []
     for name, expected in OFFICE_FONT_HASHES.items():
         path = font_root / name
@@ -308,6 +309,15 @@ def office_font_contract_errors(root: Path) -> list[str]:
     license_text = license_path.read_text(encoding="utf-8") if license_path.is_file() else ""
     if "SIL OPEN FONT LICENSE Version 1.1" not in license_text:
         errors.append("Office fallback font OFL 1.1 license is missing.")
+    for workflow_name in ("test-and-build.yml", "release-preflight.yml"):
+        workflow_path = root / ".github/workflows" / workflow_name
+        workflow_text = (
+            workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else ""
+        )
+        if font_workflow_path not in workflow_text:
+            errors.append(
+                f"{workflow_name} must run when deterministic Office fonts change."
+            )
     contract = (
         root / "crates/katana-document-viewer/tests/multi_format_office_worker_contract.rs"
     ).read_text(encoding="utf-8")
