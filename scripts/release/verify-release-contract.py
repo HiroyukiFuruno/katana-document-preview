@@ -311,7 +311,11 @@ def office_font_contract_errors(root: Path) -> list[str]:
     contract = (
         root / "crates/katana-document-viewer/tests/multi_format_office_worker_contract.rs"
     ).read_text(encoding="utf-8")
-    for token in ("text_row_bands", "each Japanese glyph must render as ink instead of tofu"):
+    for token in (
+        "paragraph_row_bands",
+        "PPTX paragraphs must preserve the 21.6pt line advance",
+        "each Japanese glyph must render as ink instead of tofu",
+    ):
         if token not in contract:
             errors.append(f"Office cross-platform pixel contract is missing: {token}.")
     return errors

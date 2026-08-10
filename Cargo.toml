@@ -55,3 +55,6 @@ xmltree = "0.12"
 
 [profile.test]
 opt-level = 2
+
+[patch.crates-io]
+office2pdf = { git = "https://github.com/developer0hye/office2pdf.git", rev = "c528eef467aaf9ca4873acf5c8bedb07b7ae5596" }

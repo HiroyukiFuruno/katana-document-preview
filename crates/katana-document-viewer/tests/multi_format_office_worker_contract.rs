@@ -10,6 +10,11 @@ use std::time::Duration;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+const MAX_GLYPH_FRAGMENT_GAP_ROWS: u32 = 2;
+const MIN_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 38;
+const MAX_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 48;
+const JAPANESE_BAND_PADDING_ROWS: u32 = 2;
+
 fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumentSource> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/fixtures/multi-format")
@@ -48,18 +53,56 @@ fn dark_pixels(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>
         .count()
 }
 
-fn text_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
-    let mut bands: Vec<(u32, u32)> = Vec::new();
+fn paragraph_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
+    let mut ink_bands: Vec<(u32, u32)> = Vec::new();
     for y in 120..220 {
         if dark_pixels(rgba, width, 660..900, y..y + 1) < 25 {
             continue;
         }
-        match bands.last_mut() {
+        match ink_bands.last_mut() {
             Some((_, end)) if *end + 1 == y => *end = y,
-            _ => bands.push((y, y)),
+            _ => ink_bands.push((y, y)),
         }
     }
-    bands
+
+    let mut paragraphs: Vec<(u32, u32)> = Vec::new();
+    for (start, end) in ink_bands {
+        match paragraphs.last_mut() {
+            Some((_, paragraph_end))
+                if start <= *paragraph_end + MAX_GLYPH_FRAGMENT_GAP_ROWS + 1 =>
+            {
+                *paragraph_end = end;
+            }
+            _ => paragraphs.push((start, end)),
+        }
+    }
+    paragraphs
+}
+
+fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) {
+    let bands = paragraph_row_bands(rgba, width);
+    assert_eq!(
+        4,
+        bands.len(),
+        "PPTX text lines must not overlap: {bands:?}"
+    );
+    assert!(
+        bands.windows(2).all(|pair| {
+            let center_advance_twice = pair[1].0 + pair[1].1 - pair[0].0 - pair[0].1;
+            (MIN_PARAGRAPH_CENTER_ADVANCE_TWICE..=MAX_PARAGRAPH_CENTER_ADVANCE_TWICE)
+                .contains(&center_advance_twice)
+        }),
+        "PPTX paragraphs must preserve the 21.6pt line advance: {bands:?}"
+    );
+    let japanese_band = bands[3];
+    let japanese_y = japanese_band.0.saturating_sub(JAPANESE_BAND_PADDING_ROWS)
+        ..(japanese_band.1 + JAPANESE_BAND_PADDING_ROWS + 1).min(height);
+    for x_range in [744..756, 759..776, 777..793] {
+        assert!(
+            dark_pixels(rgba, width, x_range, japanese_y.clone()) > 70,
+            "each Japanese glyph must render as ink instead of tofu"
+        );
+    }
 }
 
 #[cfg(unix)]
@@ -121,19 +164,7 @@ fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> Te
     }));
     let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
     assert_eq!((959, 540), (page.surface.width, page.surface.height));
-    let bands = text_row_bands(&page.surface.rgba, page.surface.width);
-    assert_eq!(
-        4,
-        bands.len(),
-        "PPTX text lines must not overlap: {bands:?}"
-    );
-    assert!(bands.windows(2).all(|pair| pair[0].1 + 5 < pair[1].0));
-    for x_range in [744..756, 759..776, 777..793] {
-        assert!(
-            dark_pixels(&page.surface.rgba, page.surface.width, x_range, 190..215) > 70,
-            "each Japanese glyph must render as ink instead of tofu"
-        );
-    }
+    assert_pptx_text_layout(&page.surface.rgba, page.surface.width, page.surface.height);
     Ok(())
 }
 
