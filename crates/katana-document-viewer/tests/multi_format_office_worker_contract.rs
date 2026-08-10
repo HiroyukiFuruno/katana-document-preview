@@ -14,6 +14,7 @@ const MAX_GLYPH_FRAGMENT_GAP_ROWS: u32 = 2;
 const MIN_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 38;
 const MAX_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 48;
 const JAPANESE_BAND_PADDING_ROWS: u32 = 2;
+const MIN_WORD_GAP_COLUMNS: u32 = 3;
 
 fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumentSource> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -79,7 +80,38 @@ fn paragraph_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
     paragraphs
 }
 
-fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) {
+fn last_word_bounds(
+    rgba: &[u8],
+    width: u32,
+    x_range: Range<u32>,
+    y_range: Range<u32>,
+) -> Option<Range<u32>> {
+    let ink_columns = x_range
+        .filter(|x| dark_pixels(rgba, width, *x..*x + 1, y_range.clone()) > 0)
+        .collect::<Vec<_>>();
+    let last_column = *ink_columns.last()?;
+    let (_, word_start) = ink_columns
+        .windows(2)
+        .filter_map(|columns| {
+            let gap = columns[1] - columns[0] - 1;
+            (gap >= MIN_WORD_GAP_COLUMNS).then_some((gap, columns[1]))
+        })
+        .max_by_key(|(gap, _)| *gap)?;
+    Some(word_start..last_column + 1)
+}
+
+fn equal_glyph_ranges(word: Range<u32>, glyph_count: u32) -> Vec<Range<u32>> {
+    let width = word.end - word.start;
+    (0..glyph_count)
+        .map(|index| {
+            let start = word.start + width * index / glyph_count;
+            let end = word.start + width * (index + 1) / glyph_count;
+            start..end
+        })
+        .collect()
+}
+
+fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) -> TestResult {
     let bands = paragraph_row_bands(rgba, width);
     assert_eq!(
         4,
@@ -97,12 +129,17 @@ fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) {
     let japanese_band = bands[3];
     let japanese_y = japanese_band.0.saturating_sub(JAPANESE_BAND_PADDING_ROWS)
         ..(japanese_band.1 + JAPANESE_BAND_PADDING_ROWS + 1).min(height);
-    for x_range in [744..756, 759..776, 777..793] {
+    let japanese_word =
+        last_word_bounds(rgba, width, 660..900, japanese_y.clone()).ok_or_else(|| {
+            std::io::Error::other("Japanese word must remain visible after the ASCII label")
+        })?;
+    for x_range in equal_glyph_ranges(japanese_word, 3) {
         assert!(
             dark_pixels(rgba, width, x_range, japanese_y.clone()) > 70,
             "each Japanese glyph must render as ink instead of tofu"
         );
     }
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -164,7 +201,7 @@ fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> Te
     }));
     let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
     assert_eq!((959, 540), (page.surface.width, page.surface.height));
-    assert_pptx_text_layout(&page.surface.rgba, page.surface.width, page.surface.height);
+    assert_pptx_text_layout(&page.surface.rgba, page.surface.width, page.surface.height)?;
     Ok(())
 }
 
