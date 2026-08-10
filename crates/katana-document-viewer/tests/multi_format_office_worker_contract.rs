@@ -46,12 +46,14 @@ fn worker_config() -> OfficeWorkerConfig {
 fn dark_pixels(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> usize {
     y_range
         .flat_map(|y| x_range.clone().map(move |x| (y * width + x) as usize * 4))
-        .filter(|offset| {
-            rgba[*offset..*offset + 3]
-                .iter()
-                .any(|channel| *channel < 180)
-        })
+        .filter(|offset| is_dark_pixel(rgba, *offset))
         .count()
+}
+
+fn is_dark_pixel(rgba: &[u8], offset: usize) -> bool {
+    rgba[offset..offset + 3]
+        .iter()
+        .any(|channel| *channel < 180)
 }
 
 fn paragraph_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
@@ -102,12 +104,20 @@ fn last_word_bounds(
 
 fn equal_glyph_ranges(word: Range<u32>, glyph_count: u32) -> Vec<Range<u32>> {
     let width = word.end - word.start;
+    let glyph_width = width / glyph_count;
     (0..glyph_count)
         .map(|index| {
-            let start = word.start + width * index / glyph_count;
-            let end = word.start + width * (index + 1) / glyph_count;
+            let start = word.start + glyph_width * index;
+            let end = start + glyph_width;
             start..end
         })
+        .collect()
+}
+
+fn glyph_signature(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> Vec<bool> {
+    y_range
+        .flat_map(|y| x_range.clone().map(move |x| (y * width + x) as usize * 4))
+        .map(|offset| is_dark_pixel(rgba, offset))
         .collect()
 }
 
@@ -133,12 +143,26 @@ fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) -> TestResult {
         last_word_bounds(rgba, width, 660..900, japanese_y.clone()).ok_or_else(|| {
             std::io::Error::other("Japanese word must remain visible after the ASCII label")
         })?;
-    for x_range in equal_glyph_ranges(japanese_word, 3) {
-        assert!(
-            dark_pixels(rgba, width, x_range, japanese_y.clone()) > 70,
-            "each Japanese glyph must render as ink instead of tofu"
-        );
-    }
+    let signatures = equal_glyph_ranges(japanese_word, 3)
+        .into_iter()
+        .map(|x_range| glyph_signature(rgba, width, x_range, japanese_y.clone()))
+        .collect::<Vec<_>>();
+    let first_signature = signatures
+        .first()
+        .ok_or_else(|| std::io::Error::other("Japanese glyph ranges must not be empty"))?;
+    assert!(
+        signatures
+            .iter()
+            .all(|signature| signature.iter().any(|is_dark| *is_dark)),
+        "each Japanese glyph must render as ink instead of tofu"
+    );
+    assert!(
+        signatures
+            .iter()
+            .skip(1)
+            .any(|signature| signature != first_signature),
+        "Japanese glyphs must not collapse to repeated tofu boxes"
+    );
     Ok(())
 }
 

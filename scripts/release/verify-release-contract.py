@@ -315,6 +315,7 @@ def office_font_contract_errors(root: Path) -> list[str]:
         "paragraph_row_bands",
         "PPTX paragraphs must preserve the 21.6pt line advance",
         "each Japanese glyph must render as ink instead of tofu",
+        "Japanese glyphs must not collapse to repeated tofu boxes",
     ):
         if token not in contract:
             errors.append(f"Office cross-platform pixel contract is missing: {token}.")
