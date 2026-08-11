@@ -74,6 +74,12 @@
         "typst": "0.14",
         "hayro": "0.7.1"
       },
+      "release_runtime": {
+        "package": "office2pdf-katana",
+        "version": "0.6.6",
+        "upstream_base": "office2pdf 0.6.5",
+        "upstream_patch": "c528eef467aaf9ca4873acf5c8bedb07b7ae5596"
+      },
       "score": {
         "visual_fidelity": 26,
         "format_coverage": 18,
@@ -124,6 +130,12 @@
         "office2pdf": "0.6.5",
         "typst": "0.14",
         "hayro": "0.7.1"
+      },
+      "release_runtime": {
+        "package": "office2pdf-katana",
+        "version": "0.6.6",
+        "upstream_base": "office2pdf 0.6.5",
+        "upstream_patch": "c528eef467aaf9ca4873acf5c8bedb07b7ae5596"
       },
       "score": {
         "visual_fidelity": 22,

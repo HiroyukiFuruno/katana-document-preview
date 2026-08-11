@@ -4,10 +4,17 @@ use katana_document_viewer::{
     PdfViewerError, ViewerDiagnosticCode, ViewerFeature, ViewerFeatureStatus, ViewerSourceIdentity,
 };
 use std::ffi::OsString;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+const MAX_GLYPH_FRAGMENT_GAP_ROWS: u32 = 2;
+const MIN_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 38;
+const MAX_PARAGRAPH_CENTER_ADVANCE_TWICE: u32 = 48;
+const JAPANESE_BAND_PADDING_ROWS: u32 = 2;
+const MIN_WORD_GAP_COLUMNS: u32 = 3;
 
 fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumentSource> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -34,6 +41,129 @@ fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumen
 
 fn worker_config() -> OfficeWorkerConfig {
     OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")))
+}
+
+fn dark_pixels(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> usize {
+    y_range
+        .flat_map(|y| x_range.clone().map(move |x| (y * width + x) as usize * 4))
+        .filter(|offset| is_dark_pixel(rgba, *offset))
+        .count()
+}
+
+fn is_dark_pixel(rgba: &[u8], offset: usize) -> bool {
+    rgba[offset..offset + 3]
+        .iter()
+        .any(|channel| *channel < 180)
+}
+
+fn paragraph_row_bands(rgba: &[u8], width: u32) -> Vec<(u32, u32)> {
+    let mut ink_bands: Vec<(u32, u32)> = Vec::new();
+    for y in 120..220 {
+        if dark_pixels(rgba, width, 660..900, y..y + 1) < 25 {
+            continue;
+        }
+        match ink_bands.last_mut() {
+            Some((_, end)) if *end + 1 == y => *end = y,
+            _ => ink_bands.push((y, y)),
+        }
+    }
+
+    let mut paragraphs: Vec<(u32, u32)> = Vec::new();
+    for (start, end) in ink_bands {
+        match paragraphs.last_mut() {
+            Some((_, paragraph_end))
+                if start <= *paragraph_end + MAX_GLYPH_FRAGMENT_GAP_ROWS + 1 =>
+            {
+                *paragraph_end = end;
+            }
+            _ => paragraphs.push((start, end)),
+        }
+    }
+    paragraphs
+}
+
+fn last_word_bounds(
+    rgba: &[u8],
+    width: u32,
+    x_range: Range<u32>,
+    y_range: Range<u32>,
+) -> Option<Range<u32>> {
+    let ink_columns = x_range
+        .filter(|x| dark_pixels(rgba, width, *x..*x + 1, y_range.clone()) > 0)
+        .collect::<Vec<_>>();
+    let last_column = *ink_columns.last()?;
+    let (_, word_start) = ink_columns
+        .windows(2)
+        .filter_map(|columns| {
+            let gap = columns[1] - columns[0] - 1;
+            (gap >= MIN_WORD_GAP_COLUMNS).then_some((gap, columns[1]))
+        })
+        .max_by_key(|(gap, _)| *gap)?;
+    Some(word_start..last_column + 1)
+}
+
+fn equal_glyph_ranges(word: Range<u32>, glyph_count: u32) -> Vec<Range<u32>> {
+    let width = word.end - word.start;
+    let glyph_width = width / glyph_count;
+    (0..glyph_count)
+        .map(|index| {
+            let start = word.start + glyph_width * index;
+            let end = start + glyph_width;
+            start..end
+        })
+        .collect()
+}
+
+fn glyph_signature(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> Vec<bool> {
+    y_range
+        .flat_map(|y| x_range.clone().map(move |x| (y * width + x) as usize * 4))
+        .map(|offset| is_dark_pixel(rgba, offset))
+        .collect()
+}
+
+fn assert_pptx_text_layout(rgba: &[u8], width: u32, height: u32) -> TestResult {
+    let bands = paragraph_row_bands(rgba, width);
+    assert_eq!(
+        4,
+        bands.len(),
+        "PPTX text lines must not overlap: {bands:?}"
+    );
+    assert!(
+        bands.windows(2).all(|pair| {
+            let center_advance_twice = pair[1].0 + pair[1].1 - pair[0].0 - pair[0].1;
+            (MIN_PARAGRAPH_CENTER_ADVANCE_TWICE..=MAX_PARAGRAPH_CENTER_ADVANCE_TWICE)
+                .contains(&center_advance_twice)
+        }),
+        "PPTX paragraphs must preserve the 21.6pt line advance: {bands:?}"
+    );
+    let japanese_band = bands[3];
+    let japanese_y = japanese_band.0.saturating_sub(JAPANESE_BAND_PADDING_ROWS)
+        ..(japanese_band.1 + JAPANESE_BAND_PADDING_ROWS + 1).min(height);
+    let japanese_word =
+        last_word_bounds(rgba, width, 660..900, japanese_y.clone()).ok_or_else(|| {
+            std::io::Error::other("Japanese word must remain visible after the ASCII label")
+        })?;
+    let signatures = equal_glyph_ranges(japanese_word, 3)
+        .into_iter()
+        .map(|x_range| glyph_signature(rgba, width, x_range, japanese_y.clone()))
+        .collect::<Vec<_>>();
+    let first_signature = signatures
+        .first()
+        .ok_or_else(|| std::io::Error::other("Japanese glyph ranges must not be empty"))?;
+    assert!(
+        signatures
+            .iter()
+            .all(|signature| signature.iter().any(|is_dark| *is_dark)),
+        "each Japanese glyph must render as ink instead of tofu"
+    );
+    assert!(
+        signatures
+            .iter()
+            .skip(1)
+            .any(|signature| signature != first_signature),
+        "Japanese glyphs must not collapse to repeated tofu boxes"
+    );
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -73,7 +203,7 @@ fn docx_isolated_worker_produces_bounded_static_pages() -> TestResult {
 
 #[test]
 fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> TestResult {
-    let session = OfficeStaticViewerSession::open(
+    let mut session = OfficeStaticViewerSession::open(
         fixture("representative.pptx", OfficeDocumentFormat::Pptx)?,
         worker_config(),
     )?;
@@ -93,6 +223,9 @@ fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> Te
         diagnostic.code == ViewerDiagnosticCode::DegradedRendering
             && diagnostic.message.to_ascii_lowercase().contains("fallback")
     }));
+    let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
+    assert_eq!((959, 540), (page.surface.width, page.surface.height));
+    assert_pptx_text_layout(&page.surface.rgba, page.surface.width, page.surface.height)?;
     Ok(())
 }
 

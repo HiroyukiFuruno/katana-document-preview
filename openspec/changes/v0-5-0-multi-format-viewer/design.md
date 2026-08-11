@@ -155,10 +155,39 @@ OpenSpecのopen / apply / frame / close契約を満たしていない。この�
 この是正案は2026-08-09にユーザーが明示承認した。spec、契約テスト、実装、境界guardを
 同じ変更として更新し、全release gateを再実行する。
 
+### D4.5 v0.5.2 Office font determinism correction
+
+KatanA v0.22.38 の3 OS headless証跡で、同じPPTXがLinuxでは行配置崩れ、
+Windowsでは日本語欠け字になった。原因はKDV workerがoffice2pdfを既定設定で呼び、
+Calibriの代替とCJK glyph fallbackをOSのインストール済みfontへ委ねていたことである。
+
+KDVはSIL OFL 1.1のCarlito 4書体とNoto Sans JPを固定し、isolated workerのdocument専用
+workspaceへ展開してoffice2pdfの公開font_pathsへ渡す。KatanA、KUC、KRRへ
+font解決を移さず、OOXMLの書換え、独自parser、独自layout補正は追加しない。font source
+commit、SHA-256、licenseをpackage内へ記録し、macOS / Linux / Windowsの実artifactで
+日本語glyphとtext box配置を検査する。
+
+### D4.6 v0.5.2 registry maintenance package
+
+公式`office2pdf`へmerge済みのPowerPoint paragraph spacing修正は、crates.io
+`0.6.5`へ未収録である。KDVの最終releaseをgit dependencyへ固定せずに成立させるため、
+上流`v0.6.5`へPR `#745`と必要なfont resolution helperだけをbackportしたApache-2.0
+maintenance package `office2pdf-katana 0.6.6`を使用する。この判断は2026-08-11に
+ユーザーが明示承認した。
+
+KDVはCargo dependency keyを`office2pdf`のまま維持し、package aliasで
+`office2pdf-katana =0.6.6`をexact registry dependencyとして解決する。release guardは
+Cargo.lockの実package名、version、crates.io source、SHA-256 checksumを検証し、path/git
+patchを最終releaseで拒否する。maintenance packageへKDV固有parser、layout補正、独自
+font substitutionを追加せず、公式互換patch公開後は後続KDV patchで公式crateへ戻す。
+V8/JavaScript rendererへの移行は本releaseへ混ぜず、KRRがJS runtimeとbundleを所有し、
+KDVがadapterに限定される後続changeとして設計レビューする。
+
 ### D5. Feasibility評価後の候補状態
 
 - PDFはpure Rust `hayro` 0.7.1を推奨する。85/100、hard gate pass。
-- DOCXはpure Rust `office2pdf` 0.6.5 -> canonical PDF -> `hayro`を推奨する。
+- DOCXはpure Rust `office2pdf-katana` 0.6.6（upstream `office2pdf` 0.6.5 + PR #745）
+  -> canonical PDF -> `hayro`を推奨する。
   85/100でstatic-page hard gateを満たす。ただしKDVのbounded OOXML preflightと
   isolated workerを必須条件とする。
 - XLSXの`office2pdf` static-pageは65/100で、formula結果、conditional formatting、

@@ -1,7 +1,7 @@
 use super::failure::{engine_failure, failure, input_failure, output_failure};
 use super::{
     EXIT_FAILURE, EXIT_USAGE, OfficeDocumentFormat, OfficeWorkerEntrypoint, OfficeWorkerResponse,
-    WorkerArguments, engine_format, execute_with_constraints, parse_arguments,
+    WorkerArguments, conversion_options, engine_format, execute_with_constraints, parse_arguments,
     validate_output_size, write_response, write_response_with,
 };
 use office2pdf::config::Format;
@@ -134,6 +134,11 @@ fn constraints_output_and_engine_format_failures_are_typed() {
     assert_eq!(Format::Docx, engine_format(OfficeDocumentFormat::Docx));
     assert_eq!(Format::Pptx, engine_format(OfficeDocumentFormat::Pptx));
     assert_eq!(Format::Xlsx, engine_format(OfficeDocumentFormat::Xlsx));
+    let font_path = std::path::PathBuf::from("fonts");
+    assert_eq!(
+        vec![font_path.clone()],
+        conversion_options(font_path).font_paths
+    );
 }
 
 #[test]

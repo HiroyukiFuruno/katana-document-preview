@@ -358,3 +358,5 @@ XLSX `interactive-grid`とPPTX typed chart fallbackは2026-07-30に明示承認�
 2. KDV `v0.4.0`を80/100以上かつ全hard gate passでreleaseする。
 3. KatanAの隣接patchで公開済みKDVを統合する。
 4. KDV `v0.6.0` PDF export paginationを実装する。
+5. KatanA `v0.22.38`公開後、V8/JavaScript document renderer候補はKRR所有の
+   別OpenSpecで再評価し、KDVへJS runtimeまたはbundleを追加しない。

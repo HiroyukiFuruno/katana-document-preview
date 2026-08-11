@@ -97,3 +97,32 @@ impl From<&UiImageSurfaceProps> for DocumentPageSurfaceFrame {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DocumentGridSurfaceFrame, DocumentSurfaceContent, DocumentSurfaceFrame, DocumentSurfaceKind,
+    };
+    use crate::DocumentGridViewport;
+
+    #[test]
+    fn grid_frame_reports_grid_kind_at_runtime() {
+        let frame = DocumentSurfaceFrame {
+            content: DocumentSurfaceContent::Grid(DocumentGridSurfaceFrame {
+                row_count: 0,
+                column_count: 0,
+                total_width: 0,
+                total_height: 0,
+                viewport: DocumentGridViewport::default(),
+                active_cell: None,
+                show_grid_lines: true,
+                cells: Vec::new(),
+            }),
+        };
+
+        assert_eq!(
+            DocumentSurfaceKind::Grid,
+            std::hint::black_box(&frame).kind()
+        );
+    }
+}

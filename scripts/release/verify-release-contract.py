@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import tempfile
@@ -41,9 +42,9 @@ FORBIDDEN_ADAPTER_MARKERS = (
     "KRR_CHROME_BIN",
 )
 SELECTED_ENGINES = {
-    "hayro": "0.7.1",
-    "office2pdf": "0.6.5",
-    "ironcalc": "0.8.3",
+    "hayro": ("hayro", "0.7.1"),
+    "office2pdf": ("office2pdf-katana", "0.6.6"),
+    "ironcalc": ("ironcalc", "0.8.3"),
 }
 LINUX_SANDBOX_DEPENDENCIES = {
     "libc": "0.2.189",
@@ -59,6 +60,7 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/office_static_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_constraints.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_entrypoint.rs",
+    "crates/katana-document-viewer/src/multi_format/office_worker_fonts.rs",
     "crates/katana-document-viewer/src/multi_format/office_worker_network_seccomp.rs",
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
@@ -83,6 +85,14 @@ FORBIDDEN_ENGINE_PACKAGES = {
     "pdfium-render",
     "web-view",
     "wry",
+}
+OFFICE_FONT_SOURCE_COMMIT = "2d85e20401920891efb7cd6272d6339685df2820"
+OFFICE_FONT_HASHES = {
+    "Carlito-Bold.ttf": "bb5d20f79b82599ec72983597437373a80f2d2085fa91fc144fd74e876a594db",
+    "Carlito-BoldItalic.ttf": "b32928186c119599e03ca6a1ffc680fdcb7fac95772f4b95d989cf6cd3861517",
+    "Carlito-Italic.ttf": "0b019225e58d702bfedcbd35c21696769f8ee115cb6343f84c2f240312450d1c",
+    "Carlito-Regular.ttf": "f6418f708baede9789daef5d458c0f53d2a888af9820e8062934e504fedc6595",
+    "NotoSansJP-VariableFont_wght.ttf": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
 }
 
 
@@ -175,7 +185,15 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
         root / "crates/katana-document-viewer-kuc"
     ).exists():
         errors.append("the cross-layer katana-document-viewer-kuc crate must not exist.")
-    for name, version in {**SELECTED_ENGINES, **LINUX_SANDBOX_DEPENDENCIES}.items():
+    for name, (package, version) in SELECTED_ENGINES.items():
+        declared = dependencies.get(name)
+        if dependency_version(declared) != f"={version}":
+            errors.append(f"Cargo.toml must pin {name} to ={version}.")
+        if package != name and (
+            not isinstance(declared, dict) or declared.get("package") != package
+        ):
+            errors.append(f"Cargo.toml must resolve {name} from package {package}.")
+    for name, version in LINUX_SANDBOX_DEPENDENCIES.items():
         declared = dependencies.get(name)
         if dependency_version(declared) != f"={version}":
             errors.append(f"Cargo.toml must pin {name} to ={version}.")
@@ -211,8 +229,11 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
 def multi_format_lockfile_errors(lockfile: str) -> list[str]:
     packages = tomllib.loads(lockfile).get("package", [])
     errors: list[str] = []
+    selected_packages = {
+        package: version for package, version in SELECTED_ENGINES.values()
+    }
     for name, version in {
-        **SELECTED_ENGINES,
+        **selected_packages,
         **LINUX_SANDBOX_DEPENDENCIES,
         "katana-ui-core": KUC_VERSION,
     }.items():
@@ -276,6 +297,49 @@ def multi_format_source_errors(root: Path) -> list[str]:
         errors.append("KDV public API must not expose KUC types or the forbidden cross-layer crate.")
     if "egui" in production:
         errors.append("KDV multi-format production source must remain egui-independent.")
+    return errors
+
+
+def office_font_contract_errors(root: Path) -> list[str]:
+    font_root = root / "crates/katana-document-viewer/assets/fonts"
+    font_workflow_path = "crates/katana-document-viewer/assets/fonts/**"
+    errors: list[str] = []
+    for name, expected in OFFICE_FONT_HASHES.items():
+        path = font_root / name
+        if not path.is_file():
+            errors.append(f"deterministic Office font is missing: {name}.")
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            errors.append(f"deterministic Office font checksum changed: {name}.")
+    source = font_root / "SOURCE.md"
+    source_text = source.read_text(encoding="utf-8") if source.is_file() else ""
+    if OFFICE_FONT_SOURCE_COMMIT not in source_text:
+        errors.append("Office font source commit is missing from SOURCE.md.")
+    license_path = font_root / "OFL.txt"
+    license_text = license_path.read_text(encoding="utf-8") if license_path.is_file() else ""
+    if "SIL OPEN FONT LICENSE Version 1.1" not in license_text:
+        errors.append("Office fallback font OFL 1.1 license is missing.")
+    for workflow_name in ("test-and-build.yml", "release-preflight.yml"):
+        workflow_path = root / ".github/workflows" / workflow_name
+        workflow_text = (
+            workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else ""
+        )
+        if font_workflow_path not in workflow_text:
+            errors.append(
+                f"{workflow_name} must run when deterministic Office fonts change."
+            )
+    contract = (
+        root / "crates/katana-document-viewer/tests/multi_format_office_worker_contract.rs"
+    ).read_text(encoding="utf-8")
+    for token in (
+        "paragraph_row_bands",
+        "PPTX paragraphs must preserve the 21.6pt line advance",
+        "each Japanese glyph must render as ink instead of tofu",
+        "Japanese glyphs must not collapse to repeated tofu boxes",
+    ):
+        if token not in contract:
+            errors.append(f"Office cross-platform pixel contract is missing: {token}.")
     return errors
 
 
@@ -388,6 +452,7 @@ def validate(root: Path, target_version: str) -> list[str]:
     errors.extend(adapter_source_errors(root))
     errors.extend(integration_contract_errors(root))
     errors.extend(multi_format_source_errors(root))
+    errors.extend(office_font_contract_errors(root))
     errors.extend(justfile_errors((root / "Justfile").read_text(encoding="utf-8")))
     errors.extend(
         staged_publish_errors(
@@ -440,6 +505,36 @@ def self_test() -> None:
     assert manifest_errors(
         '[workspace.dependencies]\nkatana-render-runtime = { path = "../krr" }\n'
     )
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        (root / "crates/katana-document-viewer").mkdir(parents=True)
+        selected_dependencies = "\n".join(
+            (
+                'hayro = "=0.7.1"',
+                'office2pdf = { package = "office2pdf-katana", version = "=0.6.6" }',
+                'ironcalc = "=0.8.3"',
+                'libc = "=0.2.189"',
+                'seccompiler = "=0.5.0"',
+                'skarn-sandbox = "=1.0.1"',
+                'katana-ui-core = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
+                'katana-ui-core-storybook = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
+            )
+        )
+        (root / "Cargo.toml").write_text(
+            f"[workspace]\nmembers = []\n[workspace.dependencies]\n{selected_dependencies}\n",
+            encoding="utf-8",
+        )
+        (root / "crates/katana-document-viewer/Cargo.toml").write_text(
+            '[package]\nname = "test"\nversion = "0.0.0"\n'
+            '[dependencies]\nkatana-ui-core = "0.3.0"\n',
+            encoding="utf-8",
+        )
+        assert not multi_format_manifest_errors(root, "v0.5.2")
+        stale_manifest = (root / "Cargo.toml").read_text(encoding="utf-8").replace(
+            'package = "office2pdf-katana"', 'package = "office2pdf"'
+        )
+        (root / "Cargo.toml").write_text(stale_manifest, encoding="utf-8")
+        assert multi_format_manifest_errors(root, "v0.5.2")
     registry_lock = """
 version = 4
 
@@ -478,6 +573,23 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert staged_publish_errors("wait_until_published katana-document-viewer")
     assert staged_publish_errors(
         staged_publish + "\ncargo publish -p katana-document-viewer-kuc --locked"
+    )
+    selected_lock = "version = 4\n\n" + "\n\n".join(
+        (
+            "[[package]]\n"
+            f'name = "{name}"\nversion = "{version}"\n'
+            f'source = "{REGISTRY_SOURCE}"\n'
+            f'checksum = "{"0" * 64}"'
+        )
+        for name, version in {
+            **{package: version for package, version in SELECTED_ENGINES.values()},
+            **LINUX_SANDBOX_DEPENDENCIES,
+            "katana-ui-core": KUC_VERSION,
+        }.items()
+    )
+    assert not multi_format_lockfile_errors(selected_lock)
+    assert multi_format_lockfile_errors(
+        selected_lock.replace('name = "office2pdf-katana"', 'name = "office2pdf"')
     )
 
 

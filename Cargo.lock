@@ -2514,7 +2514,7 @@ dependencies = [
 
 [[package]]
 name = "katana-document-viewer"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "cosmic-text",
  "epaint_default_fonts",
@@ -2526,7 +2526,7 @@ dependencies = [
  "katana-render-runtime",
  "katana-ui-core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
- "office2pdf",
+ "office2pdf-katana",
  "process_control",
  "quick-xml 0.41.0",
  "rappct",
@@ -2630,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "kdv-linter"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "ignore",
  "proc-macro2",
@@ -2641,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "kdv-storybook"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "image",
  "katana-document-viewer",
@@ -3166,10 +3166,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "office2pdf"
-version = "0.6.5"
+name = "office2pdf-katana"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "103138077535e6e1db8c5f73ca2d2a75b9dc027288d8a94abf034a72f8dfd2a6"
+checksum = "bcb4241bb2edfa2e1a52f49ee4804c0b6fb6ff30b18124daece20166a5c98fe8"
 dependencies = [
  "comemo",
  "docx-rs",
