@@ -42,9 +42,9 @@ FORBIDDEN_ADAPTER_MARKERS = (
     "KRR_CHROME_BIN",
 )
 SELECTED_ENGINES = {
-    "hayro": "0.7.1",
-    "office2pdf": "0.6.5",
-    "ironcalc": "0.8.3",
+    "hayro": ("hayro", "0.7.1"),
+    "office2pdf": ("office2pdf-katana", "0.6.6"),
+    "ironcalc": ("ironcalc", "0.8.3"),
 }
 LINUX_SANDBOX_DEPENDENCIES = {
     "libc": "0.2.189",
@@ -185,7 +185,15 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
         root / "crates/katana-document-viewer-kuc"
     ).exists():
         errors.append("the cross-layer katana-document-viewer-kuc crate must not exist.")
-    for name, version in {**SELECTED_ENGINES, **LINUX_SANDBOX_DEPENDENCIES}.items():
+    for name, (package, version) in SELECTED_ENGINES.items():
+        declared = dependencies.get(name)
+        if dependency_version(declared) != f"={version}":
+            errors.append(f"Cargo.toml must pin {name} to ={version}.")
+        if package != name and (
+            not isinstance(declared, dict) or declared.get("package") != package
+        ):
+            errors.append(f"Cargo.toml must resolve {name} from package {package}.")
+    for name, version in LINUX_SANDBOX_DEPENDENCIES.items():
         declared = dependencies.get(name)
         if dependency_version(declared) != f"={version}":
             errors.append(f"Cargo.toml must pin {name} to ={version}.")
@@ -221,8 +229,11 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
 def multi_format_lockfile_errors(lockfile: str) -> list[str]:
     packages = tomllib.loads(lockfile).get("package", [])
     errors: list[str] = []
+    selected_packages = {
+        package: version for package, version in SELECTED_ENGINES.values()
+    }
     for name, version in {
-        **SELECTED_ENGINES,
+        **selected_packages,
         **LINUX_SANDBOX_DEPENDENCIES,
         "katana-ui-core": KUC_VERSION,
     }.items():
@@ -494,6 +505,36 @@ def self_test() -> None:
     assert manifest_errors(
         '[workspace.dependencies]\nkatana-render-runtime = { path = "../krr" }\n'
     )
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        (root / "crates/katana-document-viewer").mkdir(parents=True)
+        selected_dependencies = "\n".join(
+            (
+                'hayro = "=0.7.1"',
+                'office2pdf = { package = "office2pdf-katana", version = "=0.6.6" }',
+                'ironcalc = "=0.8.3"',
+                'libc = "=0.2.189"',
+                'seccompiler = "=0.5.0"',
+                'skarn-sandbox = "=1.0.1"',
+                'katana-ui-core = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
+                'katana-ui-core-storybook = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
+            )
+        )
+        (root / "Cargo.toml").write_text(
+            f"[workspace]\nmembers = []\n[workspace.dependencies]\n{selected_dependencies}\n",
+            encoding="utf-8",
+        )
+        (root / "crates/katana-document-viewer/Cargo.toml").write_text(
+            '[package]\nname = "test"\nversion = "0.0.0"\n'
+            '[dependencies]\nkatana-ui-core = "0.3.0"\n',
+            encoding="utf-8",
+        )
+        assert not multi_format_manifest_errors(root, "v0.5.2")
+        stale_manifest = (root / "Cargo.toml").read_text(encoding="utf-8").replace(
+            'package = "office2pdf-katana"', 'package = "office2pdf"'
+        )
+        (root / "Cargo.toml").write_text(stale_manifest, encoding="utf-8")
+        assert multi_format_manifest_errors(root, "v0.5.2")
     registry_lock = """
 version = 4
 
@@ -532,6 +573,23 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert staged_publish_errors("wait_until_published katana-document-viewer")
     assert staged_publish_errors(
         staged_publish + "\ncargo publish -p katana-document-viewer-kuc --locked"
+    )
+    selected_lock = "version = 4\n\n" + "\n\n".join(
+        (
+            "[[package]]\n"
+            f'name = "{name}"\nversion = "{version}"\n'
+            f'source = "{REGISTRY_SOURCE}"\n'
+            f'checksum = "{"0" * 64}"'
+        )
+        for name, version in {
+            **{package: version for package, version in SELECTED_ENGINES.values()},
+            **LINUX_SANDBOX_DEPENDENCIES,
+            "katana-ui-core": KUC_VERSION,
+        }.items()
+    )
+    assert not multi_format_lockfile_errors(selected_lock)
+    assert multi_format_lockfile_errors(
+        selected_lock.replace('name = "office2pdf-katana"', 'name = "office2pdf"')
     )
 
 

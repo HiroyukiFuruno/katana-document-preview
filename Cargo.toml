@@ -37,7 +37,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "gif", 
 ironcalc = "=0.8.3"
 libc = "=0.2.189"
 minifb = "0.28"
-office2pdf = "=0.6.5"
+office2pdf = { package = "office2pdf-katana", version = "=0.6.6" }
 process_control = "5.2"
 resvg = "0.48"
 skarn-sandbox = "=1.0.1"
@@ -55,6 +55,3 @@ xmltree = "0.12"
 
 [profile.test]
 opt-level = 2
-
-[patch.crates-io]
-office2pdf = { git = "https://github.com/developer0hye/office2pdf.git", rev = "c528eef467aaf9ca4873acf5c8bedb07b7ae5596" }

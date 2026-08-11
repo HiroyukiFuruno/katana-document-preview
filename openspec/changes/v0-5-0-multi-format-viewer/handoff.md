@@ -16,11 +16,12 @@
 ## Verified Feasibility
 
 - PDF: `hayro` 0.7.1, 85/100, all current hard gates passed.
-- DOCX: `office2pdf` 0.6.5 -> canonical PDF -> `hayro`, 85/100, conditional on
+- DOCX: `office2pdf-katana` 0.6.6 (upstream `office2pdf` 0.6.5 + PR #745)
+  -> canonical PDF -> `hayro`, 85/100, conditional on
   KDV bounded OOXML preflight and isolated process enforcement.
 - XLSX: `IronCalc` 0.8.3 interactive grid, 90/100. Chart and pivot capability
   remains typed unsupported.
-- PPTX: `office2pdf` static slide with typed chart fallback, 85/100.
+- PPTX: `office2pdf-katana` static slide with typed chart fallback, 85/100.
 - LibreOffice, ONLYOFFICE, docMentis, Aspose, Pandoc + Typst, `rwml`,
   SlideGlance, BetterOffice, and `office_oxide` failed one or more fixed hard
   gates and are not production fallbacks.
