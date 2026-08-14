@@ -183,6 +183,14 @@ font substitutionを追加せず、公式互換patch公開後は後続KDV patch�
 V8/JavaScript rendererへの移行は本releaseへ混ぜず、KRRがJS runtimeとbundleを所有し、
 KDVがadapterに限定される後続changeとして設計レビューする。
 
+### D4.7 v0.5.3 official office2pdf restoration
+
+公式`office2pdf v0.6.7`はPR `#745`のmerge commit
+`c528eef467aaf9ca4873acf5c8bedb07b7ae5596`をrelease tagの祖先に含み、crates.ioに
+unyankedのregistry packageとして公開された。KDV `v0.5.3`はmaintenance aliasを廃止し、
+`office2pdf =0.6.7`のexact registry dependencyへ戻す。KDV固有parser、layout補正、
+font substitutionは追加せず、既存のisolated workerとfont_paths境界を維持する。
+
 ### D5. Feasibility評価後の候補状態
 
 - PDFはpure Rust `hayro` 0.7.1を推奨する。85/100、hard gate pass。
