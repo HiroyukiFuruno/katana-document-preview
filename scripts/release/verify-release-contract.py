@@ -43,7 +43,7 @@ FORBIDDEN_ADAPTER_MARKERS = (
 )
 SELECTED_ENGINES = {
     "hayro": ("hayro", "0.7.1"),
-    "office2pdf": ("office2pdf-katana", "0.6.6"),
+    "office2pdf": ("office2pdf", "0.6.7"),
     "ironcalc": ("ironcalc", "0.8.3"),
 }
 LINUX_SANDBOX_DEPENDENCIES = {
@@ -511,7 +511,7 @@ def self_test() -> None:
         selected_dependencies = "\n".join(
             (
                 'hayro = "=0.7.1"',
-                'office2pdf = { package = "office2pdf-katana", version = "=0.6.6" }',
+                'office2pdf = "=0.6.7"',
                 'ironcalc = "=0.8.3"',
                 'libc = "=0.2.189"',
                 'seccompiler = "=0.5.0"',
@@ -531,7 +531,7 @@ def self_test() -> None:
         )
         assert not multi_format_manifest_errors(root, "v0.5.2")
         stale_manifest = (root / "Cargo.toml").read_text(encoding="utf-8").replace(
-            'package = "office2pdf-katana"', 'package = "office2pdf"'
+            'office2pdf = "=0.6.7"', 'office2pdf = "=0.6.6"'
         )
         (root / "Cargo.toml").write_text(stale_manifest, encoding="utf-8")
         assert multi_format_manifest_errors(root, "v0.5.2")
@@ -589,7 +589,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     )
     assert not multi_format_lockfile_errors(selected_lock)
     assert multi_format_lockfile_errors(
-        selected_lock.replace('name = "office2pdf-katana"', 'name = "office2pdf"')
+        selected_lock.replace('version = "0.6.7"', 'version = "0.6.6"', 1)
     )
 
 

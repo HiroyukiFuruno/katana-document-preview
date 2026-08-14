@@ -62,7 +62,14 @@ def main() -> None:
         root = matching[0]
         closure = dependency_closure(root["id"], nodes)
         records = []
-        for package_id in sorted(closure, key=lambda item: packages[item]["name"]):
+        for package_id in sorted(
+            closure,
+            key=lambda item: (
+                packages[item]["name"],
+                packages[item]["version"],
+                item,
+            ),
+        ):
             package = packages[package_id]
             records.append(
                 {
