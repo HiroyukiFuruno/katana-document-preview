@@ -13,7 +13,7 @@ impl PdfVisualContent {
 
     fn stats_from_surface(surface: &DecodedRgbSurface) -> RgbVisualContentStats {
         let mut stats = RgbVisualContentStats::empty();
-        for pixel in surface.rgb.chunks_exact(RGB_CHANNELS) {
+        for pixel in surface.rgb.as_chunks::<RGB_CHANNELS>().0 {
             stats.observe([pixel[0], pixel[1], pixel[2]]);
         }
         stats

@@ -74,8 +74,10 @@ impl PdfPageGapNormalizer {
         let start = row * row_bytes;
         let end = start + row_bytes;
         candidate.rgb[start..end]
-            .chunks_exact(RGB_CHANNELS)
-            .all(|pixel| pixel == background)
+            .as_chunks::<RGB_CHANNELS>()
+            .0
+            .iter()
+            .all(|pixel| pixel == &background)
     }
 
     fn background(candidate: &DecodedRgbSurface, row_bytes: usize) -> [u8; RGB_CHANNELS] {
@@ -104,8 +106,10 @@ impl PdfPageGapNormalizer {
             candidate.rgb[start + 2],
         ];
         candidate.rgb[start..end]
-            .chunks_exact(RGB_CHANNELS)
-            .all(|pixel| pixel == color)
+            .as_chunks::<RGB_CHANNELS>()
+            .0
+            .iter()
+            .all(|pixel| pixel == &color)
             .then_some(color)
     }
 
