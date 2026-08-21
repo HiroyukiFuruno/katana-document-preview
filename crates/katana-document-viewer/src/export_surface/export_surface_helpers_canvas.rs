@@ -60,7 +60,7 @@ impl SurfaceHelpers {
         for row in rect.y..rect.bottom {
             let start = (row * row_width + rect.x) * RGBA_CHANNEL_COUNT;
             let end = start + rect.width * RGBA_CHANNEL_COUNT;
-            for pixel in buffer[start..end].chunks_exact_mut(RGBA_CHANNEL_COUNT) {
+            for pixel in buffer[start..end].as_chunks_mut::<RGBA_CHANNEL_COUNT>().0 {
                 pixel.copy_from_slice(&channels);
             }
         }

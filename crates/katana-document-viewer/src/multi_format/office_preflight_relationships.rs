@@ -13,7 +13,7 @@ impl OfficePreflightRelationships {
         archive: &mut ZipArchive<Cursor<&[u8]>>,
         name: &str,
         limits: OfficePreflightLimits,
-    ) -> Result<(), OfficePreflightError> {
+    ) -> Result<usize, OfficePreflightError> {
         let mut entry = archive.by_name(name).map_err(zip_error)?;
         if entry.size() > limits.max_relationship_bytes {
             return Err(OfficePreflightSupport::resource_limit(
@@ -37,17 +37,18 @@ fn io_error(error: std::io::Error) -> OfficePreflightError {
     OfficePreflightSupport::invalid_archive(error.to_string())
 }
 
-fn inspect_xml(name: &str, xml: &[u8]) -> Result<(), OfficePreflightError> {
+fn inspect_xml(name: &str, xml: &[u8]) -> Result<usize, OfficePreflightError> {
     let mut reader = Reader::from_reader(xml);
     reader.config_mut().trim_text(true);
+    let mut external_hyperlink_count = 0;
     loop {
         match reader.read_event() {
             Ok(Event::Start(event)) | Ok(Event::Empty(event))
                 if event.local_name().as_ref() == b"Relationship" =>
             {
-                inspect_element(name, &reader, &event)?;
+                external_hyperlink_count += inspect_element(name, &reader, &event)?;
             }
-            Ok(Event::Eof) => return Ok(()),
+            Ok(Event::Eof) => return Ok(external_hyperlink_count),
             Ok(_) => {}
             Err(error) => {
                 return Err(OfficePreflightSupport::invalid_archive(error.to_string()));
@@ -60,9 +61,10 @@ fn inspect_element(
     name: &str,
     reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
-) -> Result<(), OfficePreflightError> {
+) -> Result<usize, OfficePreflightError> {
     let mut external = false;
     let mut target = String::new();
+    let mut relationship_type = String::new();
     for attribute in event.attributes() {
         let attribute = attribute
             .map_err(|error| OfficePreflightSupport::invalid_archive(error.to_string()))?;
@@ -73,16 +75,25 @@ fn inspect_element(
         match attribute.key.local_name().as_ref() {
             b"TargetMode" => external = value.eq_ignore_ascii_case("external"),
             b"Target" => target = value,
+            b"Type" => relationship_type = value,
             _ => {}
         }
     }
-    if external {
+    if external && !is_passive_hyperlink(&relationship_type) {
         return Err(OfficePreflightError::ExternalResourceBlocked {
             entry: name.to_owned(),
             target,
         });
     }
-    Ok(())
+    Ok(usize::from(external))
+}
+
+fn is_passive_hyperlink(relationship_type: &str) -> bool {
+    matches!(
+        relationship_type,
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+            | "http://purl.oclc.org/ooxml/officeDocument/relationships/hyperlink"
+    )
 }
 
 #[cfg(test)]
@@ -108,6 +119,18 @@ mod tests {
             inspect_xml("_rels/.rels", b"<Relationships><Relationship"),
             Err(OfficePreflightError::InvalidArchive { .. })
         ));
+    }
+
+    #[test]
+    fn passive_external_hyperlinks_are_counted_without_being_blocked() {
+        let xml = br#"<Relationships><Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid" TargetMode="External"/></Relationships>"#;
+        assert_eq!(Ok(1), inspect_xml("ppt/slides/_rels/slide1.xml.rels", xml));
+    }
+
+    #[test]
+    fn strict_ooxml_external_hyperlinks_are_counted_without_being_blocked() {
+        let xml = br#"<Relationships><Relationship Type="http://purl.oclc.org/ooxml/officeDocument/relationships/hyperlink" Target="https://example.invalid" TargetMode="External"/></Relationships>"#;
+        assert_eq!(Ok(1), inspect_xml("ppt/slides/_rels/slide1.xml.rels", xml));
     }
 
     #[test]

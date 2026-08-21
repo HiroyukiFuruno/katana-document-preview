@@ -30,8 +30,10 @@ impl SurfacePixels {
         let mut reference_rgb = Vec::with_capacity(reference.len() / RGBA_CHANNELS * RGB_CHANNELS);
         let mut candidate_rgb = Vec::with_capacity(candidate.len() / RGBA_CHANNELS * RGB_CHANNELS);
         for (reference_pixel, candidate_pixel) in reference
-            .chunks_exact(RGBA_CHANNELS)
-            .zip(candidate.chunks_exact(RGBA_CHANNELS))
+            .as_chunks::<RGBA_CHANNELS>()
+            .0
+            .iter()
+            .zip(candidate.as_chunks::<RGBA_CHANNELS>().0)
         {
             Self::push_composited_rgb(
                 &mut reference_rgb,

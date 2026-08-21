@@ -240,7 +240,7 @@ sibling path dependencyを使用しない。
 ## Security
 
 - macroとembedded scriptを実行しない。
-- external link、remote image、template、data connectionを自動取得しない。
+- external hyperlinkは表示対象として保持するが、自動取得しない。remote image、template、data connectionはengine起動前に拒否する。
 - ZIP/XML展開量、page/sheet/slide/cell数、処理時間、メモリに上限を設ける。
 - Office engineへ渡す前にKDVがOOXML central directoryとrelationshipをbounded
   preflightし、active content、external relationship、圧縮率、展開量、entry数を検査する。

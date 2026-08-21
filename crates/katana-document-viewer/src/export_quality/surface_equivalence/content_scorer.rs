@@ -76,7 +76,7 @@ impl SurfaceContentScorer {
 
     fn background_color(rgb: &[u8]) -> [u8; RGB_CHANNELS] {
         let mut buckets = BTreeMap::new();
-        for pixel in rgb.chunks_exact(RGB_CHANNELS) {
+        for pixel in rgb.as_chunks::<RGB_CHANNELS>().0 {
             Self::append_bucket(&mut buckets, pixel);
         }
         let Some(bucket) = buckets.values().max_by_key(|bucket| bucket.count) else {
@@ -109,8 +109,10 @@ impl SurfaceContentScorer {
             preserved_pixels: 0,
         };
         for (reference_pixel, candidate_pixel) in reference
-            .chunks_exact(RGB_CHANNELS)
-            .zip(candidate.chunks_exact(RGB_CHANNELS))
+            .as_chunks::<RGB_CHANNELS>()
+            .0
+            .iter()
+            .zip(candidate.as_chunks::<RGB_CHANNELS>().0)
         {
             Self::record_content_pixel(&mut stats, reference_pixel, candidate_pixel, background);
         }
