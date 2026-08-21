@@ -218,7 +218,8 @@ fn diagram_svg_artifact_preserves_transparent_base_and_antialias_alpha()
     );
 
     let surface = ViewerImageSurfaceFactory::from_diagram_artifact(&artifact, 200)?;
-    let alpha_values: Vec<u8> = surface.rgba.chunks_exact(4).map(|pixel| pixel[3]).collect();
+    let pixels = surface.rgba.as_chunks::<4>().0;
+    let alpha_values: Vec<u8> = pixels.iter().map(|pixel| pixel[3]).collect();
 
     assert!(
         alpha_values.contains(&0),
@@ -264,7 +265,9 @@ fn diagram_svg_artifact_with_background_matches_katana_texture_composite()
     assert!(
         surface
             .rgba
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .all(|pixel| pixel[3] == u8::MAX),
         "KatanA texture path composites diagram rgba to opaque preview background"
     );

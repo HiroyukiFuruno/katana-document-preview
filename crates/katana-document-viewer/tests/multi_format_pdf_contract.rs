@@ -54,7 +54,9 @@ fn hayro_pdf_render_is_opaque_bounded_and_cached() -> TestResult {
         first
             .surface
             .rgba
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .all(|pixel| pixel[3] == 255)
     );
     assert_eq!(first, second);

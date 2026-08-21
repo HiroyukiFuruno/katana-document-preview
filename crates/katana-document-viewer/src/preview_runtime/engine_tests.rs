@@ -132,7 +132,9 @@ fn red_pixel_count(output: &PreviewOutput) -> Result<usize, Box<dyn std::error::
         .ok_or_else(|| std::io::Error::other("surface missing"))?;
     Ok(surface
         .rgba
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .filter(|pixel| pixel[0] > 180 && pixel[1] < 80 && pixel[2] < 80 && pixel[3] > 200)
         .count())
 }
