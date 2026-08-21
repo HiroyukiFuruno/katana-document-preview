@@ -110,7 +110,7 @@ impl LumaStats {
     fn from_top_rows(rgba: &[u8], width: u32, height: u32) -> Self {
         let pixel_count = width as usize * height as usize;
         let mut values = Vec::with_capacity(pixel_count);
-        for pixel in rgba.chunks_exact(4).take(pixel_count) {
+        for pixel in rgba.as_chunks::<4>().0.iter().take(pixel_count) {
             values.push(Self::luma(pixel));
         }
         let mean = values.iter().sum::<f64>() / values.len().max(1) as f64;

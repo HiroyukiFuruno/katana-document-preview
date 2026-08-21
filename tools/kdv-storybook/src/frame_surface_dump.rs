@@ -56,7 +56,7 @@ impl SurfaceDump {
         let mut file = BufWriter::new(file);
         writeln!(file, "P6\n{} {}\n255", image.width, image.height)?;
         let mut rgb = Vec::with_capacity(image.width * image.height * RGB_CHANNELS);
-        for pixel in image.rgba.chunks_exact(RGBA_CHANNELS) {
+        for pixel in image.rgba.as_chunks::<RGBA_CHANNELS>().0 {
             rgb.extend_from_slice(&pixel[..RGB_CHANNELS]);
         }
         file.write_all(&rgb)?;

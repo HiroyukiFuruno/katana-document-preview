@@ -179,7 +179,7 @@ impl SurfaceParityScorer {
 
     fn dominant_background(rgb: &[u8]) -> [u8; RGB_CHANNELS] {
         let mut counts = BTreeMap::<[u8; RGB_CHANNELS], usize>::new();
-        for pixel in rgb.chunks_exact(RGB_CHANNELS) {
+        for pixel in rgb.as_chunks::<RGB_CHANNELS>().0 {
             let color = [pixel[0], pixel[1], pixel[2]];
             *counts.entry(color).or_insert(0) += 1;
         }
