@@ -170,6 +170,8 @@
 - **WHEN** 文書がmacro、embedded script、external link、remote image、template、data connectionを含む
 - **THEN** KDVはactive contentを実行しない
 - **THEN** KDVはexternal resourceを自動取得しない
+- **THEN** 標準OOXML hyperlink relationshipだけは本文表示を妨げず、isolated workerへ原文のまま渡す
+- **THEN** remote image、template、data connectionなど取得可能なexternal relationshipはengine起動前にtyped diagnosticsで拒否する
 - **THEN** KDVは検出したactive contentをtyped diagnosticsへ記録する
 
 #### Scenario: Office packageのresource limitを超える

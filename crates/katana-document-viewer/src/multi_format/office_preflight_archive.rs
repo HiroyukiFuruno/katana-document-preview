@@ -48,13 +48,14 @@ impl OfficePreflightArchive {
         let scan = scan_archive(&mut archive, source.format, limits)?;
         OfficeZipEntries::validate(source.bytes.as_slice(), archive.len())?;
         validate_main_part(source.format, scan.has_main_part)?;
-        inspect_relationships(&mut archive, &scan.relationships, limits)?;
+        let external_relationship_count =
+            inspect_relationships(&mut archive, &scan.relationships, limits)?;
         OfficeNestedPackages::inspect(&mut archive, source, &scan.nested, limits, depth)?;
         Ok(OfficePreflightReport {
             entry_count: archive.len(),
             total_compressed_bytes: scan.compressed_bytes,
             total_uncompressed_bytes: scan.uncompressed_bytes,
-            external_relationship_count: 0,
+            external_relationship_count,
         })
     }
 }
@@ -157,11 +158,13 @@ fn inspect_relationships(
     archive: &mut ZipArchive<Cursor<&[u8]>>,
     names: &[String],
     limits: OfficePreflightLimits,
-) -> Result<(), OfficePreflightError> {
+) -> Result<usize, OfficePreflightError> {
+    let mut external_relationship_count = 0;
     for name in names {
-        OfficePreflightRelationships::inspect(archive, name, limits)?;
+        external_relationship_count +=
+            OfficePreflightRelationships::inspect(archive, name, limits)?;
     }
-    Ok(())
+    Ok(external_relationship_count)
 }
 
 #[cfg(test)]

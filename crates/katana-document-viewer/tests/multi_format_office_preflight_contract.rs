@@ -39,13 +39,28 @@ fn duplicate_filename_package() -> TestResult<Vec<u8>> {
     Ok(bytes)
 }
 
-fn docx(bytes: Vec<u8>) -> OfficeDocumentSource {
+fn office(bytes: Vec<u8>, format: OfficeDocumentFormat) -> OfficeDocumentSource {
+    let mime = match format {
+        OfficeDocumentFormat::Docx => {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }
+        OfficeDocumentFormat::Xlsx => {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+        OfficeDocumentFormat::Pptx => {
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        }
+    };
     OfficeDocumentSource::new(
-        ViewerSourceIdentity::new("file:///fixtures/generated.docx", "generated"),
-        OfficeDocumentFormat::Docx,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ViewerSourceIdentity::new("file:///fixtures/generated.office", "generated"),
+        format,
+        mime,
         bytes,
     )
+}
+
+fn docx(bytes: Vec<u8>) -> OfficeDocumentSource {
+    office(bytes, OfficeDocumentFormat::Docx)
 }
 
 fn source(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumentSource> {
@@ -93,7 +108,22 @@ fn representative_packages_pass_bounded_preflight() -> TestResult {
 }
 
 #[test]
-fn external_relationship_is_rejected_before_an_engine_can_open_it() -> TestResult {
+fn external_hyperlink_is_accepted_without_granting_resource_access() -> TestResult {
+    let relationship = br#"<Relationships><Relationship Id="rIdLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid/documentation" TargetMode="External"/></Relationships>"#;
+    let bytes = package(&[
+        ("ppt/presentation.xml", b"<p:presentation/>"),
+        ("ppt/slides/_rels/slide1.xml.rels", relationship),
+    ])?;
+    let report = OfficePackagePreflight::inspect(
+        &office(bytes, OfficeDocumentFormat::Pptx),
+        OfficePreflightLimits::strict(),
+    )?;
+    assert_eq!(1, report.external_relationship_count);
+    Ok(())
+}
+
+#[test]
+fn external_fetchable_relationship_is_rejected_before_an_engine_can_open_it() -> TestResult {
     assert!(matches!(
         OfficePackagePreflight::inspect(
             &source("external-image.docx", OfficeDocumentFormat::Docx)?,

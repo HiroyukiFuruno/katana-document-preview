@@ -4,9 +4,12 @@ use katana_document_viewer::{
     PdfViewerError, ViewerDiagnosticCode, ViewerFeature, ViewerFeatureStatus, ViewerSourceIdentity,
 };
 use std::ffi::OsString;
+use std::io::{Cursor, Read, Write};
+use std::net::TcpListener;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use zip::write::SimpleFileOptions;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
@@ -41,6 +44,64 @@ fn fixture(name: &str, format: OfficeDocumentFormat) -> TestResult<OfficeDocumen
 
 fn worker_config() -> OfficeWorkerConfig {
     OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")))
+}
+
+fn pptx_with_external_hyperlink(target: &str) -> TestResult<OfficeDocumentSource> {
+    let mut source = fixture("representative.pptx", OfficeDocumentFormat::Pptx)?;
+    let mut archive = zip::ZipArchive::new(Cursor::new(source.bytes.as_slice()))?;
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let mut relationship_added = false;
+    let mut hyperlink_referenced = false;
+
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index)?;
+        let name = entry.name().to_owned();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes)?;
+        if name == "ppt/slides/_rels/slide1.xml.rels" {
+            let relationships = String::from_utf8(bytes)?;
+            let relationship = format!(
+                r#"<Relationship Id="rIdKatanaExternalLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="{target}" TargetMode="External"/>"#
+            );
+            let rewritten = relationships.replacen(
+                "</Relationships>",
+                &format!("{relationship}</Relationships>"),
+                1,
+            );
+            if rewritten == relationships {
+                return Err("PPTX fixture is missing the relationship terminator".into());
+            }
+            bytes = rewritten.into_bytes();
+            relationship_added = true;
+        }
+        if name == "ppt/slides/slide1.xml" {
+            let slide = String::from_utf8(bytes)?;
+            let rewritten = slide.replacen(
+                "<a:r><a:t>Presentation layout reference</a:t>",
+                "<a:r><a:rPr><a:hlinkClick r:id=\"rIdKatanaExternalLink\"/></a:rPr><a:t>Presentation layout reference</a:t>",
+                1,
+            );
+            if rewritten == slide {
+                return Err("PPTX fixture is missing the hyperlink text run".into());
+            }
+            bytes = rewritten.into_bytes();
+            hyperlink_referenced = true;
+        }
+        writer.start_file(
+            name,
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated),
+        )?;
+        writer.write_all(&bytes)?;
+    }
+
+    if !relationship_added {
+        return Err("PPTX fixture is missing slide1 relationships".into());
+    }
+    if !hyperlink_referenced {
+        return Err("PPTX fixture is missing slide1 text content".into());
+    }
+    source.bytes = writer.finish()?.into_inner();
+    Ok(source)
 }
 
 fn dark_pixels(rgba: &[u8], width: u32, x_range: Range<u32>, y_range: Range<u32>) -> usize {
@@ -226,6 +287,23 @@ fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> Te
     let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
     assert_eq!((959, 540), (page.surface.width, page.surface.height));
     assert_pptx_text_layout(&page.surface.rgba, page.surface.width, page.surface.height)?;
+    Ok(())
+}
+
+#[test]
+fn pptx_external_hyperlink_renders_without_contacting_its_target() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let target = format!("http://{}/document", listener.local_addr()?);
+    let mut session =
+        OfficeStaticViewerSession::open(pptx_with_external_hyperlink(&target)?, worker_config())?;
+
+    let page = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
+    assert_eq!((959, 540), (page.surface.width, page.surface.height));
+    assert!(matches!(
+        listener.accept(),
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+    ));
     Ok(())
 }
 
