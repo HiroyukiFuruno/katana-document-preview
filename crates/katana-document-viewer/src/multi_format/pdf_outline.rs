@@ -87,7 +87,9 @@ fn decode_title(value: PdfString<'_>) -> String {
     let bytes = value.as_bytes();
     if let Some(utf16) = bytes.strip_prefix(&[0xFE, 0xFF]) {
         let units = utf16
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| u16::from_be_bytes([pair[0], pair[1]]))
             .collect::<Vec<_>>();
         String::from_utf16_lossy(&units)
