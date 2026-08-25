@@ -428,11 +428,19 @@ def release_workflow_errors(preflight: str, release: str) -> list[str]:
     }
     errors: list[str] = []
     for label, (workflow, required_recipe) in workflows.items():
-        if f'just VERSION="${{{{ steps.version.outputs.version }}}}" {required_recipe}' not in workflow:
+        artifact_command = "xvfb-run -a just storybook-release-acceptance-artifacts"
+        recipe_command = (
+            'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" '
+            f"{required_recipe}"
+        )
+        if recipe_command not in workflow:
             errors.append(f"{label} must run the KDV {required_recipe} recipe.")
-        if "storybook-release-acceptance-artifacts" in workflow:
+        artifact_position = workflow.find(artifact_command)
+        recipe_position = workflow.find(recipe_command)
+        if artifact_position < 0 or recipe_position < 0 or artifact_position > recipe_position:
             errors.append(
-                f"{label} must not make the legacy Storybook artifact a browser-session release gate."
+                f"{label} must refresh static and live Storybook acceptance artifacts "
+                f"before the KDV {required_recipe} recipe."
             )
     return errors
 
@@ -558,11 +566,25 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
             "invalid",
         )
     )
-    release_preflight = 'just VERSION="${{ steps.version.outputs.version }}" release-check\n'
-    release_workflow = 'just VERSION="${{ steps.version.outputs.version }}" release-verify\n'
+    release_preflight = "\n".join(
+        (
+            "xvfb-run -a just storybook-release-acceptance-artifacts",
+            'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check',
+        )
+    )
+    release_workflow = "\n".join(
+        (
+            "xvfb-run -a just storybook-release-acceptance-artifacts",
+            'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-verify',
+        )
+    )
     assert not release_workflow_errors(release_preflight, release_workflow)
     assert release_workflow_errors(
-        "storybook-release-acceptance-artifacts\n", release_workflow
+        'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check\n',
+        release_workflow,
+    )
+    assert release_workflow_errors(
+        "\n".join(reversed(release_preflight.splitlines())), release_workflow
     )
     staged_publish = "\n".join(
         (
