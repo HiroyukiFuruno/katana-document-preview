@@ -9,8 +9,8 @@ use crate::catalog::{FixtureCatalog, StorybookFixture};
 use crate::frame::{FrameRenderRequest, StorybookFrameRenderer};
 use crate::frame_pixel_guard::StorybookFramePixelGuard;
 use crate::layout::{
-    StorybookPreviewArea, preview_content_height, preview_content_width, sidebar_content_height,
-    sidebar_content_width,
+    SIDEBAR_WIDTH, StorybookPreviewArea, preview_content_height, preview_content_width,
+    sidebar_content_height, sidebar_content_width,
 };
 use crate::mouse::{StorybookHostActionHits, StorybookMouseButton, StorybookPointer};
 use crate::preview::PreviewBuilder;
@@ -925,6 +925,37 @@ fn sidebar_scroll_refreshes_sidebar_frame_cache() -> Result<(), Box<dyn std::err
     let _ = storybook.render_canvas(1000, 900);
 
     assert_eq!(first_misses + 1, storybook.sidebar_frame_cache_misses);
+    Ok(())
+}
+
+#[test]
+fn sidebar_scroll_invalidates_presented_frame_before_window_loop_redraw()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut storybook = StorybookWindow::new(
+        StorybookArgs::default(),
+        catalog_with_many_katana_labels(),
+        PreviewBuilder::default(),
+    );
+    storybook.frame_cache = Some(storybook.render_frame_cache_scaled(1000, 900, 2.0));
+    assert!(storybook.frame_cache_matches_scaled(1000, 900, 2.0));
+    let before = storybook.present_cached_frame_for_tests(1000, 900)?;
+
+    assert!(storybook.apply_sidebar_scroll(-1.0, 24.0, 900));
+
+    assert!(
+        storybook.frame_cache.is_none(),
+        "sidebar scroll must invalidate the presented frame so the window loop cannot redraw only the preview"
+    );
+    storybook.frame_cache = Some(storybook.render_frame_cache_scaled(1000, 900, 2.0));
+    let after = storybook.present_cached_frame_for_tests(1000, 900)?;
+    let changed_sidebar_pixels = (0..900)
+        .flat_map(|y| (0..SIDEBAR_WIDTH).map(move |x| y * 1000 + x))
+        .filter(|index| before.pixels()[*index] != after.pixels()[*index])
+        .count();
+    assert!(
+        changed_sidebar_pixels > 1_000,
+        "sidebar scroll must visibly redraw the presented FileTree: changed={changed_sidebar_pixels}"
+    );
     Ok(())
 }
 

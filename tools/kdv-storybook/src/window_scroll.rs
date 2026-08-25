@@ -94,8 +94,7 @@ impl StorybookWindow {
             );
             self.sidebar_scroll.tree_y = value.round() as u32;
             if changed {
-                self.sidebar_interaction_cache = None;
-                self.sidebar_interaction_surface_cache = None;
+                self.invalidate_sidebar_scroll_caches();
             }
             return changed;
         }
@@ -107,10 +106,15 @@ impl StorybookWindow {
         );
         self.sidebar_scroll.settings_y = value.round() as u32;
         if changed {
-            self.sidebar_interaction_cache = None;
-            self.sidebar_interaction_surface_cache = None;
+            self.invalidate_sidebar_scroll_caches();
         }
         changed
+    }
+
+    fn invalidate_sidebar_scroll_caches(&mut self) {
+        self.frame_cache = None;
+        self.sidebar_interaction_cache = None;
+        self.sidebar_interaction_surface_cache = None;
     }
 
     fn sidebar_scroll_bounds(

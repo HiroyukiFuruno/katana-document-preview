@@ -1,5 +1,17 @@
 # KDV v0.2.0 ユーザー指摘 TODO 台帳
 
+### 2026-08-26 追補: KDV Storybook FileTree の見た目と実クリック座標の再発ずれ
+
+- [/] `UF-044`: 最新指摘「KDV の Storybook のエクスプローラのクリックポイントがズレている。高頻度で再発しておりハーネスで検知してほしい。KUC 側の問題かもしれない」および追補「エクスプローラーで縦スクロール出来ない」を受入未完了として固定する。
+  - 対応方針: KUC host action から生成した座標を同じ host action へ戻す循環テストを合格根拠にしない。実際に window へ提示される 2x→1x frame の選択行ピクセルから独立に座標を取得し、その座標が同じ FileTree item の hover / click / action へ到達することを複数行、scroll、resize で検査する。
+  - owner 判定: KUC の描画行と KUC hit rect が不一致なら KUC blocker とし、KDV に row geometry や座標補正を追加しない。KUC 契約が一致し、OS window→canvas 変換または KDV cache が不一致なら KDV で修正する。
+  - 再現原因: KDV window loop は preview scroll と sidebar scroll を同じ `scroll_changed` として扱い、sidebar scroll 後も preview-only delta redraw を選択できる。KUC FileTree offset と hit surface は更新される一方、提示済み sidebar frame は古いまま残るため、縦スクロールが見えず、見た目とクリック対象もずれる。KUC の描画行と hit rect 自体は独立ピクセル検査で一致している。
+  - 完了条件: 修正前 RED、根本原因、回帰テスト、`just check` 組込み、実機 Storybook 再確認を記録するまで `[ ]` を維持し、KDV v0.5.5 release を進めない。
+  - RED: `cargo test -p kdv-storybook --locked sidebar_scroll_invalidates_presented_frame_before_window_loop_redraw -- --test-threads=1` が修正前に `sidebar scroll must invalidate the presented frame` で失敗した。
+  - GREEN: release profile の KDV Storybook 全体は 632 passed / 21 ignored、厳格 clippy は warning 0、`just storybook-interaction-check` は 109 tests passed。2x 提示 frame の選択行ピクセルから取得した座標で、通常時および resize + scroll 後に同じ item の hover / click / action へ到達する回帰テストを追加した。
+  - 実機: macOS の実ウィンドウへ wheel event を送り、FileTree の表示行が移動すること、および移動後の画面上の行クリックで同じ fixture と preview が選択されることを確認した。修正版 Storybook を再起動し、ユーザー確認待ちとする。
+  - 全体ゲート: 初回 `just check` は workspace test のリンクでローカルディスク容量不足 (`errno=28`) により停止した。終了済み Cargo 生成物 47.3 GiB を正式な `cargo clean` で解放後、判定基準を変更せず再実行し、fmt、workspace 全機能 clippy、AST lint、entrypoint / boundary 契約、全 test、scorecard、subagent harness を含む全ゲートが成功した。
+
 ## 目的
 
 このファイルを v0.2.0 recovery 作業中のユーザー実機指摘の正本にする。
