@@ -96,3 +96,20 @@ fn expanded_archive_budget_is_enforced() {
         })
     ));
 }
+
+#[test]
+fn active_content_is_recorded_as_a_static_display_diagnostic() {
+    let mut scan = ArchiveScan::new(1);
+    assert!(
+        record_entry(
+            &mut scan,
+            "word/vbaProject.bin",
+            1,
+            1,
+            OfficeDocumentFormat::Docx,
+            OfficePreflightLimits::strict(),
+        )
+        .is_ok()
+    );
+    assert_eq!(scan.diagnostics.len(), 1);
+}

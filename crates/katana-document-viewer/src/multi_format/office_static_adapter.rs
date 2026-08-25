@@ -28,6 +28,7 @@ impl OfficeStaticViewerSession {
         let profile = static_profile(source.format)?;
         let output = OfficeWorkerRunner::convert(&source, &config)?;
         let mut diagnostics = profile.diagnostics();
+        diagnostics.extend(output.preflight_diagnostics);
         diagnostics.extend(output.warnings.into_iter().map(engine_warning));
         let pdf_source =
             BinaryDocumentSource::new(source.identity.clone(), "application/pdf", output.pdf);

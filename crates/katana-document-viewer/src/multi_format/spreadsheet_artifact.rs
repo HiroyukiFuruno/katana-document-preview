@@ -155,7 +155,7 @@ impl SpreadsheetViewerLimits {
     pub const fn strict() -> Self {
         Self {
             max_sheets: 256,
-            max_logical_cells: 10_000_000,
+            max_logical_cells: 25_000_000,
             max_materialized_cells: 4_096,
         }
     }

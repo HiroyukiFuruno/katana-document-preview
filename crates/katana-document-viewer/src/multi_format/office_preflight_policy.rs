@@ -53,11 +53,6 @@ impl OfficePreflightPolicy {
         limits: OfficePreflightLimits,
     ) -> Result<(), OfficePreflightError> {
         validate_entry_name(name)?;
-        if active_content_entry(name) {
-            return Err(OfficePreflightError::ActiveContentBlocked {
-                entry: name.to_owned(),
-            });
-        }
         validate_entry_size(name, compressed, uncompressed, limits)
     }
 
@@ -85,6 +80,10 @@ impl OfficePreflightPolicy {
         nested_package_format(name)
     }
 
+    pub(crate) fn active_content_entry(name: &str) -> bool {
+        active_content_entry(name)
+    }
+
     pub(crate) const fn main_part(format: OfficeDocumentFormat) -> &'static str {
         match format {
             OfficeDocumentFormat::Docx => "word/document.xml",
@@ -100,11 +99,16 @@ fn validate_entry_size(
     uncompressed: u64,
     limits: OfficePreflightLimits,
 ) -> Result<(), OfficePreflightError> {
-    if uncompressed > limits.max_entry_uncompressed_bytes {
+    let entry_limit = if worksheet_entry(name) {
+        super::office_preflight::MAX_WORKSHEET_UNCOMPRESSED_BYTES
+    } else {
+        limits.max_entry_uncompressed_bytes
+    };
+    if uncompressed > entry_limit {
         return Err(OfficePreflightSupport::resource_limit(
             OfficeResourceLimitKind::EntryBytes,
             uncompressed,
-            limits.max_entry_uncompressed_bytes,
+            entry_limit,
             Some(name.to_owned()),
         ));
     }
@@ -118,6 +122,11 @@ fn validate_entry_size(
         ));
     }
     Ok(())
+}
+
+fn worksheet_entry(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.starts_with("xl/worksheets/") && lower.ends_with(".xml")
 }
 
 fn validate_entry_name(name: &str) -> Result<(), OfficePreflightError> {

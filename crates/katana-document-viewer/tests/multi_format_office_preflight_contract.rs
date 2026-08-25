@@ -39,6 +39,17 @@ fn duplicate_filename_package() -> TestResult<Vec<u8>> {
     Ok(bytes)
 }
 
+fn corrupt_local_header_package() -> TestResult<Vec<u8>> {
+    let mut bytes = package(&[("word/document.xml", b"<w:document/>")])?;
+    let name = b"word/document.xml";
+    let name_offset = bytes
+        .windows(name.len())
+        .position(|window| window == name)
+        .ok_or("document local header")?;
+    bytes[name_offset - 30] = 0;
+    Ok(bytes)
+}
+
 fn office(bytes: Vec<u8>, format: OfficeDocumentFormat) -> OfficeDocumentSource {
     let mime = match format {
         OfficeDocumentFormat::Docx => {
@@ -108,6 +119,18 @@ fn representative_packages_pass_bounded_preflight() -> TestResult {
 }
 
 #[test]
+fn corrupt_local_entry_header_fails_during_archive_scan() -> TestResult {
+    assert!(matches!(
+        OfficePackagePreflight::inspect(
+            &docx(corrupt_local_header_package()?),
+            OfficePreflightLimits::strict(),
+        ),
+        Err(OfficePreflightError::InvalidArchive { .. })
+    ));
+    Ok(())
+}
+
+#[test]
 fn external_hyperlink_is_accepted_without_granting_resource_access() -> TestResult {
     let relationship = br#"<Relationships><Relationship Id="rIdLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid/documentation" TargetMode="External"/></Relationships>"#;
     let bytes = package(&[
@@ -137,16 +160,13 @@ fn external_fetchable_relationship_is_rejected_before_an_engine_can_open_it() ->
 }
 
 #[test]
-fn active_content_is_rejected_before_an_engine_can_open_it() -> TestResult {
-    assert!(matches!(
-        OfficePackagePreflight::inspect(
-            &source("macro-marker.docx", OfficeDocumentFormat::Docx)?,
-            OfficePreflightLimits::strict(),
-        ),
-        Err(error)
-            if matches!(&error, OfficePreflightError::ActiveContentBlocked { .. })
-                && error.diagnostic().code == ViewerDiagnosticCode::ActiveContentBlocked
-    ));
+fn active_content_is_accepted_for_quarantined_static_display() -> TestResult {
+    let report = OfficePackagePreflight::inspect(
+        &source("macro-marker.docx", OfficeDocumentFormat::Docx)?,
+        OfficePreflightLimits::strict(),
+    )?;
+
+    assert!(report.entry_count > 0);
     Ok(())
 }
 

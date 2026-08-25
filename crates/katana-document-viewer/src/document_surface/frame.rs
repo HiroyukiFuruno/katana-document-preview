@@ -1,5 +1,6 @@
 use super::{DocumentGridSurfaceFrame, DocumentSurfaceError};
 use katana_ui_core::render_model::{UiImageSurfaceProps, UiNode, UiNodeKind};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocumentSurfaceKind {
@@ -10,6 +11,20 @@ pub enum DocumentSurfaceKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentSurfaceFrame {
     content: DocumentSurfaceContent,
+    navigation: DocumentNavigationMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct DocumentNavigationMetadata {
+    item_labels: Vec<String>,
+    outline_items: Vec<PdfOutlineItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PdfOutlineItem {
+    pub title: String,
+    pub level: usize,
+    pub page_index: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +48,10 @@ impl DocumentSurfaceFrame {
                 });
             }
         };
-        Ok(Self { content })
+        Ok(Self {
+            content,
+            navigation: DocumentNavigationMetadata::default(),
+        })
     }
 
     #[must_use]
@@ -69,6 +87,28 @@ impl DocumentSurfaceFrame {
             .find(|cell| cell.coordinate == active)
             .map(|cell| cell.text.as_str())
     }
+
+    #[must_use]
+    pub fn item_labels(&self) -> &[String] {
+        &self.navigation.item_labels
+    }
+
+    #[must_use]
+    pub fn outline_items(&self) -> &[PdfOutlineItem] {
+        &self.navigation.outline_items
+    }
+
+    pub(crate) fn with_navigation_metadata(
+        mut self,
+        item_labels: Vec<String>,
+        outline_items: Vec<PdfOutlineItem>,
+    ) -> Self {
+        self.navigation = DocumentNavigationMetadata {
+            item_labels,
+            outline_items,
+        };
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,7 +141,8 @@ impl From<&UiImageSurfaceProps> for DocumentPageSurfaceFrame {
 #[cfg(test)]
 mod tests {
     use super::{
-        DocumentGridSurfaceFrame, DocumentSurfaceContent, DocumentSurfaceFrame, DocumentSurfaceKind,
+        DocumentGridSurfaceFrame, DocumentSurfaceContent, DocumentSurfaceFrame,
+        DocumentSurfaceKind, PdfOutlineItem,
     };
     use crate::DocumentGridViewport;
 
@@ -118,11 +159,22 @@ mod tests {
                 show_grid_lines: true,
                 cells: Vec::new(),
             }),
-        };
+            navigation: super::DocumentNavigationMetadata::default(),
+        }
+        .with_navigation_metadata(
+            vec!["Sheet 1".to_owned()],
+            vec![PdfOutlineItem {
+                title: "Section".to_owned(),
+                level: 0,
+                page_index: Some(0),
+            }],
+        );
 
         assert_eq!(
             DocumentSurfaceKind::Grid,
             std::hint::black_box(&frame).kind()
         );
+        assert_eq!(["Sheet 1"], frame.item_labels());
+        assert_eq!("Section", frame.outline_items()[0].title);
     }
 }

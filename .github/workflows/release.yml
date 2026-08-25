@@ -62,7 +62,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Install diagram test dependencies
+      - name: Install acceptance artifact dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y graphviz imagemagick xvfb xclip
@@ -96,7 +96,9 @@ jobs:
             "${{ github.event.pull_request.head.ref }}"
 
       - name: Release verify
-        run: just VERSION="${{ steps.version.outputs.version }}" release-verify
+        run: |
+          xvfb-run -a just storybook-release-acceptance-artifacts
+          xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-verify
 
       - name: Free release verification build outputs
         run: cargo clean

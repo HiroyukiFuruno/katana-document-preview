@@ -15,9 +15,9 @@ from pathlib import Path
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 RELEASE_CONTRACT = "multi-format-viewer"
-KRR_MIN_VERSION = (0, 4, 15)
+KRR_MIN_VERSION = (0, 4, 16)
 KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "^0.4.15"
+KRR_VERSION_REQUIREMENT = "^0.4.16"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
@@ -43,7 +43,7 @@ FORBIDDEN_ADAPTER_MARKERS = (
 )
 SELECTED_ENGINES = {
     "hayro": ("hayro", "0.7.1"),
-    "office2pdf": ("office2pdf", "0.6.7"),
+    "office2pdf": ("office2pdf-katana", "0.6.10"),
     "ironcalc": ("ironcalc", "0.8.3"),
 }
 LINUX_SANDBOX_DEPENDENCIES = {
@@ -511,7 +511,7 @@ def self_test() -> None:
         selected_dependencies = "\n".join(
             (
                 'hayro = "=0.7.1"',
-                'office2pdf = "=0.6.7"',
+                'office2pdf = { package = "office2pdf-katana", version = "=0.6.10" }',
                 'ironcalc = "=0.8.3"',
                 'libc = "=0.2.189"',
                 'seccompiler = "=0.5.0"',
@@ -531,7 +531,8 @@ def self_test() -> None:
         )
         assert not multi_format_manifest_errors(root, "v0.5.2")
         stale_manifest = (root / "Cargo.toml").read_text(encoding="utf-8").replace(
-            'office2pdf = "=0.6.7"', 'office2pdf = "=0.6.6"'
+            'office2pdf = { package = "office2pdf-katana", version = "=0.6.10" }',
+            'office2pdf = { package = "office2pdf-katana", version = "=0.6.9" }',
         )
         (root / "Cargo.toml").write_text(stale_manifest, encoding="utf-8")
         assert multi_format_manifest_errors(root, "v0.5.2")
@@ -540,14 +541,14 @@ version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.15"
+version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert not lockfile_errors(registry_lock.replace('version = "0.4.15"', 'version = "0.4.16"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.15"', 'version = "0.4.14"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.15"', 'version = "0.5.0"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.17"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.15"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))
@@ -589,7 +590,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     )
     assert not multi_format_lockfile_errors(selected_lock)
     assert multi_format_lockfile_errors(
-        selected_lock.replace('version = "0.6.7"', 'version = "0.6.6"', 1)
+        selected_lock.replace('version = "0.6.10"', 'version = "0.6.9"', 1)
     )
 
 

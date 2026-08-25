@@ -66,8 +66,18 @@ impl SpreadsheetDocumentSession {
             .engine
             .materialize_cells(self.surface.sheet_index(), coordinates)?;
         self.surface.supply_cells(cells)?;
+        let item_labels = self
+            .engine
+            .artifact()
+            .sheets
+            .iter()
+            .map(|sheet| sheet.name.clone())
+            .collect();
         Ok(DocumentFrame {
-            surface: self.surface.frame()?,
+            surface: self
+                .surface
+                .frame()?
+                .with_navigation_metadata(item_labels, Vec::new()),
             state: self.state,
             capabilities: self.capabilities.clone(),
             diagnostics: self.diagnostics.clone(),
