@@ -101,7 +101,7 @@ pub use document_surface::{
     DocumentGridNavigation, DocumentGridRating, DocumentGridSurfaceFrame,
     DocumentGridVerticalAlignment, DocumentGridViewport, DocumentPageSurfaceFrame, DocumentRect,
     DocumentSurfaceCommand, DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceKind,
-    DocumentViewport, SpreadsheetGridSurface,
+    DocumentViewport, PdfOutlineItem, SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,

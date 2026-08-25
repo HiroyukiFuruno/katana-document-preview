@@ -34,12 +34,13 @@ impl SpreadsheetGridSurface {
         sheet: &SpreadsheetSheetArtifact,
         viewport: DocumentViewport,
     ) -> Result<Self, DocumentSurfaceError> {
+        let (frozen_rows, frozen_columns) = adjusted_frozen_panes(sheet);
         let mut grid = GenericGrid::new(&sheet.name, sheet.row_count, sheet.column_count)
             .row_tracks(track_provider(&sheet.row_tracks, DEFAULT_ROW_SIZE))
             .column_tracks(track_provider(&sheet.column_tracks, DEFAULT_COLUMN_SIZE))
             .viewport(GridViewport::new(viewport.width, viewport.height))
             .overscan(1, 1)
-            .frozen(sheet.frozen_rows, sheet.frozen_columns)
+            .frozen(frozen_rows, frozen_columns)
             .show_grid_lines(sheet.show_grid_lines)
             .with_cell_spans(sheet.merged_cells.iter().copied().map(cell_span).collect())?;
         if sheet.row_count > 0 && sheet.column_count > 0 {
@@ -85,6 +86,27 @@ impl SpreadsheetGridSurface {
 
     pub fn frame(&self) -> Result<DocumentSurfaceFrame, DocumentSurfaceError> {
         DocumentSurfaceFrame::from_node(self.grid.clone().into())
+    }
+}
+
+fn adjusted_frozen_panes(sheet: &SpreadsheetSheetArtifact) -> (usize, usize) {
+    let mut rows = sheet.frozen_rows.min(sheet.row_count);
+    let mut columns = sheet.frozen_columns.min(sheet.column_count);
+    loop {
+        let previous = (rows, columns);
+        for merged in &sheet.merged_cells {
+            let row_end = merged.anchor.row.saturating_add(merged.row_span);
+            if merged.anchor.row < rows && rows < row_end {
+                rows = row_end.min(sheet.row_count);
+            }
+            let column_end = merged.anchor.column.saturating_add(merged.column_span);
+            if merged.anchor.column < columns && columns < column_end {
+                columns = column_end.min(sheet.column_count);
+            }
+        }
+        if previous == (rows, columns) {
+            return (rows, columns);
+        }
     }
 }
 

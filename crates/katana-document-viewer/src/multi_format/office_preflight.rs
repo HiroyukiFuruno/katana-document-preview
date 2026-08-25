@@ -6,7 +6,7 @@ use super::{
 use thiserror::Error;
 
 pub(crate) const MAX_NESTED_PACKAGE_DEPTH: usize = 2;
-
+pub(crate) const MAX_WORKSHEET_UNCOMPRESSED_BYTES: u64 = 640 * 1024 * 1024;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OfficePreflightLimits {
     pub max_source_bytes: u64,
@@ -24,7 +24,7 @@ impl OfficePreflightLimits {
             max_source_bytes: 128 * 1024 * 1024,
             max_entries: 4_096,
             max_entry_uncompressed_bytes: 16 * 1024 * 1024,
-            max_total_uncompressed_bytes: 128 * 1024 * 1024,
+            max_total_uncompressed_bytes: 768 * 1024 * 1024,
             max_compression_ratio: 200,
             max_relationship_bytes: 2 * 1024 * 1024,
         }
@@ -76,31 +76,48 @@ pub enum OfficePreflightError {
 impl OfficePreflightError {
     #[must_use]
     pub fn diagnostic(&self) -> ViewerDiagnostic {
-        let (code, feature, status) = match self {
-            Self::UnsupportedMime { .. } => (ViewerDiagnosticCode::UnsupportedFormat, None, None),
-            Self::InvalidArchive { .. } | Self::UnsafeEntryName { .. } => {
-                (ViewerDiagnosticCode::InvalidDocument, None, None)
-            }
-            Self::ActiveContentBlocked { .. } => (
-                ViewerDiagnosticCode::ActiveContentBlocked,
-                Some(ViewerFeature::Macro),
-                Some(ViewerFeatureStatus::Blocked),
-            ),
-            Self::ExternalResourceBlocked { .. } => (
-                ViewerDiagnosticCode::ExternalResourceBlocked,
-                Some(ViewerFeature::ExternalResource),
-                Some(ViewerFeatureStatus::Blocked),
-            ),
-            Self::ResourceLimitExceeded { .. } => {
-                (ViewerDiagnosticCode::ResourceLimitExceeded, None, None)
-            }
-        };
+        let (code, feature, status) = diagnostic_details(self);
         ViewerDiagnostic {
             code,
-            severity: ViewerDiagnosticSeverity::Error,
+            severity: if matches!(self, Self::ActiveContentBlocked { .. }) {
+                ViewerDiagnosticSeverity::Warning
+            } else {
+                ViewerDiagnosticSeverity::Error
+            },
             feature,
             status,
             message: self.to_string(),
+        }
+    }
+}
+
+fn diagnostic_details(
+    error: &OfficePreflightError,
+) -> (
+    ViewerDiagnosticCode,
+    Option<ViewerFeature>,
+    Option<ViewerFeatureStatus>,
+) {
+    match error {
+        OfficePreflightError::UnsupportedMime { .. } => {
+            (ViewerDiagnosticCode::UnsupportedFormat, None, None)
+        }
+        OfficePreflightError::InvalidArchive { .. }
+        | OfficePreflightError::UnsafeEntryName { .. } => {
+            (ViewerDiagnosticCode::InvalidDocument, None, None)
+        }
+        OfficePreflightError::ActiveContentBlocked { .. } => (
+            ViewerDiagnosticCode::ActiveContentBlocked,
+            Some(ViewerFeature::Macro),
+            Some(ViewerFeatureStatus::Blocked),
+        ),
+        OfficePreflightError::ExternalResourceBlocked { .. } => (
+            ViewerDiagnosticCode::ExternalResourceBlocked,
+            Some(ViewerFeature::ExternalResource),
+            Some(ViewerFeatureStatus::Blocked),
+        ),
+        OfficePreflightError::ResourceLimitExceeded { .. } => {
+            (ViewerDiagnosticCode::ResourceLimitExceeded, None, None)
         }
     }
 }
@@ -120,6 +137,13 @@ impl OfficePackagePreflight {
         source: &OfficeDocumentSource,
         limits: OfficePreflightLimits,
     ) -> Result<OfficePreflightReport, OfficePreflightError> {
+        OfficePreflightArchive::inspect(source, limits, 0).map(|(report, _)| report)
+    }
+
+    pub(crate) fn inspect_with_diagnostics(
+        source: &OfficeDocumentSource,
+        limits: OfficePreflightLimits,
+    ) -> Result<(OfficePreflightReport, Vec<ViewerDiagnostic>), OfficePreflightError> {
         OfficePreflightArchive::inspect(source, limits, 0)
     }
 }

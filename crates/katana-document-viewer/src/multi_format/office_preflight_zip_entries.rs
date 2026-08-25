@@ -12,9 +12,14 @@ impl OfficeZipEntries {
     ) -> Result<(), OfficePreflightError> {
         let mut cursor = Cursor::new(bytes);
         let mut names = HashSet::with_capacity(expected_entries);
-        while let Some(mut file) =
-            read_zipfile_from_stream(&mut cursor).map_err(OfficePreflightSupport::archive_error)?
-        {
+        loop {
+            let file = match read_zipfile_from_stream(&mut cursor) {
+                Ok(Some(file)) => file,
+                Ok(None) => break,
+                Err(error) if local_header_length_is_deferred(&error.to_string()) => return Ok(()),
+                Err(error) => return Err(OfficePreflightSupport::archive_error(error)),
+            };
+            let mut file = file;
             Self::record_name(&mut names, &file)?;
             std::io::copy(&mut file, &mut sink()).map_err(OfficePreflightSupport::archive_error)?;
         }
@@ -44,9 +49,13 @@ impl OfficeZipEntries {
     }
 }
 
+fn local_header_length_is_deferred(message: &str) -> bool {
+    message.contains("local header file length unavailable")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::OfficeZipEntries;
+    use super::{OfficeZipEntries, local_header_length_is_deferred};
     use std::io::{Cursor, Write};
     use zip::write::SimpleFileOptions;
 
@@ -63,6 +72,14 @@ mod tests {
     fn valid_local_entry_count_is_accepted() -> TestResult {
         assert!(OfficeZipEntries::validate(&single_entry_zip()?, 1).is_ok());
         Ok(())
+    }
+
+    #[test]
+    fn data_descriptor_length_limitation_defers_to_validated_central_directory() {
+        assert!(local_header_length_is_deferred(
+            "local header file length unavailable"
+        ));
+        assert!(!local_header_length_is_deferred("invalid local header"));
     }
 
     #[test]

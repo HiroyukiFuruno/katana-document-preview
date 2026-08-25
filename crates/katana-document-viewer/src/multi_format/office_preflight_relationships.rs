@@ -44,7 +44,7 @@ fn inspect_xml(name: &str, xml: &[u8]) -> Result<usize, OfficePreflightError> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(event)) | Ok(Event::Empty(event))
-                if event.local_name().as_ref() == b"Relationship" =>
+                if event.local_name().as_ref().as_bytes() == b"Relationship" =>
             {
                 external_hyperlink_count += inspect_element(name, &reader, &event)?;
             }
@@ -59,7 +59,7 @@ fn inspect_xml(name: &str, xml: &[u8]) -> Result<usize, OfficePreflightError> {
 
 fn inspect_element(
     name: &str,
-    reader: &Reader<&[u8]>,
+    _reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
 ) -> Result<usize, OfficePreflightError> {
     let mut external = false;
@@ -69,13 +69,13 @@ fn inspect_element(
         let attribute = attribute
             .map_err(|error| OfficePreflightSupport::invalid_archive(error.to_string()))?;
         let value = attribute
-            .decoded_and_normalized_value(XmlVersion::Implicit1_0, reader.decoder())
+            .normalized_value(XmlVersion::Implicit1_0)
             .map_err(|error| OfficePreflightSupport::invalid_archive(error.to_string()))?
             .into_owned();
         match attribute.key.local_name().as_ref() {
-            b"TargetMode" => external = value.eq_ignore_ascii_case("external"),
-            b"Target" => target = value,
-            b"Type" => relationship_type = value,
+            "TargetMode" => external = value.eq_ignore_ascii_case("external"),
+            "Target" => target = value,
+            "Type" => relationship_type = value,
             _ => {}
         }
     }

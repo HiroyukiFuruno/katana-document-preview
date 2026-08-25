@@ -52,6 +52,43 @@ fn preflight_valid_invalid_xlsx() -> TestResult<OfficeDocumentSource> {
     ))
 }
 
+fn streaming_xlsx() -> TestResult<OfficeDocumentSource> {
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    for (name, content) in [
+        (
+            "xl/workbook.xml",
+            r#"<workbook><sheets><sheet name="Streaming" id="r1"/></sheets></workbook>"#,
+        ),
+        (
+            "xl/_rels/workbook.xml.rels",
+            r#"<Relationships><Relationship Id="r1" Target="worksheets/sheet1.xml"/></Relationships>"#,
+        ),
+    ] {
+        writer.start_file(name, options)?;
+        writer.write_all(content.as_bytes())?;
+    }
+    writer.start_file("xl/worksheets/sheet1.xml", options)?;
+    writer.write_all(br#"<worksheet><dimension ref="A1"/><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>streamed</t></is></c></row></sheetData>"#)?;
+    let mut state = 0x1234_5678_u32;
+    let mut padding = vec![0_u8; 1024 * 1024];
+    for _ in 0..129 {
+        for byte in &mut padding {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            *byte = b'a' + ((state >> 28) as u8);
+        }
+        writer.write_all(&padding)?;
+    }
+    writer.write_all(b"</worksheet>")?;
+    let bytes = writer.finish()?.into_inner();
+    Ok(OfficeDocumentSource::new(
+        ViewerSourceIdentity::new("file:///fixtures/streaming.xlsx", "streaming"),
+        OfficeDocumentFormat::Xlsx,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        bytes,
+    ))
+}
+
 #[test]
 fn missing_spreadsheet_worker_is_a_typed_failure_without_in_process_fallback() -> TestResult {
     let result = SpreadsheetViewerSession::open(
@@ -63,6 +100,15 @@ fn missing_spreadsheet_worker_is_a_typed_failure_without_in_process_fallback() -
         Ok(_) => return Err("missing worker did not fail closed".into()),
     };
     assert!(matches!(error, OfficeWorkerError::WorkerUnavailable { .. }));
+    Ok(())
+}
+
+#[test]
+fn oversized_worksheet_uses_the_bounded_streaming_backend() -> TestResult {
+    let mut session = SpreadsheetViewerSession::open(streaming_xlsx()?, worker_config())?;
+    assert_eq!(session.artifact().sheets[0].name, "Streaming");
+    let cells = session.materialize_cells(0, vec![SpreadsheetCoordinate::new(0, 0)])?;
+    assert_eq!(cells[0].display_text, "streamed");
     Ok(())
 }
 

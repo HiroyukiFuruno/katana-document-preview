@@ -30,6 +30,34 @@ fn corrupted_sheet_index_fails_closed_before_surface_replacement() -> TestResult
     Ok(())
 }
 
+#[test]
+fn spreadsheet_frame_exposes_worksheet_names_for_host_tabs() -> TestResult {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/fixtures/multi-format/representative.xlsx");
+    let source = OfficeDocumentSource::new(
+        ViewerSourceIdentity::new("file:///unit.xlsx", "sha256:unit-xlsx"),
+        super::super::OfficeDocumentFormat::Xlsx,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        std::fs::read(fixture)?,
+    );
+    let mut session = SpreadsheetDocumentSession::open(
+        source,
+        OfficeWorkerConfig::new(worker_binary_path()?),
+        DocumentViewport::new(640, 480),
+    )?;
+
+    let frame = session.frame()?;
+    assert_eq!(frame.state.item_count, frame.surface.item_labels().len());
+    assert!(
+        frame
+            .surface
+            .item_labels()
+            .iter()
+            .all(|name| !name.trim().is_empty())
+    );
+    Ok(())
+}
+
 fn worker_binary_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let current_exe = std::env::current_exe()?;
     let deps = current_exe

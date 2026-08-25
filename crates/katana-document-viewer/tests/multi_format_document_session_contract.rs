@@ -248,6 +248,97 @@ fn unified_session_preserves_invalid_pdf_failures() {
     ));
 }
 
+#[test]
+#[ignore = "requires KDV_ACCEPTANCE_FIXTURE_DIR with user-supplied Office documents"]
+fn user_supplied_office_fixtures_open_through_the_unified_session() -> TestResult {
+    let directory = PathBuf::from(std::env::var("KDV_ACCEPTANCE_FIXTURE_DIR")?);
+    let requested_name = std::env::var("KDV_ACCEPTANCE_FIXTURE_NAME").ok();
+    let mut paths = std::fs::read_dir(&directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|extension| extension.to_str()),
+                Some("docx" | "xlsx" | "pptx")
+            )
+        })
+        .filter(|path| {
+            requested_name.as_ref().is_none_or(|requested| {
+                path.file_name().and_then(|name| name.to_str()) == Some(requested.as_str())
+            })
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    if paths.is_empty() {
+        return Err(format!("no Office fixtures found in {}", directory.display()).into());
+    }
+
+    let mut failures = Vec::new();
+    for path in paths {
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+        let format = match extension {
+            "docx" => OfficeDocumentFormat::Docx,
+            "xlsx" => OfficeDocumentFormat::Xlsx,
+            "pptx" => OfficeDocumentFormat::Pptx,
+            _ => continue,
+        };
+        let name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| format!("fixture name is not UTF-8: {}", path.display()))?;
+        let source = ViewerSource::Office(OfficeDocumentSource::new(
+            ViewerSourceIdentity::new(
+                format!("file://{}", path.display()),
+                format!("acceptance:{name}"),
+            ),
+            format,
+            match format {
+                OfficeDocumentFormat::Docx => {
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                }
+                OfficeDocumentFormat::Xlsx => {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
+                OfficeDocumentFormat::Pptx => {
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                }
+            },
+            std::fs::read(&path)?,
+        ));
+        let mut session = match DocumentSession::open(source, config()) {
+            Ok(session) => session,
+            Err(error) => {
+                failures.push(format!("{} failed to open: {error}", path.display()));
+                continue;
+            }
+        };
+        if let Err(error) = session.frame() {
+            failures.push(format!(
+                "{} failed to render its first frame: {error}",
+                path.display()
+            ));
+        } else if format == OfficeDocumentFormat::Xlsx {
+            let scroll = DocumentSessionCommand::Surface(DocumentSurfaceCommand::Grid(
+                DocumentGridCommand::ScrollTo { x: 320, y: 20_000 },
+            ));
+            if let Err(error) = session.apply(scroll).and_then(|_| session.frame()) {
+                failures.push(format!(
+                    "{} failed to render after spreadsheet scrolling: {error}",
+                    path.display()
+                ));
+            }
+        }
+        session.close();
+    }
+    if !failures.is_empty() {
+        return Err(failures.join("\n").into());
+    }
+    Ok(())
+}
+
 fn assert_frame(
     session: &mut DocumentSession,
     format: ViewerDocumentFormat,

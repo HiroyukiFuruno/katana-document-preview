@@ -29,11 +29,13 @@ impl SpreadsheetViewerSession {
         if source.format != OfficeDocumentFormat::Xlsx {
             return Err(OfficeWorkerError::UnsupportedFormat(source.format));
         }
-        OfficePackagePreflight::inspect(&source, config.preflight_limits)?;
+        let (_, preflight_diagnostics) =
+            OfficePackagePreflight::inspect_with_diagnostics(&source, config.preflight_limits)?;
         let mut worker = SpreadsheetWorkerProcess::spawn(&source, &config)?;
         let sheets = opened_sheets(worker.receive()?)?;
         let profile = ViewerQualityProfile::interactive_grid();
-        let diagnostics = profile.diagnostics();
+        let mut diagnostics = profile.diagnostics();
+        diagnostics.extend(preflight_diagnostics);
         let artifact = SpreadsheetDocumentArtifact {
             identity: source.identity,
             mime: source.mime,

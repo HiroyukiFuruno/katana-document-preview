@@ -111,6 +111,7 @@ impl OfficeWorkerError {
 pub(super) struct OfficeWorkerOutput {
     pub pdf: Vec<u8>,
     pub warnings: Vec<String>,
+    pub preflight_diagnostics: Vec<ViewerDiagnostic>,
 }
 
 pub(super) struct OfficeWorkerRunner;
@@ -120,12 +121,16 @@ impl OfficeWorkerRunner {
         source: &OfficeDocumentSource,
         config: &OfficeWorkerConfig,
     ) -> Result<OfficeWorkerOutput, OfficeWorkerError> {
-        OfficePackagePreflight::inspect(source, config.preflight_limits)?;
+        let (_, preflight_diagnostics) =
+            OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?;
         let workspace =
             OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?;
         let status = OfficeWorkerProcess::run(workspace.path(), source.format, config)?;
         let response = OfficeWorkerOutputReader::read_response(workspace.path())?;
-        complete_conversion(workspace.path(), status, response, config)
+        complete_conversion(workspace.path(), status, response, config).map(|mut output| {
+            output.preflight_diagnostics = preflight_diagnostics;
+            output
+        })
     }
 }
 
@@ -141,7 +146,11 @@ fn complete_conversion(
                 return Err(OfficeWorkerError::WorkerCrashed { status });
             }
             let pdf = OfficeWorkerOutputReader::read_pdf(workspace, config.max_output_bytes)?;
-            Ok(OfficeWorkerOutput { pdf, warnings })
+            Ok(OfficeWorkerOutput {
+                pdf,
+                warnings,
+                preflight_diagnostics: Vec::new(),
+            })
         }
         OfficeWorkerResponse::Failed { stage, message } => {
             failed_conversion(stage, message, config.max_output_bytes)

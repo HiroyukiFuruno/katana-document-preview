@@ -19,6 +19,7 @@ struct ArchiveScan {
     compressed_bytes: u64,
     uncompressed_bytes: u64,
     has_main_part: bool,
+    diagnostics: Vec<super::ViewerDiagnostic>,
 }
 impl ArchiveScan {
     fn new(entry_count: usize) -> Self {
@@ -29,6 +30,7 @@ impl ArchiveScan {
             compressed_bytes: 0,
             uncompressed_bytes: 0,
             has_main_part: false,
+            diagnostics: Vec::new(),
         }
     }
 }
@@ -40,7 +42,7 @@ impl OfficePreflightArchive {
         source: &OfficeDocumentSource,
         limits: OfficePreflightLimits,
         depth: usize,
-    ) -> Result<OfficePreflightReport, OfficePreflightError> {
+    ) -> Result<(OfficePreflightReport, Vec<super::ViewerDiagnostic>), OfficePreflightError> {
         validate_depth(depth)?;
         OfficePreflightPolicy::validate_source(source, limits)?;
         let mut archive = open_archive(source)?;
@@ -51,12 +53,15 @@ impl OfficePreflightArchive {
         let external_relationship_count =
             inspect_relationships(&mut archive, &scan.relationships, limits)?;
         OfficeNestedPackages::inspect(&mut archive, source, &scan.nested, limits, depth)?;
-        Ok(OfficePreflightReport {
-            entry_count: archive.len(),
-            total_compressed_bytes: scan.compressed_bytes,
-            total_uncompressed_bytes: scan.uncompressed_bytes,
-            external_relationship_count,
-        })
+        Ok((
+            OfficePreflightReport {
+                entry_count: archive.len(),
+                total_compressed_bytes: scan.compressed_bytes,
+                total_uncompressed_bytes: scan.uncompressed_bytes,
+                external_relationship_count,
+            },
+            scan.diagnostics,
+        ))
     }
 }
 
@@ -110,11 +115,28 @@ fn record_entry(
     limits: OfficePreflightLimits,
 ) -> Result<(), OfficePreflightError> {
     OfficePreflightPolicy::validate_entry(name, compressed, uncompressed, limits)?;
+    if OfficePreflightPolicy::active_content_entry(name) {
+        let entry = name.to_owned();
+        let error = OfficePreflightError::ActiveContentBlocked { entry };
+        scan.diagnostics.push(error.diagnostic());
+    }
     if !scan.names.insert(name.to_owned()) {
         return Err(OfficePreflightSupport::invalid_archive(format!(
             "duplicate entry `{name}`"
         )));
     }
+    update_totals(scan, compressed, uncompressed, limits)?;
+    scan.has_main_part |= name == OfficePreflightPolicy::main_part(format);
+    collect_auxiliary_entry(scan, name);
+    Ok(())
+}
+
+fn update_totals(
+    scan: &mut ArchiveScan,
+    compressed: u64,
+    uncompressed: u64,
+    limits: OfficePreflightLimits,
+) -> Result<(), OfficePreflightError> {
     scan.compressed_bytes = OfficePreflightPolicy::checked_total(
         scan.compressed_bytes,
         compressed,
@@ -127,8 +149,6 @@ fn record_entry(
         OfficeResourceLimitKind::TotalUncompressedBytes,
         limits.max_total_uncompressed_bytes,
     )?;
-    scan.has_main_part |= name == OfficePreflightPolicy::main_part(format);
-    collect_auxiliary_entry(scan, name);
     Ok(())
 }
 

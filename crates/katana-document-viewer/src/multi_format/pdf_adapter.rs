@@ -1,39 +1,17 @@
 use super::pdf_surface::PdfSurfaceDecoder;
 use super::{
     BinaryDocumentSource, PdfDocumentArtifact, PdfPageRenderRequest, PdfRenderedPage,
-    PdfResourceLimitKind, PdfViewerLimits, pdf_document::PdfDocumentBuilder,
+    PdfResourceLimitKind, PdfViewerError, PdfViewerLimits, pdf_document::PdfDocumentBuilder,
     pdf_render_cache::PdfPageCache,
 };
+use crate::PdfOutlineItem;
 use hayro::hayro_interpret::InterpreterSettings;
 use hayro::hayro_syntax::Pdf;
 use hayro::{RenderCache, RenderSettings, render};
-use thiserror::Error;
-
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum PdfViewerError {
-    #[error("PDF MIME type is unsupported")]
-    UnsupportedMime,
-    #[error("PDF document is encrypted or password protected")]
-    PasswordProtected,
-    #[error("PDF document is invalid")]
-    InvalidDocument,
-    #[error("PDF page {requested} is outside page count {page_count}")]
-    PageOutsideDocument { requested: usize, page_count: usize },
-    #[error("PDF render scale must be finite and greater than zero")]
-    InvalidScale,
-    #[error("PDF resource limit `{kind:?}` exceeded: {actual} > {limit}")]
-    ResourceLimitExceeded {
-        kind: PdfResourceLimitKind,
-        actual: u64,
-        limit: u64,
-    },
-    #[error("PDF rendered page cannot be decoded")]
-    RenderDecode,
-}
-
 pub struct PdfViewerSession {
     pdf: Pdf,
     artifact: PdfDocumentArtifact,
+    outline: Vec<PdfOutlineItem>,
     cache: PdfPageCache,
     limits: PdfViewerLimits,
 }
@@ -49,6 +27,7 @@ impl PdfViewerSession {
     ) -> Result<Self, PdfViewerError> {
         validate_pdf_source(&source, limits)?;
         let pdf = Pdf::new(source.bytes).map_err(map_load_error)?;
+        let outline = super::pdf_outline::PdfOutlineBuilder::build(&pdf);
         let artifact = PdfDocumentBuilder::build(source.identity, source.mime, &pdf);
         check_limit(
             PdfResourceLimitKind::PageCount,
@@ -58,6 +37,7 @@ impl PdfViewerSession {
         Ok(Self {
             pdf,
             artifact,
+            outline,
             cache: PdfPageCache::new(),
             limits,
         })
@@ -66,6 +46,11 @@ impl PdfViewerSession {
     #[must_use]
     pub const fn artifact(&self) -> &PdfDocumentArtifact {
         &self.artifact
+    }
+
+    #[must_use]
+    pub fn outline(&self) -> &[PdfOutlineItem] {
+        &self.outline
     }
 
     pub fn render_page(

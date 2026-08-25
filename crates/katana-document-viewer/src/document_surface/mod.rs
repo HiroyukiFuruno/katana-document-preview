@@ -6,7 +6,9 @@ mod spreadsheet_grid;
 
 use thiserror::Error;
 
-pub use frame::{DocumentPageSurfaceFrame, DocumentSurfaceFrame, DocumentSurfaceKind};
+pub use frame::{
+    DocumentPageSurfaceFrame, DocumentSurfaceFrame, DocumentSurfaceKind, PdfOutlineItem,
+};
 pub use frame_grid::{
     DocumentGridCell, DocumentGridCoordinate, DocumentGridSurfaceFrame, DocumentGridViewport,
     DocumentRect,

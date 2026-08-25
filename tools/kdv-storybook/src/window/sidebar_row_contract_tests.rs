@@ -9,8 +9,10 @@ use crate::sidebar::{StorybookSidebar, StorybookSidebarRequest};
 use crate::sidebar_test_support::StorybookFileTreeItemPointRequest;
 use katana_ui_core::molecule::TreeView;
 use katana_ui_core::render_model::{UiCursor, UiNode, UiNodeKind, UiTreeNodeKind};
+use katana_ui_core_storybook::StorybookPresentation;
 
 const SIDEBAR_TREE_HOVER_BACKGROUND: u32 = 0x243041;
+const SIDEBAR_TREE_SELECTION: u32 = 0x264f78;
 
 #[test]
 fn rendered_file_tree_row_center_selects_same_file() -> Result<(), Box<dyn std::error::Error>> {
@@ -184,6 +186,105 @@ fn scrolled_file_tree_hover_then_click_matrix_selects_visible_files()
         assert_eq!("select-file", storybook.last_command_label);
     }
     Ok(())
+}
+
+#[test]
+fn presented_file_tree_selection_pixels_click_the_same_rows_at_retina_scale()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_presented_selection_pixels_click_same_rows(2.0, WINDOW_WIDTH, WINDOW_HEIGHT, 0)
+}
+
+#[test]
+fn presented_file_tree_selection_pixels_click_the_same_rows_after_resize_and_scroll()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_presented_selection_pixels_click_same_rows(
+        2.0,
+        WINDOW_WIDTH + 377,
+        WINDOW_HEIGHT + 211,
+        TreeView::row_height().saturating_mul(3),
+    )
+}
+
+fn assert_presented_selection_pixels_click_same_rows(
+    scale: f32,
+    width: usize,
+    height: usize,
+    tree_scroll_y: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let catalog = storybook_with_catalog()?.catalog.clone();
+    let candidate_indices = (0..catalog.fixtures.len()).take(12).collect::<Vec<_>>();
+    let mut checked = 0;
+
+    for target_index in candidate_indices {
+        let target_id = catalog.fixtures[target_index].label.clone();
+        let mut rendered = storybook_with_catalog()?;
+        rendered.selected_index = target_index;
+        rendered.sidebar_scroll.tree_y = tree_scroll_y;
+        let scaled = rendered.render_canvas_scaled(width, height, scale);
+        let presented = StorybookPresentation::present_frame_for_window(
+            &scaled,
+            width,
+            height,
+            scaled.pixels().first().copied().unwrap_or_default(),
+        );
+        let Some((x, y)) = selected_row_pixel_center(&presented, height) else {
+            continue;
+        };
+
+        let mut clicked = storybook_with_catalog()?;
+        clicked.sidebar_scroll.tree_y = tree_scroll_y;
+        if clicked.catalog.fixtures[clicked.selected_index].label == target_id {
+            clicked.selected_index = (target_index + 1) % clicked.catalog.fixtures.len();
+        }
+        assert!(
+            clicked.update_sidebar_tree_hover_for_canvas_point(x, y, width, height),
+            "presented FileTree selection pixel must hover a row: target={target_id} point=({x},{y})"
+        );
+        assert_eq!(
+            Some(target_id.as_str()),
+            clicked.file_tree_state.hovered_item_id(),
+            "presented FileTree selection pixel must hover the same item"
+        );
+        assert!(clicked.apply_canvas_click(
+            StorybookPointer::new(x, y, StorybookMouseButton::Left),
+            width,
+            height,
+        )?);
+        assert_eq!(
+            target_id, clicked.catalog.fixtures[clicked.selected_index].label,
+            "presented FileTree selection pixel must click the same item"
+        );
+        checked += 1;
+        if checked == 3 {
+            break;
+        }
+    }
+
+    assert_eq!(
+        3, checked,
+        "three visible FileTree rows must be independently checked"
+    );
+    Ok(())
+}
+
+fn selected_row_pixel_center(
+    canvas: &crate::canvas::Canvas,
+    window_height: usize,
+) -> Option<(f32, f32)> {
+    let top = SIDEBAR_CONTENT_INSET;
+    let bottom = SIDEBAR_CONTENT_INSET + sidebar_content_height(window_height) / 2;
+    let row_width = sidebar_content_width().saturating_sub(8);
+    let selected_y = (top..bottom.min(canvas.height())).find(|y| {
+        (sidebar_content_x()..(sidebar_content_x() + row_width).min(canvas.width()))
+            .filter(|x| canvas.pixels()[y * canvas.width() + x] == SIDEBAR_TREE_SELECTION)
+            .count()
+            >= row_width.saturating_sub(2)
+    })?;
+    let row_height = TreeView::row_height() as usize;
+    Some((
+        sidebar_content_x() as f32 + 24.0,
+        selected_y.saturating_add(row_height / 2) as f32,
+    ))
 }
 
 fn visible_tree_row(

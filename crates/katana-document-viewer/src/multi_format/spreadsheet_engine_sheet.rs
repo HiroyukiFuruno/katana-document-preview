@@ -147,7 +147,7 @@ mod tests {
             max_materialized_cells: 16,
         };
         assert!(matches!(
-            SpreadsheetEngineSession::open(bytes, "representative.xlsx", limits),
+            SpreadsheetEngineSession::open(bytes.to_vec(), "representative.xlsx", limits),
             Err(SpreadsheetEngineError::ResourceLimit {
                 kind: "logical_cell_count",
                 ..

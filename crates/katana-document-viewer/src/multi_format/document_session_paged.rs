@@ -1,10 +1,11 @@
+use super::document_session_paged_metadata::{office_metadata, pdf_metadata};
 use super::{
     BinaryDocumentSource, DocumentFitMode, DocumentFrame, DocumentSessionCommand,
     DocumentSessionError, DocumentSessionEvent, DocumentViewerCommand, DocumentViewerState,
     OfficeDocumentSource, OfficeStaticViewerSession, OfficeWorkerConfig, PdfPageRenderRequest,
     PdfRenderedPage, PdfViewerSession, ViewerCapabilities, ViewerDiagnostic, ViewerDocumentFormat,
 };
-use crate::{DocumentSurfaceCommand, DocumentSurfaceFrame, DocumentViewport};
+use crate::{DocumentSurfaceCommand, DocumentSurfaceFrame, DocumentViewport, PdfOutlineItem};
 
 const VIEWPORT_HORIZONTAL_CHROME: u32 = 32;
 const VIEWPORT_VERTICAL_CHROME: u32 = 72;
@@ -23,6 +24,7 @@ pub(super) struct PagedDocumentSession {
     capabilities: ViewerCapabilities,
     diagnostics: Vec<ViewerDiagnostic>,
     item_sizes: Vec<(f32, f32)>,
+    outline_items: Vec<PdfOutlineItem>,
     viewport: DocumentViewport,
 }
 
@@ -32,30 +34,9 @@ impl PagedDocumentSession {
         viewport: DocumentViewport,
     ) -> Result<Self, DocumentSessionError> {
         let session = PdfViewerSession::open(source)?;
-        let (item_count, capabilities, diagnostics, item_sizes) = {
-            let artifact = session.artifact();
-            (
-                artifact.page_count,
-                artifact.capabilities.clone(),
-                artifact.diagnostics.clone(),
-                artifact
-                    .pages
-                    .iter()
-                    .map(|page| (page.width, page.height))
-                    .collect(),
-            )
-        };
-        Ok(Self::new(
-            PagedEngine::Pdf(session),
-            ViewerDocumentFormat::Pdf,
-            item_count,
-            capabilities,
-            diagnostics,
-            item_sizes,
-            viewport,
-        ))
+        let metadata = pdf_metadata(&session);
+        Ok(Self::new(PagedEngine::Pdf(session), metadata, viewport))
     }
-
     pub(super) fn open_office(
         source: OfficeDocumentSource,
         worker: OfficeWorkerConfig,
@@ -63,52 +44,27 @@ impl PagedDocumentSession {
     ) -> Result<Self, DocumentSessionError> {
         let format = ViewerDocumentFormat::from(source.format);
         let session = OfficeStaticViewerSession::open(source, worker)?;
-        let (item_count, capabilities, diagnostics, item_sizes) = {
-            let artifact = session.artifact();
-            (
-                artifact.item_count,
-                artifact.capabilities.clone(),
-                artifact.diagnostics.clone(),
-                artifact
-                    .items
-                    .iter()
-                    .map(|item| (item.width, item.height))
-                    .collect(),
-            )
-        };
-        Ok(Self::new(
-            PagedEngine::Office(session),
-            format,
-            item_count,
-            capabilities,
-            diagnostics,
-            item_sizes,
-            viewport,
-        ))
+        let metadata = office_metadata(&session, format);
+        Ok(Self::new(PagedEngine::Office(session), metadata, viewport))
     }
-
     fn new(
         engine: PagedEngine,
-        format: ViewerDocumentFormat,
-        item_count: usize,
-        capabilities: ViewerCapabilities,
-        diagnostics: Vec<ViewerDiagnostic>,
-        item_sizes: Vec<(f32, f32)>,
+        metadata: super::document_session_paged_metadata::PagedDocumentMetadata,
         viewport: DocumentViewport,
     ) -> Self {
-        let mut state = DocumentViewerState::new(item_count);
+        let mut state = DocumentViewerState::new(metadata.item_count);
         let _ = state.apply(DocumentViewerCommand::Fit(DocumentFitMode::Page));
         Self {
             engine,
-            format,
+            format: metadata.format,
             state,
-            capabilities,
-            diagnostics,
-            item_sizes,
+            capabilities: metadata.capabilities,
+            diagnostics: metadata.diagnostics,
+            item_sizes: metadata.item_sizes,
+            outline_items: metadata.outline_items,
             viewport,
         }
     }
-
     pub(super) fn apply(
         &mut self,
         command: DocumentSessionCommand,
@@ -129,7 +85,6 @@ impl PagedDocumentSession {
             }
         })
     }
-
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
         let page_index = self.state.active_index;
         self.render_scale().and_then(|scale| {
@@ -143,14 +98,13 @@ impl PagedDocumentSession {
                 .and_then(|rendered| self.frame_from_rendered(rendered))
         })
     }
-
     fn frame_from_rendered(
         &self,
         rendered: PdfRenderedPage,
     ) -> Result<DocumentFrame, DocumentSessionError> {
         DocumentSurfaceFrame::from_rendered_page("Document page", rendered)
             .map(|surface| DocumentFrame {
-                surface,
+                surface: surface.with_navigation_metadata(Vec::new(), self.outline_items.clone()),
                 state: self.state,
                 capabilities: self.capabilities.clone(),
                 diagnostics: self.diagnostics.clone(),
@@ -158,7 +112,6 @@ impl PagedDocumentSession {
             })
             .map_err(DocumentSessionError::from)
     }
-
     fn render_scale(&self) -> Result<f32, DocumentSessionError> {
         self.item_sizes
             .get(self.state.active_index)

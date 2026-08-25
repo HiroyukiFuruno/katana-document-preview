@@ -78,7 +78,7 @@ impl SpreadsheetWorkerLoop {
         let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
         let name = arguments.workspace.join(INPUT_NAME);
         let engine =
-            SpreadsheetEngineSession::open(&input, &name.to_string_lossy(), arguments.limits)
+            SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)
                 .map_err(spreadsheet_open_failure)?;
         let mut worker = Self {
             engine,

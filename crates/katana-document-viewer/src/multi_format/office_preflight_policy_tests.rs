@@ -93,3 +93,41 @@ fn nested_package_formats_are_explicit() {
         assert_eq!(format, nested_package_format(name));
     }
 }
+
+#[test]
+fn active_content_is_quarantined_without_blocking_static_display() {
+    let limits = OfficePreflightLimits::strict();
+    assert!(
+        OfficePreflightPolicy::validate_entry("xl/activeX/activeX22.xml", 10, 20, limits).is_ok()
+    );
+    assert!(OfficePreflightPolicy::active_content_entry(
+        "xl/activeX/activeX22.xml"
+    ));
+}
+
+#[test]
+fn large_worksheet_uses_its_bounded_streaming_budget_only() {
+    let limits = OfficePreflightLimits::strict();
+    let worksheet_size = limits.max_entry_uncompressed_bytes + 1;
+    assert!(
+        OfficePreflightPolicy::validate_entry(
+            "xl/worksheets/sheet1.xml",
+            worksheet_size / 2,
+            worksheet_size,
+            limits,
+        )
+        .is_ok()
+    );
+    assert!(matches!(
+        OfficePreflightPolicy::validate_entry(
+            "word/document.xml",
+            worksheet_size / 2,
+            worksheet_size,
+            limits,
+        ),
+        Err(OfficePreflightError::ResourceLimitExceeded {
+            kind: OfficeResourceLimitKind::EntryBytes,
+            ..
+        })
+    ));
+}

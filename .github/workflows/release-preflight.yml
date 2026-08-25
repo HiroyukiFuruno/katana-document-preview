@@ -86,4 +86,6 @@ jobs:
 
       - name: Release check
         if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/v')
-        run: just VERSION="${{ steps.version.outputs.version }}" release-check
+        run: |
+          xvfb-run -a just storybook-release-acceptance-artifacts
+          xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check

@@ -134,18 +134,14 @@ fn assert_initial_scroll_is_neutral(surface: &mut SpreadsheetGridSurface) {
 }
 
 #[test]
-fn invalid_merged_cells_and_unrequested_cells_remain_typed_errors() -> TestResult {
+fn merged_cells_adjust_frozen_boundaries_and_unrequested_cells_remain_typed_errors() -> TestResult {
     let mut invalid = sample_sheet();
     invalid.merged_cells = vec![SpreadsheetMergedCellArtifact {
         anchor: SpreadsheetCoordinate::new(0, 0),
-        row_span: 1,
+        row_span: 2,
         column_span: 2,
     }];
-    assert!(matches!(
-        SpreadsheetGridSurface::new(&invalid, DocumentViewport::new(320, 120)),
-        Err(DocumentSurfaceError::InvalidGrid { detail })
-            if detail.contains("CellSpanCrossesFrozenBoundary")
-    ));
+    assert!(SpreadsheetGridSurface::new(&invalid, DocumentViewport::new(320, 120)).is_ok());
 
     let mut surface = SpreadsheetGridSurface::new(&sample_sheet(), DocumentViewport::new(100, 40))?;
     assert!(matches!(

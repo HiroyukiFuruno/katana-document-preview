@@ -6,6 +6,8 @@ mod coverage_profile;
 mod diagnostic;
 mod document_session;
 mod document_session_paged;
+mod document_session_paged_metadata;
+mod document_session_paged_office;
 mod document_session_spreadsheet;
 mod document_session_types;
 mod office_preflight;
@@ -26,6 +28,8 @@ mod office_worker_protocol;
 mod office_worker_workspace;
 mod pdf_adapter;
 mod pdf_document;
+mod pdf_error;
+mod pdf_outline;
 mod pdf_render_cache;
 mod pdf_surface;
 mod source;
@@ -33,6 +37,14 @@ mod spreadsheet_artifact;
 mod spreadsheet_engine;
 mod spreadsheet_engine_cell;
 mod spreadsheet_engine_sheet;
+mod spreadsheet_engine_support;
+mod spreadsheet_streaming;
+mod spreadsheet_streaming_cell_reader;
+mod spreadsheet_streaming_cell_types;
+mod spreadsheet_streaming_cells;
+mod spreadsheet_streaming_sheet_metadata;
+mod spreadsheet_streaming_xml;
+mod spreadsheet_streaming_xml_values;
 mod spreadsheet_worker_arguments;
 mod spreadsheet_worker_entrypoint;
 mod spreadsheet_worker_owner;
@@ -75,7 +87,8 @@ pub use office_preflight::{
 pub use office_static_adapter::OfficeStaticViewerSession;
 pub use office_worker_entrypoint::OfficeWorkerEntrypoint;
 pub use office_worker_parent::{OfficeWorkerConfig, OfficeWorkerError};
-pub use pdf_adapter::{PdfViewerError, PdfViewerSession};
+pub use pdf_adapter::PdfViewerSession;
+pub use pdf_error::PdfViewerError;
 pub use source::{
     BinaryDocumentSource, OfficeDocumentFormat, OfficeDocumentSource, ViewerSource,
     ViewerSourceIdentity,
