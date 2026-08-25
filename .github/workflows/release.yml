@@ -62,7 +62,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Install acceptance artifact dependencies
+      - name: Install diagram test dependencies / Install acceptance artifact dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y graphviz imagemagick xvfb xclip
