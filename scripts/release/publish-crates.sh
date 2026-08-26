@@ -2,6 +2,8 @@
 set -euo pipefail
 
 version="$(bash "$(dirname "$0")/verify-version.sh" "${1:-}" | awk -F= '$1 == "version_bare" { print $2 }')"
+publish_attempts="${PUBLISH_ATTEMPTS:-3}"
+publish_retry_delay_seconds="${PUBLISH_RETRY_DELAY_SECONDS:-10}"
 
 require_clean_worktree() {
   if git diff --quiet && git diff --cached --quiet; then
@@ -35,6 +37,26 @@ wait_until_published() {
   exit 1
 }
 
+publish_with_retry() {
+  local attempt
+  local delay
+  for attempt in $(seq 1 "${publish_attempts}"); do
+    if is_published katana-document-viewer; then
+      return
+    fi
+    if cargo publish -p katana-document-viewer --locked --token "${CARGO_REGISTRY_TOKEN}"; then
+      return
+    fi
+    if [[ "${attempt}" == "${publish_attempts}" ]]; then
+      echo "KDV ${version} publish failed after ${publish_attempts} attempts." >&2
+      exit 1
+    fi
+    delay=$((publish_retry_delay_seconds * attempt))
+    echo "KDV ${version} publish failed; retrying in ${delay}s (${attempt}/${publish_attempts})." >&2
+    sleep "${delay}"
+  done
+}
+
 if is_published katana-document-viewer; then
   echo "KDV ${version} is already published; skipping."
   exit 0
@@ -44,6 +66,6 @@ require_clean_worktree
 require_token
 
 if ! is_published katana-document-viewer; then
-  cargo publish -p katana-document-viewer --locked --token "${CARGO_REGISTRY_TOKEN}"
+  publish_with_retry
   wait_until_published katana-document-viewer
 fi
