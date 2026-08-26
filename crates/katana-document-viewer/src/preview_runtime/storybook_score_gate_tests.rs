@@ -402,6 +402,38 @@ fn release_publish_depends_on_release_check() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
+fn release_publish_retries_registry_failures_from_the_immutable_tag()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
+    let publish_script = std::fs::read_to_string(root.join("scripts/release/publish-crates.sh"))?;
+    let recovery =
+        std::fs::read_to_string(root.join(".github/workflows/release-publish-retry.yml"))?;
+
+    assert_contains_all(
+        "publish retry script",
+        &publish_script,
+        &[
+            "PUBLISH_ATTEMPTS:-3",
+            "PUBLISH_RETRY_DELAY_SECONDS:-10",
+            "if is_published katana-document-viewer",
+            "if cargo publish",
+            "sleep \"${delay}\"",
+        ],
+    );
+    assert_contains_all(
+        "release publish recovery workflow",
+        &recovery,
+        &[
+            "path: release-source",
+            "ref: ${{ inputs.version }}",
+            "git -C release-source rev-parse HEAD",
+            "../release-tools/scripts/release/publish-crates.sh",
+        ],
+    );
+    Ok(())
+}
+
+#[test]
 fn release_scripts_do_not_depend_on_obsolete_preview_egui_package()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
