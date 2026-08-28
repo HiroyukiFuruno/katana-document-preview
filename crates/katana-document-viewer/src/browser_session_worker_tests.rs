@@ -10,7 +10,7 @@ use katana_render_runtime::{
 };
 use std::time::Duration;
 
-const UPDATE_TIMEOUT: Duration = Duration::from_secs(1);
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(10);
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]

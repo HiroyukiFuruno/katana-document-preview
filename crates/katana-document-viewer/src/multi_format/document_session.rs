@@ -1,14 +1,17 @@
 use super::{
     DocumentSessionCommand, DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent,
-    DocumentSessionInfo, OfficeDocumentFormat, ViewerDocumentFormat, ViewerFeature,
-    ViewerFeatureStatus, ViewerSource, document_session_paged::PagedDocumentSession,
+    DocumentSessionInfo, OfficeDocumentFormat, SpreadsheetFilterCommand, SpreadsheetFilterEvent,
+    ViewerDocumentFormat, ViewerFeatureStatus, ViewerSource,
+    document_session_paged::PagedDocumentSession,
     document_session_spreadsheet::SpreadsheetDocumentSession,
 };
 use crate::DocumentFrame;
+use command_support::command_feature;
 
 pub struct DocumentSession {
-    runtime: DocumentSessionRuntime,
+    runtime: Option<DocumentSessionRuntime>,
     info: DocumentSessionInfo,
+    resource_lease: Option<super::resource_metrics::DocumentSessionLease>,
 }
 
 enum DocumentSessionRuntime {
@@ -25,7 +28,11 @@ impl DocumentSession {
         let mime = source.mime().to_owned();
         let runtime = open_runtime(source, &config)?;
         let info = session_info(identity, mime, &runtime);
-        Ok(Self { runtime, info })
+        Ok(Self {
+            runtime: Some(runtime),
+            info,
+            resource_lease: Some(super::resource_metrics::DocumentSessionLease::acquire()),
+        })
     }
 
     pub fn apply(
@@ -33,16 +40,41 @@ impl DocumentSession {
         command: DocumentSessionCommand,
     ) -> Result<DocumentSessionEvent, DocumentSessionError> {
         self.ensure_supported(command)?;
-        match &mut self.runtime {
+        let runtime = match self.runtime.as_mut() {
+            Some(runtime) => runtime,
+            None => return Err(DocumentSessionError::Closed),
+        };
+        match runtime {
             DocumentSessionRuntime::Paged(runtime) => runtime.apply(command),
             DocumentSessionRuntime::Spreadsheet(runtime) => runtime.apply(command),
         }
     }
 
     pub fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
-        match &mut self.runtime {
+        let runtime = match self.runtime.as_mut() {
+            Some(runtime) => runtime,
+            None => return Err(DocumentSessionError::Closed),
+        };
+        match runtime {
             DocumentSessionRuntime::Paged(runtime) => runtime.frame(),
             DocumentSessionRuntime::Spreadsheet(runtime) => runtime.frame(),
+        }
+    }
+
+    pub fn apply_spreadsheet_filter(
+        &mut self,
+        command: SpreadsheetFilterCommand,
+    ) -> Result<SpreadsheetFilterEvent, DocumentSessionError> {
+        let runtime = match self.runtime.as_mut() {
+            Some(runtime) => runtime,
+            None => return Err(DocumentSessionError::Closed),
+        };
+        match runtime {
+            DocumentSessionRuntime::Spreadsheet(runtime) => runtime.apply_filter(command),
+            DocumentSessionRuntime::Paged(_) => Err(DocumentSessionError::UnsupportedCommand {
+                format: self.info.format,
+                command: super::DocumentSessionCommandKind::SpreadsheetFilter,
+            }),
         }
     }
 
@@ -51,7 +83,21 @@ impl DocumentSession {
         &self.info
     }
 
-    pub fn close(self) {}
+    #[must_use]
+    pub fn resource_snapshot() -> super::DocumentResourceSnapshot {
+        super::DocumentResourceSnapshot::capture()
+    }
+
+    #[must_use]
+    pub const fn is_closed(&self) -> bool {
+        self.runtime.is_none()
+    }
+
+    pub fn close(&mut self) {
+        let _close = super::debug_trace::DebugTrace::start("document.close");
+        self.runtime.take();
+        self.resource_lease.take();
+    }
 
     fn ensure_supported(
         &self,
@@ -67,6 +113,13 @@ impl DocumentSession {
             format: self.info.format,
             command: command.kind(),
         })
+    }
+}
+
+impl Drop for DocumentSession {
+    fn drop(&mut self) {
+        let _drop = super::debug_trace::DebugTrace::start("document.drop");
+        self.close();
     }
 }
 
@@ -130,43 +183,6 @@ impl DocumentSessionRuntime {
     }
 }
 
-const fn command_feature(
-    format: ViewerDocumentFormat,
-    command: DocumentSessionCommand,
-) -> Option<ViewerFeature> {
-    match command {
-        DocumentSessionCommand::Viewer(super::DocumentViewerCommand::Previous)
-        | DocumentSessionCommand::Viewer(super::DocumentViewerCommand::Next)
-        | DocumentSessionCommand::Viewer(super::DocumentViewerCommand::JumpTo(_)) => {
-            Some(navigation_feature(format))
-        }
-        DocumentSessionCommand::Viewer(super::DocumentViewerCommand::SetZoom(_)) => {
-            Some(ViewerFeature::Zoom)
-        }
-        DocumentSessionCommand::Viewer(super::DocumentViewerCommand::Fit(_)) => {
-            Some(ViewerFeature::Fit)
-        }
-        DocumentSessionCommand::Viewer(super::DocumentViewerCommand::CopySelection) => {
-            Some(ViewerFeature::CopyText)
-        }
-        DocumentSessionCommand::Viewer(super::DocumentViewerCommand::OpenTarget) => {
-            Some(ViewerFeature::OpenLink)
-        }
-        DocumentSessionCommand::Surface(crate::DocumentSurfaceCommand::Grid(_)) => {
-            Some(ViewerFeature::GridNavigation)
-        }
-        DocumentSessionCommand::Surface(crate::DocumentSurfaceCommand::Resize(_)) => None,
-    }
-}
-
-const fn navigation_feature(format: ViewerDocumentFormat) -> ViewerFeature {
-    match format {
-        ViewerDocumentFormat::Pdf | ViewerDocumentFormat::Docx => ViewerFeature::PageNavigation,
-        ViewerDocumentFormat::Xlsx => ViewerFeature::SheetNavigation,
-        ViewerDocumentFormat::Pptx => ViewerFeature::SlideNavigation,
-    }
-}
-
 fn required_worker(
     config: &DocumentSessionConfig,
     format: OfficeDocumentFormat,
@@ -177,6 +193,8 @@ fn required_worker(
         .ok_or(DocumentSessionError::MissingOfficeWorker { format })
 }
 
+#[path = "document_session_command.rs"]
+mod command_support;
 #[cfg(test)]
 #[path = "document_session_tests.rs"]
 mod tests;

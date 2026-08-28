@@ -14,6 +14,10 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage)"] }
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "kdv-spreadsheet-worker"
+path = "src/kdv_spreadsheet_worker.rs"
+
 [dependencies]
 cosmic-text = { workspace = true }
 epaint_default_fonts = { workspace = true }

@@ -23,10 +23,15 @@ const EXIT_FAILURE: i32 = 70;
 type SpreadsheetWorker = fn(SpreadsheetWorkerArguments) -> Result<(), (String, String)>;
 type ConstraintApplier = fn(&std::path::Path, u64, u64) -> Result<(), (String, String)>;
 
-pub(super) struct SpreadsheetWorkerEntrypoint;
+pub struct SpreadsheetWorkerEntrypoint;
 
 impl SpreadsheetWorkerEntrypoint {
-    pub(super) fn run(arguments: Vec<OsString>) -> i32 {
+    #[must_use]
+    pub fn run_from_env() -> i32 {
+        Self::run(std::env::args_os().collect())
+    }
+
+    pub fn run(arguments: Vec<OsString>) -> i32 {
         let mut writer = BufWriter::new(std::io::stdout());
         Self::run_with(arguments, SpreadsheetWorkerLoop::run, &mut writer)
     }
@@ -75,11 +80,7 @@ impl SpreadsheetWorkerLoop {
             arguments.max_memory_bytes,
             arguments.max_cpu_seconds,
         )?;
-        let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
-        let name = arguments.workspace.join(INPUT_NAME);
-        let engine =
-            SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)
-                .map_err(spreadsheet_open_failure)?;
+        let engine = open_engine(&arguments)?;
         let mut worker = Self {
             engine,
             reader: BufReader::new(std::io::stdin()),
@@ -96,18 +97,44 @@ impl SpreadsheetWorkerLoop {
     fn run_requests(&mut self) -> Result<(), String> {
         loop {
             let request = self.read()?;
-            match request {
-                SpreadsheetWorkerRequest::Materialize {
-                    request_id,
-                    sheet_index,
-                    coordinates,
-                } => self.materialize(request_id, sheet_index, &coordinates)?,
-                SpreadsheetWorkerRequest::Shutdown => {
-                    self.write(&SpreadsheetWorkerResponse::Stopped)?;
-                    return Ok(());
-                }
+            if self.handle_request(request)? {
+                return Ok(());
             }
         }
+    }
+
+    fn handle_request(&mut self, request: SpreadsheetWorkerRequest) -> Result<bool, String> {
+        match request {
+            SpreadsheetWorkerRequest::Materialize {
+                request_id,
+                sheet_index,
+                coordinates,
+            } => self.materialize(request_id, sheet_index, &coordinates)?,
+            SpreadsheetWorkerRequest::Shutdown => return self.shutdown(),
+            SpreadsheetWorkerRequest::FilterCandidates {
+                request_id,
+                sheet_index,
+                column,
+                limit,
+            } => self.filter_candidates(request_id, sheet_index, column, limit)?,
+            SpreadsheetWorkerRequest::ApplyFilter {
+                request_id,
+                sheet_index,
+                column,
+                values,
+            } => self.apply_filter(request_id, sheet_index, column, values)?,
+            SpreadsheetWorkerRequest::ClearFilter {
+                request_id,
+                sheet_index,
+                column,
+            } => self.clear_filter(request_id, sheet_index, column)?,
+        }
+        Ok(false)
+    }
+
+    fn shutdown(&mut self) -> Result<bool, String> {
+        self.write(&SpreadsheetWorkerResponse::Stopped)?;
+        Ok(true)
     }
 
     fn materialize(
@@ -136,6 +163,16 @@ impl SpreadsheetWorkerLoop {
     }
 }
 
+fn open_engine(
+    arguments: &SpreadsheetWorkerArguments,
+) -> Result<SpreadsheetEngineSession, (String, String)> {
+    let _open = super::debug_trace::DebugTrace::start("spreadsheet.worker_engine_open");
+    let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
+    let name = arguments.workspace.join(INPUT_NAME);
+    SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)
+        .map_err(spreadsheet_open_failure)
+}
+
 fn protocol_failure(message: String) -> (String, String) {
     ("protocol".to_owned(), message)
 }
@@ -153,6 +190,9 @@ fn spreadsheet_open_failure(
 fn failure(stage: &str, message: String) -> (String, String) {
     (stage.to_owned(), message)
 }
+
+#[path = "spreadsheet_worker_filter.rs"]
+mod filter;
 
 #[cfg(test)]
 #[path = "spreadsheet_worker_entrypoint_tests.rs"]

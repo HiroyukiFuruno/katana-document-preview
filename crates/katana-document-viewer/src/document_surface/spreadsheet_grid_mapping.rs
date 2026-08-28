@@ -42,6 +42,26 @@ pub(super) fn track_provider(
     }
 }
 
+pub(super) fn row_track_provider(
+    tracks: &[SpreadsheetTrackArtifact],
+    fallback_size: u32,
+    filtered_out_rows: &[usize],
+) -> GridTrackSizeProvider {
+    let sizes = tracks.iter().map(|track| track_size(track.size)).collect();
+    let hidden_indices = tracks
+        .iter()
+        .enumerate()
+        .filter_map(|(index, track)| {
+            (track.hidden || filtered_out_rows.binary_search(&index).is_ok()).then_some(index)
+        })
+        .collect();
+    GridTrackSizeProvider::VariableWithHidden {
+        sizes,
+        fallback_size,
+        hidden_indices,
+    }
+}
+
 pub(super) fn track_size(value: f32) -> u32 {
     if !value.is_finite() || value <= 0.0 {
         return 1;

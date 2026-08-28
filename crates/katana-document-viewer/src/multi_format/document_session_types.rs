@@ -1,6 +1,7 @@
 use super::{
     DocumentViewerCommand, DocumentViewerState, OfficeDocumentFormat, OfficeWorkerConfig,
-    OfficeWorkerError, PdfViewerError, ViewerCapabilities, ViewerDiagnostic, ViewerSourceIdentity,
+    OfficeWorkerError, PdfViewerError, SpreadsheetFrameMetadata, ViewerCapabilities,
+    ViewerDiagnostic, ViewerSourceIdentity,
 };
 use crate::{
     DocumentGridEvent, DocumentSurfaceCommand, DocumentSurfaceError, DocumentSurfaceFrame,
@@ -92,6 +93,7 @@ pub enum DocumentSessionCommandKind {
     OpenTarget,
     Resize,
     Grid,
+    SpreadsheetFilter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -117,10 +119,13 @@ pub struct DocumentFrame {
     pub capabilities: ViewerCapabilities,
     pub diagnostics: Vec<ViewerDiagnostic>,
     pub format: ViewerDocumentFormat,
+    pub spreadsheet: Option<SpreadsheetFrameMetadata>,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum DocumentSessionError {
+    #[error("document session is closed")]
+    Closed,
     #[error("Office worker configuration is required for {format:?}")]
     MissingOfficeWorker { format: OfficeDocumentFormat },
     #[error("command {command:?} is unsupported for {format:?}")]

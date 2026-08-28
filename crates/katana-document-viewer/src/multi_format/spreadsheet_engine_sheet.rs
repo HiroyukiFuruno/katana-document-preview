@@ -58,6 +58,7 @@ impl SpreadsheetSheetBuilder {
             frozen_columns: SpreadsheetEngineSupport::non_negative(worksheet.frozen_columns)?,
             merged_cells: Self::merged_cells(&worksheet.merge_cells)?,
             show_grid_lines: worksheet.show_grid_lines,
+            auto_filter: None,
         })
     }
 

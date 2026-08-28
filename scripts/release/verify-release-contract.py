@@ -15,9 +15,9 @@ from pathlib import Path
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 RELEASE_CONTRACT = "multi-format-viewer"
-KRR_MIN_VERSION = (0, 4, 16)
-KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "^0.4.16"
+KRR_MIN_VERSION = (0, 4, 18)
+KRR_DECLARED_VERSION = "=" + ".".join(map(str, KRR_MIN_VERSION))
+KRR_VERSION_REQUIREMENT = "=0.4.18"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
@@ -64,6 +64,7 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/office_worker_network_seccomp.rs",
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_entrypoint.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs",
     "crates/katana-document-viewer/src/multi_format/windows_worker_executable.rs",
@@ -149,7 +150,7 @@ def krr_lock_version_is_allowed(version: object) -> bool:
     if match is None:
         return False
     parsed = tuple(int(match.group(name)) for name in ("major", "minor", "patch"))
-    return parsed >= KRR_MIN_VERSION and parsed[:2] == KRR_MIN_VERSION[:2]
+    return parsed == KRR_MIN_VERSION
 
 
 def lockfile_errors(lockfile: str) -> list[str]:
@@ -278,6 +279,7 @@ def multi_format_source_errors(root: Path) -> list[str]:
         "OfficeWorkerEntrypoint",
         "PdfViewerSession",
         "SpreadsheetViewerSession",
+        "SpreadsheetWorkerEntrypoint",
         "SeccompFilter",
         "NetPolicy::Deny",
         "GenericGrid",
@@ -549,14 +551,14 @@ version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.16"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert not lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.17"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.15"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.5.0"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.4.19"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.4.17"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))

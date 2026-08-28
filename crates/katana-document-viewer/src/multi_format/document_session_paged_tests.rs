@@ -76,7 +76,23 @@ fn invalid_engine_raster_fails_closed_at_the_neutral_frame_boundary() -> TestRes
 }
 
 #[test]
-fn office_engine_renders_through_the_paged_session() -> TestResult {
+fn office_engine_reuses_its_keyed_conversion_for_resize_and_repeat_frame() -> TestResult {
+    let mut session = open_office_session()?;
+    let conversion_key = office_conversion_key(&session)?;
+
+    assert_eq!(DocumentSurfaceKind::Page, session.frame()?.surface.kind());
+    assert_eq!(
+        DocumentSessionEvent::None,
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Resize(DocumentViewport::new(900, 700))
+        ))?
+    );
+    assert_eq!(DocumentSurfaceKind::Page, session.frame()?.surface.kind());
+    assert_eq!(conversion_key, office_conversion_key(&session)?);
+    Ok(())
+}
+
+fn open_office_session() -> Result<PagedDocumentSession, Box<dyn std::error::Error>> {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/fixtures/multi-format/representative.docx");
     let source = OfficeDocumentSource::new(
@@ -85,14 +101,22 @@ fn office_engine_renders_through_the_paged_session() -> TestResult {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         std::fs::read(fixture)?,
     );
-    let mut session = PagedDocumentSession::open_office(
+    PagedDocumentSession::open_office(
         source,
         OfficeWorkerConfig::new(worker_binary_path()?),
         DocumentViewport::new(640, 480),
-    )?;
+    )
+    .map_err(Into::into)
+}
 
-    assert_eq!(DocumentSurfaceKind::Page, session.frame()?.surface.kind());
-    Ok(())
+fn office_conversion_key(
+    session: &PagedDocumentSession,
+) -> Result<super::super::office_conversion_key::OfficeConversionKey, Box<dyn std::error::Error>> {
+    Ok(match &session.engine {
+        PagedEngine::Office(office) => office.conversion_key(),
+        PagedEngine::Pdf(_) => return Err("expected an Office engine".into()),
+    }
+    .clone())
 }
 
 fn worker_binary_path() -> Result<PathBuf, Box<dyn std::error::Error>> {

@@ -1,52 +1,29 @@
 use super::{
     SpreadsheetCellArtifact, SpreadsheetCoordinate, SpreadsheetSheetArtifact,
-    SpreadsheetViewerLimits, spreadsheet_engine_cell::SpreadsheetCellMaterializer,
+    SpreadsheetViewerLimits,
+    spreadsheet_engine_cell::SpreadsheetCellMaterializer,
     spreadsheet_engine_sheet::SpreadsheetSheetBuilder,
+    spreadsheet_filter_engine::{SpreadsheetActiveFilters, empty_filters},
+    spreadsheet_filter_xml::SpreadsheetFilterCatalog,
     spreadsheet_streaming::StreamingSpreadsheetSession,
 };
 use ironcalc::base::Model;
 use std::collections::HashSet;
-use thiserror::Error;
 
 pub(crate) use super::spreadsheet_engine_support::SpreadsheetEngineSupport;
+#[path = "spreadsheet_engine_error.rs"]
+mod error;
+pub(super) use error::SpreadsheetEngineError;
 
 const LANGUAGE: &str = "en";
 const LOCALE: &str = "en";
 const TIMEZONE: &str = "UTC";
 
-#[derive(Debug, Error)]
-pub(super) enum SpreadsheetEngineError {
-    #[error("XLSX import failed: {0}")]
-    Import(String),
-    #[error("spreadsheet model failed: {0}")]
-    Model(String),
-    #[error("spreadsheet resource limit `{kind}` exceeded: {actual} > {limit}")]
-    ResourceLimit {
-        kind: &'static str,
-        actual: usize,
-        limit: usize,
-    },
-    #[error("invalid merged-cell range `{0}`")]
-    InvalidMergedCell(String),
-    #[error("sheet index {requested} is outside the {sheet_count}-sheet workbook")]
-    SheetOutsideDocument {
-        requested: usize,
-        sheet_count: usize,
-    },
-    #[error("cell ({row}, {column}) is outside sheet {sheet_index}")]
-    CellOutsideSheet {
-        sheet_index: usize,
-        row: usize,
-        column: usize,
-    },
-    #[error("cell ({row}, {column}) was requested more than once")]
-    DuplicateCell { row: usize, column: usize },
-}
-
 pub(super) struct SpreadsheetEngineSession {
     backend: SpreadsheetEngineBackend,
     sheets: Vec<SpreadsheetSheetArtifact>,
     limits: SpreadsheetViewerLimits,
+    active_filters: SpreadsheetActiveFilters,
 }
 
 enum SpreadsheetEngineBackend {
@@ -60,24 +37,49 @@ impl SpreadsheetEngineSession {
         name: &str,
         limits: SpreadsheetViewerLimits,
     ) -> Result<Self, SpreadsheetEngineError> {
+        let filters = SpreadsheetFilterCatalog::read(&bytes, limits.max_sheets)?;
         if StreamingSpreadsheetSession::is_required(&bytes)? {
-            let streaming = StreamingSpreadsheetSession::open(bytes, limits)?;
-            let sheets = streaming.sheets().to_vec();
-            return Ok(Self {
-                backend: SpreadsheetEngineBackend::Streaming(streaming),
-                sheets,
-                limits,
-            });
+            return Self::open_streaming(bytes, limits, filters);
         }
-        let workbook = ironcalc::import::load_from_xlsx_bytes(&bytes, name, LOCALE, TIMEZONE)
-            .map_err(|error| SpreadsheetEngineError::Import(error.to_string()))?;
+        Self::open_model(bytes, name, limits, filters)
+    }
+
+    fn open_model(
+        bytes: Vec<u8>,
+        name: &str,
+        limits: SpreadsheetViewerLimits,
+        filters: Vec<Option<super::SpreadsheetAutoFilterArtifact>>,
+    ) -> Result<Self, SpreadsheetEngineError> {
+        let workbook = match ironcalc::import::load_from_xlsx_bytes(&bytes, name, LOCALE, TIMEZONE)
+        {
+            Ok(workbook) => workbook,
+            Err(error) => return Err(SpreadsheetEngineError::Import(error.to_string())),
+        };
         let mut model =
             Model::from_workbook(workbook, LANGUAGE).map_err(SpreadsheetEngineError::Model)?;
         model.evaluate();
-        let sheets =
+        let mut sheets =
             SpreadsheetSheetBuilder::build(&model, limits.max_sheets, limits.max_logical_cells)?;
+        SpreadsheetFilterCatalog::attach(&mut sheets, filters);
         Ok(Self {
             backend: SpreadsheetEngineBackend::Model(Box::new(model)),
+            active_filters: empty_filters(sheets.len()),
+            sheets,
+            limits,
+        })
+    }
+
+    fn open_streaming(
+        bytes: Vec<u8>,
+        limits: SpreadsheetViewerLimits,
+        filters: Vec<Option<super::SpreadsheetAutoFilterArtifact>>,
+    ) -> Result<Self, SpreadsheetEngineError> {
+        let streaming = StreamingSpreadsheetSession::open(bytes, limits)?;
+        let mut sheets = streaming.sheets().to_vec();
+        SpreadsheetFilterCatalog::attach(&mut sheets, filters);
+        Ok(Self {
+            backend: SpreadsheetEngineBackend::Streaming(streaming),
+            active_filters: empty_filters(sheets.len()),
             sheets,
             limits,
         })
@@ -133,7 +135,10 @@ impl SpreadsheetEngineSession {
         Ok(())
     }
 
-    fn sheet(&self, requested: usize) -> Result<&SpreadsheetSheetArtifact, SpreadsheetEngineError> {
+    pub(super) fn sheet(
+        &self,
+        requested: usize,
+    ) -> Result<&SpreadsheetSheetArtifact, SpreadsheetEngineError> {
         self.sheets
             .get(requested)
             .ok_or(SpreadsheetEngineError::SheetOutsideDocument {
@@ -154,6 +159,12 @@ impl SpreadsheetEngineSession {
     }
 }
 
+#[path = "spreadsheet_engine_filter.rs"]
+mod filter;
+
+#[cfg(test)]
+#[path = "spreadsheet_engine_filter_tests.rs"]
+mod filter_tests;
 #[cfg(test)]
 #[path = "spreadsheet_engine_tests.rs"]
 mod tests;

@@ -32,6 +32,7 @@ pub(super) fn sample_sheet() -> SpreadsheetSheetArtifact {
             column_span: 2,
         }],
         show_grid_lines: true,
+        auto_filter: None,
     }
 }
 

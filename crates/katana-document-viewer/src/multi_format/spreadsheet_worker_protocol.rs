@@ -13,6 +13,23 @@ pub(super) enum SpreadsheetWorkerRequest {
         sheet_index: usize,
         coordinates: Vec<SpreadsheetCoordinate>,
     },
+    FilterCandidates {
+        request_id: u64,
+        sheet_index: usize,
+        column: usize,
+        limit: usize,
+    },
+    ApplyFilter {
+        request_id: u64,
+        sheet_index: usize,
+        column: usize,
+        values: Vec<String>,
+    },
+    ClearFilter {
+        request_id: u64,
+        sheet_index: usize,
+        column: Option<usize>,
+    },
     Shutdown,
 }
 
@@ -26,6 +43,20 @@ pub(super) enum SpreadsheetWorkerResponse {
         request_id: u64,
         cells: Vec<SpreadsheetCellArtifact>,
     },
+    FilterCandidates {
+        request_id: u64,
+        sheet_index: usize,
+        column: usize,
+        values: Vec<String>,
+        truncated: bool,
+    },
+    FilterVisibility {
+        request_id: u64,
+        sheet_index: usize,
+        applied_columns: Vec<usize>,
+        visible_row_count: usize,
+        filtered_out_rows: Vec<usize>,
+    },
     Failed {
         request_id: Option<u64>,
         stage: String,
@@ -33,3 +64,7 @@ pub(super) enum SpreadsheetWorkerResponse {
     },
     Stopped,
 }
+
+#[cfg(test)]
+#[path = "spreadsheet_worker_protocol_tests.rs"]
+mod tests;

@@ -26,6 +26,7 @@ pub(crate) struct SpreadsheetWorkerProcess {
     #[cfg(target_os = "macos")]
     max_memory_bytes: usize,
     _workspace: tempfile::TempDir,
+    _resource_lease: super::resource_metrics::SpreadsheetWorkerLease,
     #[cfg(all(coverage, not(windows)))]
     coverage_profile: Option<super::coverage_profile::ChildCoverageProfile>,
 }
@@ -35,6 +36,7 @@ impl SpreadsheetWorkerProcess {
         source: &OfficeDocumentSource,
         config: &OfficeWorkerConfig,
     ) -> Result<Self, OfficeWorkerError> {
+        let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.spawn");
         let workspace =
             OfficeWorkerWorkspace::prepare("kdv-spreadsheet-worker-", &source.bytes, config)?;
         let spawned = SpreadsheetWorkerSpawn::spawn(workspace.path(), config)?;
@@ -55,6 +57,7 @@ impl SpreadsheetWorkerProcess {
             #[cfg(target_os = "macos")]
             max_memory_bytes: config.max_memory_bytes,
             _workspace: workspace,
+            _resource_lease: super::resource_metrics::SpreadsheetWorkerLease::acquire(),
             #[cfg(all(coverage, not(windows)))]
             coverage_profile: spawned.coverage_profile,
         })
@@ -128,6 +131,7 @@ fn encode_request(request: &SpreadsheetWorkerRequest) -> Result<Vec<u8>, OfficeW
 
 impl Drop for SpreadsheetWorkerProcess {
     fn drop(&mut self) {
+        let _drop = super::debug_trace::DebugTrace::start("spreadsheet.drop");
         let _ = self.send(&SpreadsheetWorkerRequest::Shutdown);
         self.owner.finish(GRACEFUL_SHUTDOWN_TIMEOUT);
         #[cfg(all(coverage, not(windows)))]

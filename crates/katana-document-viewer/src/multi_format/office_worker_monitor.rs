@@ -1,4 +1,7 @@
 #[cfg(target_os = "macos")]
+const MEMORY_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+
+#[cfg(target_os = "macos")]
 pub(super) struct MacOsMemoryMonitor {
     stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     exceeded: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -52,7 +55,6 @@ impl MacOsMemoryMonitor {
         exceeded: &std::sync::atomic::AtomicBool,
     ) {
         use std::sync::atomic::Ordering;
-        use std::time::Duration;
         use sysinfo::{Pid, ProcessesToUpdate, System};
 
         let process_id = Pid::from_u32(process_id);
@@ -67,7 +69,7 @@ impl MacOsMemoryMonitor {
                 let _ = process.kill();
                 break;
             }
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(MEMORY_POLL_INTERVAL);
         }
     }
 }

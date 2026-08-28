@@ -3,8 +3,8 @@ use katana_document_viewer::{
     DocumentGridNavigation, DocumentSession, DocumentSessionCommand, DocumentSessionCommandKind,
     DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent, DocumentSurfaceCommand,
     DocumentSurfaceKind, DocumentViewerCommand, DocumentViewerEvent, DocumentViewport,
-    OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, ViewerDocumentFormat,
-    ViewerFeature, ViewerFeatureStatus, ViewerSource, ViewerSourceIdentity,
+    OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, SpreadsheetFilterCommand,
+    ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus, ViewerSource, ViewerSourceIdentity,
 };
 use std::path::{Path, PathBuf};
 
@@ -40,9 +40,11 @@ fn office_source(
 }
 
 fn config() -> DocumentSessionConfig {
-    DocumentSessionConfig::new(DocumentViewport::new(640, 480)).office_worker(
-        OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker"))),
-    )
+    let worker = std::env::var_os("KDV_ACCEPTANCE_WORKER")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")));
+    DocumentSessionConfig::new(DocumentViewport::new(640, 480))
+        .office_worker(OfficeWorkerConfig::new(worker))
 }
 
 #[test]
@@ -56,6 +58,8 @@ fn pdf_uses_the_unified_session_for_fit_zoom_resize_and_typed_errors() -> TestRe
         bytes,
     ));
     let mut session = DocumentSession::open(source, config())?;
+    let _resource_snapshot = DocumentSession::resource_snapshot();
+    assert!(!session.is_closed());
     assert_eq!(
         "file:///fixtures/representative.pdf",
         session.info().identity.uri
@@ -101,6 +105,21 @@ fn pdf_uses_the_unified_session_for_fit_zoom_resize_and_typed_errors() -> TestRe
         Err(DocumentSessionError::State(_))
     ));
     session.close();
+    assert!(session.is_closed());
+    assert_eq!(
+        Err(DocumentSessionError::Closed),
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Resize(DocumentViewport::new(1, 1)),
+        ))
+    );
+    assert_eq!(Err(DocumentSessionError::Closed), session.frame());
+    assert_eq!(
+        Err(DocumentSessionError::Closed),
+        session.apply_spreadsheet_filter(SpreadsheetFilterCommand::Clear {
+            sheet_index: 0,
+            column: None,
+        })
+    );
     Ok(())
 }
 
@@ -142,6 +161,15 @@ fn xlsx_uses_the_unified_session_for_sheet_grid_and_materialization() -> TestRes
         DocumentSurfaceKind::Grid,
     )?;
     assert_eq!(ViewerDocumentFormat::Xlsx, session.info().format);
+    assert!(
+        session
+            .apply_spreadsheet_filter(SpreadsheetFilterCommand::Candidates {
+                sheet_index: 0,
+                column: 0,
+                limit: 8,
+            })
+            .is_err()
+    );
     assert_eq!(
         ViewerFeatureStatus::Supported,
         session

@@ -31,6 +31,7 @@ fn process(
         #[cfg(target_os = "macos")]
         max_memory_bytes: usize::MAX,
         _workspace: workspace,
+        _resource_lease: super::super::resource_metrics::SpreadsheetWorkerLease::acquire(),
         #[cfg(all(coverage, not(windows)))]
         coverage_profile: None,
     }

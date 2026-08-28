@@ -121,13 +121,28 @@ impl OfficeWorkerRunner {
         source: &OfficeDocumentSource,
         config: &OfficeWorkerConfig,
     ) -> Result<OfficeWorkerOutput, OfficeWorkerError> {
-        let (_, preflight_diagnostics) =
-            OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?;
-        let workspace =
-            OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?;
-        let status = OfficeWorkerProcess::run(workspace.path(), source.format, config)?;
-        let response = OfficeWorkerOutputReader::read_response(workspace.path())?;
+        let _conversion = super::debug_trace::DebugTrace::start("office.total");
+        let (_, preflight_diagnostics) = {
+            let _preflight = super::debug_trace::DebugTrace::start("office.preflight");
+            OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?
+        };
+        let workspace = {
+            let _workspace = super::debug_trace::DebugTrace::start("office.workspace");
+            OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?
+        };
+        let status = {
+            let _convert = super::debug_trace::DebugTrace::start("office.convert");
+            OfficeWorkerProcess::run(workspace.path(), source.format, config)?
+        };
+        let response = {
+            let _decode = super::debug_trace::DebugTrace::start("office.response_decode");
+            OfficeWorkerOutputReader::read_response(workspace.path())?
+        };
         complete_conversion(workspace.path(), status, response, config).map(|mut output| {
+            super::debug_trace::DebugTrace::event(
+                "office.artifact",
+                format_args!("bytes={}", output.pdf.len()),
+            );
             output.preflight_diagnostics = preflight_diagnostics;
             output
         })

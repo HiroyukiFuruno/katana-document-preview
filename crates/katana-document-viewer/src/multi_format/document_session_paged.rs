@@ -13,8 +13,8 @@ const MIN_RENDER_SCALE: f32 = 0.25;
 const MAX_RENDER_SCALE: f32 = 4.0;
 
 enum PagedEngine {
-    Pdf(PdfViewerSession),
-    Office(OfficeStaticViewerSession),
+    Pdf(Box<PdfViewerSession>),
+    Office(Box<OfficeStaticViewerSession>),
 }
 
 pub(super) struct PagedDocumentSession {
@@ -35,7 +35,11 @@ impl PagedDocumentSession {
     ) -> Result<Self, DocumentSessionError> {
         let session = PdfViewerSession::open(source)?;
         let metadata = pdf_metadata(&session);
-        Ok(Self::new(PagedEngine::Pdf(session), metadata, viewport))
+        Ok(Self::new(
+            PagedEngine::Pdf(Box::new(session)),
+            metadata,
+            viewport,
+        ))
     }
     pub(super) fn open_office(
         source: OfficeDocumentSource,
@@ -45,7 +49,11 @@ impl PagedDocumentSession {
         let format = ViewerDocumentFormat::from(source.format);
         let session = OfficeStaticViewerSession::open(source, worker)?;
         let metadata = office_metadata(&session, format);
-        Ok(Self::new(PagedEngine::Office(session), metadata, viewport))
+        Ok(Self::new(
+            PagedEngine::Office(Box::new(session)),
+            metadata,
+            viewport,
+        ))
     }
     fn new(
         engine: PagedEngine,
@@ -109,6 +117,7 @@ impl PagedDocumentSession {
                 capabilities: self.capabilities.clone(),
                 diagnostics: self.diagnostics.clone(),
                 format: self.format,
+                spreadsheet: None,
             })
             .map_err(DocumentSessionError::from)
     }

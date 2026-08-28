@@ -1,14 +1,20 @@
 use katana_document_viewer::{
     OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, OfficeWorkerError,
     SpreadsheetCellValue, SpreadsheetCoordinate, SpreadsheetHorizontalAlignment,
-    SpreadsheetViewerSession, ViewerDiagnosticCode, ViewerFeature, ViewerFeatureStatus,
-    ViewerSourceIdentity,
+    SpreadsheetViewerSession, SpreadsheetWorkerEntrypoint, ViewerDiagnosticCode, ViewerFeature,
+    ViewerFeatureStatus, ViewerSourceIdentity,
 };
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use zip::write::SimpleFileOptions;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+#[test]
+fn public_spreadsheet_worker_entrypoint_rejects_missing_arguments() {
+    assert_eq!(64, SpreadsheetWorkerEntrypoint::run(vec!["worker".into()]));
+}
 
 fn fixture(name: &str) -> TestResult<OfficeDocumentSource> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -26,12 +32,15 @@ fn worker_config() -> OfficeWorkerConfig {
     OfficeWorkerConfig::new(PathBuf::from(env!("CARGO_BIN_EXE_kdv-office-worker")))
 }
 
-#[cfg(windows)]
 fn external_worker_config() -> TestResult<(tempfile::TempDir, OfficeWorkerConfig)> {
     let directory = tempfile::tempdir()?;
     let nested = directory.path().join("external").join("release");
     std::fs::create_dir_all(&nested)?;
-    let executable = nested.join("kdv-office-worker.exe");
+    let executable = nested.join(if cfg!(windows) {
+        "kdv-office-worker.exe"
+    } else {
+        "kdv-office-worker"
+    });
     std::fs::copy(env!("CARGO_BIN_EXE_kdv-office-worker"), &executable)?;
     Ok((directory, OfficeWorkerConfig::new(executable)))
 }
@@ -101,6 +110,103 @@ fn missing_spreadsheet_worker_is_a_typed_failure_without_in_process_fallback() -
     };
     assert!(matches!(error, OfficeWorkerError::WorkerUnavailable { .. }));
     Ok(())
+}
+
+#[test]
+fn compatible_office_worker_fallback_preserves_spreadsheet_open_failures() -> TestResult {
+    let (_directory, config) = external_worker_config()?;
+    assert!(matches!(
+        SpreadsheetViewerSession::open(preflight_valid_invalid_xlsx()?, config),
+        Err(OfficeWorkerError::EngineFailure {
+            ref stage,
+            ..
+        }) if stage == "spreadsheet_open"
+    ));
+    Ok(())
+}
+
+#[test]
+fn compatible_office_worker_fallback_opens_and_materializes_a_valid_workbook() -> TestResult {
+    let (_directory, config) = external_worker_config()?;
+    let mut session = SpreadsheetViewerSession::open(fixture("representative.xlsx")?, config)?;
+    let cells = session.materialize_cells(0, vec![SpreadsheetCoordinate::new(0, 0)])?;
+    assert_eq!("Quarterly performance", cells[0].display_text);
+    Ok(())
+}
+
+#[test]
+fn dedicated_worker_rejects_malformed_filter_catalog_inputs() -> TestResult {
+    let cases = [
+        b"not a ZIP".to_vec(),
+        spreadsheet_worker_package(None, None, None)?,
+        spreadsheet_worker_package(Some(b"<"), Some(b"<Relationships/>"), None)?,
+        spreadsheet_worker_package(
+            Some(
+                br#"<workbook xmlns:r="urn:r"><sheets><sheet name="Data" r:id="r1"/></sheets></workbook>"#,
+            ),
+            Some(b"<Relationships/>"),
+            None,
+        )?,
+    ];
+    for bytes in cases {
+        let workspace = tempfile::tempdir()?;
+        std::fs::write(workspace.path().join("input.office"), bytes)?;
+        let mut command = Command::new(env!("CARGO_BIN_EXE_kdv-spreadsheet-worker"));
+        command.arg("--spreadsheet").arg(workspace.path()).args([
+            "1073741824",
+            "30",
+            "256",
+            "25000000",
+            "4096",
+        ]);
+        #[cfg(coverage)]
+        let coverage_profile = direct_worker_coverage_profile(&mut command, workspace.path());
+        let status = command.status()?;
+        #[cfg(coverage)]
+        if let Some((workspace_profile, report_profile)) = coverage_profile {
+            std::fs::copy(workspace_profile, report_profile)?;
+        }
+        assert_eq!(Some(70), status.code());
+    }
+    Ok(())
+}
+
+#[cfg(coverage)]
+fn direct_worker_coverage_profile(
+    command: &mut Command,
+    workspace: &Path,
+) -> Option<(PathBuf, PathBuf)> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static PROFILE_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
+    let sequence = PROFILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let workspace_profile = workspace.join(format!(".coverage-direct-{sequence}.profraw"));
+    let mut report_profile = std::env::var_os("LLVM_PROFILE_FILE")?;
+    report_profile.push(format!(
+        "-direct-spreadsheet-{}-{sequence}.profraw",
+        std::process::id()
+    ));
+    command.env("LLVM_PROFILE_FILE", &workspace_profile);
+    Some((workspace_profile, PathBuf::from(report_profile)))
+}
+
+fn spreadsheet_worker_package(
+    workbook: Option<&[u8]>,
+    relationships: Option<&[u8]>,
+    worksheet: Option<&[u8]>,
+) -> TestResult<Vec<u8>> {
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, bytes) in [
+        ("xl/workbook.xml", workbook),
+        ("xl/_rels/workbook.xml.rels", relationships),
+        ("xl/worksheets/sheet1.xml", worksheet),
+    ] {
+        if let Some(bytes) = bytes {
+            writer.start_file(name, SimpleFileOptions::default())?;
+            writer.write_all(bytes)?;
+        }
+    }
+    Ok(writer.finish()?.into_inner())
 }
 
 #[test]

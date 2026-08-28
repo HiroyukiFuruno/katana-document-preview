@@ -15,7 +15,11 @@ impl OfficeWorkerConstraints {
         max_memory_bytes: u64,
         max_cpu_seconds: u64,
     ) -> Result<(), (String, String)> {
-        Self::apply_resource_limits(max_memory_bytes, max_cpu_seconds)?;
+        {
+            let _limits = super::debug_trace::DebugTrace::start("worker.resource_limits");
+            Self::apply_resource_limits(max_memory_bytes, max_cpu_seconds)?;
+        }
+        let _sandbox = super::debug_trace::DebugTrace::start("worker.sandbox");
         Self::apply_sandbox(workspace)
     }
 
