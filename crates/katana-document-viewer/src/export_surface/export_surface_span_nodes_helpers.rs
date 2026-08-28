@@ -109,7 +109,7 @@ pub(super) fn push(
     if !text.is_empty() {
         for segment in EmojiTextSegments::split(&text) {
             let segment_style = if segment.emoji { style.emoji() } else { style };
-            push_styled_segment(spans, segment.text, segment_style);
+            push_styled_segment(spans, segment.text.as_str(), segment_style);
         }
     }
 }

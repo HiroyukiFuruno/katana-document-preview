@@ -82,6 +82,38 @@ fn star_variation_sequence_paints_visible_pixels() {
     );
 }
 
+#[test]
+fn platform_raster_keeps_japanese_and_zwj_grapheme_ranges_hittable()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut painter = SurfaceTextPainter::from_system_fonts();
+    let spans = vec![
+        SurfaceTextSpan::plain("日本語 "),
+        SurfaceTextSpan::styled("🧑‍💻", SurfaceTextStyle::default().emoji()),
+    ];
+
+    let raster = painter
+        .rasterize_spans(&spans, 32.0, 640.0, Rgba([36, 41, 47, 255]))
+        .ok_or("platform text raster must accept KDV spans")?;
+    let zwj_start = "日本語 ".len();
+    let zwj_end = zwj_start + "🧑‍💻".len();
+    let zwj_bounds = raster
+        .grapheme_bounds
+        .iter()
+        .find(|bounds| bounds.byte_start == zwj_start && bounds.byte_end == zwj_end)
+        .ok_or("ZWJ emoji must remain one grapheme range")?;
+    let hit = raster
+        .hit_test(
+            zwj_bounds.x + zwj_bounds.width / 2.0,
+            zwj_bounds.y + zwj_bounds.height / 2.0,
+        )
+        .ok_or("ZWJ emoji must be hit-testable")?;
+
+    assert_eq!((hit.byte_start, hit.byte_end), (zwj_start, zwj_end));
+    assert!(raster.width > 0 && raster.height > 0);
+    assert!(!raster.rgba_pixels.is_empty());
+    Ok(())
+}
+
 fn is_chromatic(pixel: Rgba<u8>) -> bool {
     pixel[0] != pixel[1] || pixel[1] != pixel[2]
 }

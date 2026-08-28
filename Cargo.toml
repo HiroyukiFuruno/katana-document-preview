@@ -7,7 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.7"
+version = "0.2.8"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/HiroyukiFuruno/katana-document-viewer"
@@ -17,27 +17,33 @@ authors = ["Hiroyuki Furuno"]
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 emojis = "0.9"
-epaint_default_fonts = "0.35"
+epaint_default_fonts = "0.36"
 thiserror = "2"
 katana-markdown-model = "0.2.1"
-katana-render-runtime = "0.3.8"
+katana-render-runtime = "0.4.19"
 katana-ui-core = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.1.4" }
 katana-ui-core-storybook = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.1.4" }
+katana-ui-core-text-raster = { path = "../katana-ui-core/crates/katana-ui-core-text-raster" }
 serde_json = "1"
 syntect = { version = "5.3", default-features = false, features = ["default-fancy"] }
 cosmic-text = "0.19"
 flate2 = "1"
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "webp"] }
 minifb = "0.28"
-resvg = "0.47"
+resvg = "0.48"
 tiny-skia = "0.12"
 ignore = "0.4"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 katana-ast-lint = "0.5.1"
-syn = { version = "2", features = ["full", "visit"] }
+syn = { version = "3", features = ["full", "visit"] }
 toml = "1.1"
-v8 = { version = "=150.0.0", features = ["simdutf"] }
 xmltree = "0.12"
+
+[patch.crates-io]
+katana-render-runtime = { path = "../katana-render-runtime/crates/katana-render-runtime" }
+
+[patch."https://github.com/HiroyukiFuruno/katana-ui-core.git"]
+katana-ui-core = { path = "../katana-ui-core/crates/katana-ui-core" }
 
 [profile.test]
 opt-level = 2

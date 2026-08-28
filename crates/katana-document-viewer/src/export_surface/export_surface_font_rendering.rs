@@ -1,15 +1,9 @@
-#[path = "export_surface_font_rendering_attrs.rs"]
-mod attrs;
-#[path = "export_surface_font_rendering_math.rs"]
-mod math;
 #[path = "export_surface_font_rendering_pixels.rs"]
 mod pixels;
-#[path = "export_surface_font_rendering_ranges.rs"]
-mod ranges;
 #[path = "export_surface_font_rendering_shapes.rs"]
 mod shapes;
-#[path = "export_surface_font_rendering_supersample.rs"]
-mod supersample;
+
+pub(super) use pixels::SurfacePixelBlender;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct SpanVisualRange {
@@ -29,32 +23,17 @@ impl SpanVisualRange {
         self.end_x.saturating_sub(self.start_x).max(1)
     }
 
+    #[cfg(test)]
     pub(super) fn end_x(self) -> u32 {
         self.end_x
     }
 
-    fn extend(self, start_x: f32, end_x: f32) -> Self {
+    pub(super) fn extend(self, start_x: f32, end_x: f32) -> Self {
         Self {
             start_x: (self.start_x as f32).min(start_x) as u32,
             end_x: (self.end_x as f32).max(end_x) as u32,
         }
     }
-}
-
-pub(super) fn attrs_for_span_with_metadata(
-    span: &crate::export_surface_span::SurfaceTextSpan,
-    metadata: usize,
-) -> cosmic_text::Attrs<'static> {
-    attrs::attrs_for_span_with_metadata(span, metadata)
-}
-
-pub(super) use supersample::{SurfaceTextSupersamples, TEXT_SUPERSAMPLE_SCALE};
-
-pub(super) fn span_visual_ranges(
-    buffer: &cosmic_text::Buffer,
-    span_count: usize,
-) -> Vec<Option<SpanVisualRange>> {
-    ranges::span_visual_ranges(buffer, span_count)
 }
 
 pub(super) fn draw_span_backgrounds(
@@ -89,9 +68,4 @@ pub(super) fn draw_span_decorations(
     size: f32,
 ) {
     shapes::draw_span_decorations(image, spans, ranges, x, y, size);
-}
-
-#[cfg(test)]
-pub(super) fn is_half_width_math_symbol(character: char) -> bool {
-    math::is_half_width_math_symbol(character)
 }

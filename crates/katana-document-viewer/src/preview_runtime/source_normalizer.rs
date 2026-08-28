@@ -1,6 +1,10 @@
 use crate::MarkdownSource;
-use crate::preview_runtime::direct_html_normalizer::DirectHtmlNormalizer;
+use crate::preview_runtime::direct_html_preview_renderer::DirectHtmlPreviewRenderer;
+use crate::preview_runtime::types::PreviewError;
 use std::path::{Path, PathBuf};
+
+#[path = "source_normalizer_image.rs"]
+mod image;
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
 const HTML_EXTENSIONS: &[&str] = &["html", "htm"];
@@ -17,39 +21,28 @@ pub(super) struct PreparedPreviewSource {
 pub(super) struct PreviewSourceNormalizer;
 
 impl PreviewSourceNormalizer {
-    pub(super) fn normalize(source: &MarkdownSource) -> PreparedPreviewSource {
+    pub(super) fn normalize(
+        source: &MarkdownSource,
+    ) -> Result<PreparedPreviewSource, PreviewError> {
         let source_name = Self::source_name(source);
         let source_path = PathBuf::from(&source_name);
         let content = Self::normalize_newlines(&source.content);
         if Self::is_image_path(&source_path) {
-            return Self::image_source(&content, source_name, source_path);
+            return Ok(Self::image_source(&content, source_name, source_path));
         }
         if Self::is_drawio_path(&source_path) {
-            return Self::drawio_source(&content, source_path);
+            return Ok(Self::drawio_source(&content, source_path));
         }
         if Self::is_mermaid_path(&source_path) {
-            return Self::diagram_source(&content, source_path, "mermaid");
+            return Ok(Self::diagram_source(&content, source_path, "mermaid"));
         }
         if Self::is_plantuml_path(&source_path) {
-            return Self::diagram_source(&content, source_path, "plantuml");
+            return Ok(Self::diagram_source(&content, source_path, "plantuml"));
         }
         if Self::is_html_path(&source_path) {
             return Self::html_source(&content, source_path);
         }
-        Self::markdown_source(content, source_path)
-    }
-
-    fn image_source(
-        content: &str,
-        source_name: String,
-        source_path: PathBuf,
-    ) -> PreparedPreviewSource {
-        PreparedPreviewSource {
-            content: Self::image_markdown(content, &source_name),
-            source_path,
-            source_kind: crate::SourceKind::Image,
-            document_kind: crate::DocumentKind::Image,
-        }
+        Ok(Self::markdown_source(content, source_path))
     }
 
     fn drawio_source(content: &str, source_path: PathBuf) -> PreparedPreviewSource {
@@ -65,13 +58,16 @@ impl PreviewSourceNormalizer {
         }
     }
 
-    fn html_source(content: &str, source_path: PathBuf) -> PreparedPreviewSource {
-        PreparedPreviewSource {
-            content: DirectHtmlNormalizer::normalize(content),
+    fn html_source(
+        content: &str,
+        source_path: PathBuf,
+    ) -> Result<PreparedPreviewSource, PreviewError> {
+        Ok(PreparedPreviewSource {
+            content: DirectHtmlPreviewRenderer::render_html(content)?,
             source_path,
             source_kind: crate::SourceKind::Html,
             document_kind: crate::DocumentKind::Html,
-        }
+        })
     }
 
     fn markdown_source(content: String, source_path: PathBuf) -> PreparedPreviewSource {
@@ -90,58 +86,6 @@ impl PreviewSourceNormalizer {
         }
     }
 
-    fn image_markdown(content: &str, source_name: &str) -> String {
-        let trimmed = content.trim();
-        if Self::is_markdown_image(trimmed) {
-            return trimmed.to_string();
-        }
-        let image_uri = Self::image_uri(trimmed, source_name);
-        let alt_source_name = source_name.replace('\\', "/");
-        let alt = Path::new(&alt_source_name)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("image");
-        format!("![{alt}]({image_uri})")
-    }
-
-    fn image_uri(trimmed: &str, source_name: &str) -> String {
-        if trimmed.is_empty() {
-            return Self::file_uri(source_name);
-        }
-        if Self::is_image_reference(trimmed) {
-            return trimmed.to_string();
-        }
-        Self::file_uri(source_name)
-    }
-
-    fn file_uri(source_name: &str) -> String {
-        if source_name.starts_with("http://") || source_name.starts_with("https://") {
-            return source_name.to_string();
-        }
-        let normalized = source_name.replace('\\', "/");
-        if normalized.starts_with("file://") {
-            return normalized;
-        }
-        if normalized.starts_with('/') {
-            return format!("file://{normalized}");
-        }
-        if Self::starts_with_windows_drive(&normalized) {
-            return format!("file:///{normalized}");
-        }
-        format!("file://{normalized}")
-    }
-
-    fn is_image_reference(value: &str) -> bool {
-        value.starts_with("file://")
-            || value.starts_with("http://")
-            || value.starts_with("https://")
-            || Self::is_image_path(Path::new(value))
-    }
-
-    fn is_markdown_image(content: &str) -> bool {
-        content.starts_with("![") && content.contains("](") && content.ends_with(')')
-    }
-
     fn diagram_markdown(content: &str, fence: &str) -> String {
         let body = content.trim();
         format!("```{fence}\n{body}\n```")
@@ -154,11 +98,6 @@ impl PreviewSourceNormalizer {
     fn starts_with_windows_drive(value: &str) -> bool {
         let bytes = value.as_bytes();
         bytes.len() >= 3 && bytes[1] == b':' && bytes[2] == b'/' && bytes[0].is_ascii_alphabetic()
-    }
-
-    fn is_image_path(path: &Path) -> bool {
-        Self::extension(path)
-            .is_some_and(|extension| IMAGE_EXTENSIONS.iter().any(|item| *item == extension))
     }
 
     fn is_drawio_path(path: &Path) -> bool {
@@ -179,19 +118,6 @@ impl PreviewSourceNormalizer {
     fn is_html_path(path: &Path) -> bool {
         Self::extension(path)
             .is_some_and(|extension| HTML_EXTENSIONS.iter().any(|item| *item == extension))
-    }
-
-    fn extension(path: &Path) -> Option<String> {
-        let path_text = path.to_string_lossy();
-        let normalized = Self::strip_query_fragment(&path_text);
-        Path::new(normalized)
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .map(str::to_ascii_lowercase)
-    }
-
-    fn strip_query_fragment(value: &str) -> &str {
-        value.split(['?', '#']).next().unwrap_or(value)
     }
 }
 

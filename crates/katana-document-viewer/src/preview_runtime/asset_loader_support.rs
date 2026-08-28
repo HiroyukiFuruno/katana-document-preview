@@ -46,14 +46,13 @@ impl PreviewAssetLoaderSupport {
         let path = raw.split(['?', '#']).next().unwrap_or(raw);
         let local_path = if let Some(rest) = path.strip_prefix("localhost/") {
             format!("/{rest}")
-        } else if let Some(windows_path) = path.strip_prefix('/') {
+        } else {
+            let windows_path = path.strip_prefix('/')?;
             if Self::starts_with_windows_drive(windows_path) {
                 windows_path.to_string()
             } else {
                 path.to_string()
             }
-        } else {
-            return None;
         };
         Some(PathBuf::from(Self::percent_decode(local_path.as_str())?))
     }

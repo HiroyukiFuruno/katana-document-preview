@@ -27,6 +27,29 @@ fn generic_html_is_treated_as_wrapped_text() {
 }
 
 #[test]
+fn styled_html_is_rendered_as_rich_surface_span() {
+    let graph = graph();
+    let mut blocks = Vec::new();
+    let node = node(r#"<p style="color: red; font-weight: bold">Red</p>"#);
+    SurfaceBlockFactory::append_html(
+        &mut blocks,
+        &graph,
+        &node,
+        &HtmlBlockRole::Generic,
+        0,
+        0,
+        &KdvThemeSnapshot::katana_light(),
+    );
+
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].text_for_tests(), "Red");
+    assert_eq!(
+        blocks[0].debug_for_tests(),
+        "line:Red:Red:[\"bold\", \"color\"]"
+    );
+}
+
+#[test]
 fn centered_html_is_rendered_into_centered_line() {
     let graph = graph();
     let mut blocks = Vec::new();

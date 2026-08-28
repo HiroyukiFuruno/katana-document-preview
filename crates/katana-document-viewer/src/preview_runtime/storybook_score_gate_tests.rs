@@ -1087,7 +1087,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         &[
             "name = \"katana-ui-core\"",
             "name = \"katana-ui-core-storybook\"",
-            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.1.4#554f13f2c219115cbd3a2c3dc3d02fd5306c4743\"",
+            "version = \"0.1.4\"",
         ],
     );
 

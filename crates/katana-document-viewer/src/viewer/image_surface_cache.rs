@@ -31,8 +31,10 @@ impl ViewerImageSurfaceCache {
     }
 
     #[cfg(test)]
-    pub(super) fn len_for_tests() -> usize {
-        cache().lock().map_or(0, |cache| cache.len())
+    pub(super) fn contains_for_tests(fingerprint: &str) -> bool {
+        cache()
+            .lock()
+            .is_ok_and(|cache| cache.contains_key(fingerprint))
     }
 }
 

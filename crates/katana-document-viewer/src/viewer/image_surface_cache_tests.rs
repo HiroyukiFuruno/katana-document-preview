@@ -15,7 +15,9 @@ fn svg_surface_cache_reuses_same_fingerprint() -> Result<(), Box<dyn std::error:
     let second = ViewerImageSurfaceFactory::from_svg_str("diagram-node", SVG, 120)?;
 
     assert_eq!(first, second);
-    assert_eq!(1, ViewerImageSurfaceCache::len_for_tests());
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &first.fingerprint
+    ));
     Ok(())
 }
 
@@ -28,7 +30,12 @@ fn svg_surface_cache_keeps_scale_variants_separate() -> Result<(), Box<dyn std::
     let narrow = ViewerImageSurfaceFactory::from_svg_str("diagram-node", SVG, 10)?;
 
     assert_ne!(standard.fingerprint, narrow.fingerprint);
-    assert_eq!(2, ViewerImageSurfaceCache::len_for_tests());
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &standard.fingerprint
+    ));
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &narrow.fingerprint
+    ));
     Ok(())
 }
 

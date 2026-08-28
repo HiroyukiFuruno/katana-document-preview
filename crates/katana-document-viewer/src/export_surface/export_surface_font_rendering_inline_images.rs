@@ -2,7 +2,7 @@ use crate::export_surface_span::SurfaceTextSpan;
 use image::RgbaImage;
 
 use super::super::SpanVisualRange;
-use super::super::pixels::blend_pixel;
+use super::super::pixels::SurfacePixelBlender;
 
 const INLINE_IMAGE_OFFSET_SCALE: f32 = 0.22;
 
@@ -54,7 +54,7 @@ mod tests;
 
 fn paste_inline_rgba(target: &mut RgbaImage, source: &RgbaImage, x: u32, y: u32) {
     for (source_x, source_y, pixel) in source.enumerate_pixels() {
-        blend_pixel(
+        SurfacePixelBlender::blend(
             target,
             x.saturating_add(source_x) as i32,
             y.saturating_add(source_y) as i32,

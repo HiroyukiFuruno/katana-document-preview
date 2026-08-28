@@ -1,12 +1,8 @@
 use super::{SurfaceSpansLayout, SurfaceTextLayout, SurfaceTextPainter, rendering};
 use crate::export_surface_span::SurfaceTextSpan;
-use cosmic_text::{Attrs, Shaping};
 #[cfg(test)]
 use image::Rgba;
 use image::RgbaImage;
-
-#[cfg(test)]
-use super::SurfaceTextBackgroundPalette;
 
 impl SurfaceTextPainter {
     pub(crate) fn draw_text(
@@ -15,15 +11,12 @@ impl SurfaceTextPainter {
         text: &str,
         layout: SurfaceTextLayout,
     ) {
-        let mut draw_buffer = self.create_text_buffer(
-            layout.size * rendering::TEXT_SUPERSAMPLE_SCALE,
-            layout
-                .max_width
-                .unwrap_or_else(|| image.width().saturating_sub(layout.x) as f32)
-                * rendering::TEXT_SUPERSAMPLE_SCALE,
-        );
-        draw_buffer.set_text(text, &Attrs::new(), Shaping::Advanced, None);
-        self.draw_buffer(image, &mut draw_buffer, layout.x, layout.y, layout.color);
+        let max_width = layout
+            .max_width
+            .unwrap_or_else(|| image.width().saturating_sub(layout.x) as f32);
+        if let Some(raster) = self.rasterize_text(text, layout.size, max_width, layout.color) {
+            draw_raster(image, &raster, layout.x, layout.y);
+        }
     }
 
     #[cfg(test)]
@@ -44,7 +37,7 @@ impl SurfaceTextPainter {
                 y,
                 size,
                 color,
-                backgrounds: SurfaceTextBackgroundPalette::default(),
+                backgrounds: super::SurfaceTextBackgroundPalette::default(),
             },
         );
     }
@@ -55,10 +48,8 @@ impl SurfaceTextPainter {
         spans: &[SurfaceTextSpan],
         layout: SurfaceSpansLayout,
     ) {
-        let (_layout_buffer, ranges) =
-            self.create_spans_buffer(image, spans, layout.x, layout.y, layout.size);
-        let mut draw_buffer =
-            self.create_spans_draw_buffer(image, spans, layout.x, layout.y, layout.size);
+        let max_width = image.width().saturating_sub(layout.x) as f32;
+        let (raster, ranges) = self.span_visual_ranges(spans, layout.size, max_width, layout.color);
         rendering::draw_span_backgrounds(
             image,
             spans,
@@ -68,8 +59,31 @@ impl SurfaceTextPainter {
             layout.size,
             layout.backgrounds,
         );
-        self.draw_buffer(image, &mut draw_buffer, layout.x, layout.y, layout.color);
+        if let Some(raster) = raster {
+            draw_raster(image, &raster, layout.x, layout.y);
+        }
         rendering::draw_inline_images(image, spans, &ranges, layout.x, layout.y, layout.size);
         rendering::draw_span_decorations(image, spans, &ranges, layout.x, layout.y, layout.size);
+    }
+}
+
+fn draw_raster(
+    image: &mut RgbaImage,
+    raster: &katana_ui_core_text_raster::PlatformTextRaster,
+    x: u32,
+    y: u32,
+) {
+    for (index, pixel) in raster.rgba_pixels.iter().enumerate() {
+        if pixel[3] == 0 {
+            continue;
+        }
+        let pixel_x = x.saturating_add((index % raster.width) as u32);
+        let pixel_y = y.saturating_add((index / raster.width) as u32);
+        rendering::SurfacePixelBlender::blend(
+            image,
+            pixel_x as i32,
+            pixel_y as i32,
+            image::Rgba(*pixel),
+        );
     }
 }

@@ -1,4 +1,4 @@
-use super::{Rgba, rendering};
+use super::Rgba;
 use image::RgbaImage;
 
 const HALF_WIDTH_SPACE_FACTOR: f32 = 0.35;
@@ -6,9 +6,6 @@ const HALF_WIDTH_PUNCTUATION_FACTOR: f32 = 0.43;
 const HALF_WIDTH_TEXT_FACTOR: f32 = 0.54;
 const HALF_WIDTH_MATH_FACTOR: f32 = 0.65;
 const DEFAULT_WIDTH_FACTOR: f32 = 0.92;
-const FONT_LINE_HEIGHT_MULTIPLIER: f32 = 1.45;
-const TEST_BUFFER_WIDTH: f32 = 2048.0;
-const FONT_BUFFER_HEIGHT_SCALE: f32 = 1.8;
 
 pub(super) fn estimated_text_width(text: &str, size: f32) -> u32 {
     text.chars()
@@ -34,76 +31,34 @@ fn character_width_factor(character: char) -> f32 {
 }
 
 pub(super) fn is_half_width_math_symbol(character: char) -> bool {
-    rendering::is_half_width_math_symbol(character)
+    HALF_WIDTH_MATH_SYMBOLS.contains(&character)
 }
+
+const HALF_WIDTH_MATH_SYMBOLS: &[char] = &[
+    'α', 'β', 'γ', 'δ', '∑', '∫', '√', '∞', '⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', 'ⁿ',
+    'ˣ', '₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉', 'ₖ',
+];
 
 pub(super) fn actual_span_x_range(
     spans: &[super::SurfaceTextSpan],
     span_index: usize,
     size: f32,
 ) -> Option<(u32, u32)> {
-    let mut font_system = cosmic_text::FontSystem::new();
-    let metrics = cosmic_text::Metrics::new(size, size * FONT_LINE_HEIGHT_MULTIPLIER);
-    let mut buffer = cosmic_text::Buffer::new(&mut font_system, metrics);
-    buffer.set_size(
-        Some(TEST_BUFFER_WIDTH),
-        Some(size * FONT_BUFFER_HEIGHT_SCALE),
-    );
-    let default_attrs = cosmic_text::Attrs::new();
-    let rich = spans.iter().enumerate().map(|(index, span)| {
-        (
-            span.text.as_str(),
-            rendering::attrs_for_span_with_metadata(span, index.saturating_add(1)),
-        )
-    });
-    buffer.set_rich_text(rich, &default_attrs, cosmic_text::Shaping::Advanced, None);
-    buffer.shape_until_scroll(&mut font_system, false);
-
-    SpanRangeFinder::find(&buffer, span_index)
+    super::SurfaceTextPainter::from_system_fonts().span_x_range(spans, span_index, size)
 }
 
-struct SpanRangeFinder;
-
-impl SpanRangeFinder {
-    fn find(buffer: &cosmic_text::Buffer, span_index: usize) -> Option<(u32, u32)> {
-        let mut range = SpanRangeAccumulator::new(span_index.saturating_add(1));
-        for run in buffer.layout_runs() {
-            for glyph in run.glyphs {
-                range.collect(glyph);
-            }
-        }
-        range.into_u32_range()
-    }
-}
-
-struct SpanRangeAccumulator {
-    target_metadata: usize,
-    min_x: Option<f32>,
-    max_x: Option<f32>,
-}
-
-impl SpanRangeAccumulator {
-    fn new(target_metadata: usize) -> Self {
-        Self {
-            target_metadata,
-            min_x: None,
-            max_x: None,
-        }
-    }
-
-    fn collect(&mut self, glyph: &cosmic_text::LayoutGlyph) {
-        if glyph.metadata != self.target_metadata {
-            return;
-        }
-        self.min_x = Some(self.min_x.map_or(glyph.x, |current| current.min(glyph.x)));
-        self.max_x = Some(
-            self.max_x
-                .map_or(glyph.x + glyph.w, |current| current.max(glyph.x + glyph.w)),
-        );
-    }
-
-    fn into_u32_range(self) -> Option<(u32, u32)> {
-        Some((self.min_x?.floor() as u32, self.max_x?.ceil() as u32))
+impl super::SurfaceTextPainter {
+    pub(crate) fn span_x_range(
+        &mut self,
+        spans: &[super::SurfaceTextSpan],
+        span_index: usize,
+        size: f32,
+    ) -> Option<(u32, u32)> {
+        let (_, ranges) = self.span_visual_ranges(spans, size, 2048.0, Rgba([36, 41, 47, 255]));
+        ranges
+            .get(span_index)
+            .and_then(|range| *range)
+            .map(|range| (range.start_x, range.end_x()))
     }
 }
 

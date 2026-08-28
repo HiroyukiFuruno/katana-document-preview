@@ -60,7 +60,7 @@ impl ViewerNodeClassifier {
             .into_iter()
             .map(|segment| {
                 let segment_style = if segment.emoji { style.emoji() } else { style };
-                ViewerTextSpan::styled(segment.text, segment_style)
+                ViewerTextSpan::styled(segment.text.as_str(), segment_style)
             })
             .collect()
     }

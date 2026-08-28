@@ -137,6 +137,15 @@ mod tests {
         assert_eq!(1, count);
     }
 
+    #[test]
+    fn platform_measurement_keeps_japanese_and_zwj_emoji_on_the_same_line_when_it_fits() {
+        let spans = vec![ViewerTextSpan::plain("日本語 ⭐️ 🧑‍💻 text")];
+
+        let count = SpanLineCounter::count(&spans, 640, typography(20));
+
+        assert_eq!(1, count);
+    }
+
     fn typography(preview_font_size: u16) -> ViewerTypographyConfig {
         ViewerTypographyConfig { preview_font_size }
     }

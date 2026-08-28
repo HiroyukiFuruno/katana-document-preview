@@ -1,6 +1,7 @@
 use super::super::super::types::{ViewerTextSpan, ViewerTextStyle};
 use super::ViewerNodeClassifier;
 use crate::export_surface_text::SurfaceTextParser as TextParser;
+use crate::html_style::HtmlStyleProperties;
 
 impl ViewerNodeClassifier {
     pub(super) fn inline_html_spans(html: &str, style: ViewerTextStyle) -> Vec<ViewerTextSpan> {
@@ -24,26 +25,10 @@ impl ViewerNodeClassifier {
         let lower = raw.to_ascii_lowercase();
         let mut cursor = 0;
         let mut spans = Vec::new();
-        while let Some(relative_start) = lower[cursor..].find("<a ") {
-            let link_start = cursor + relative_start;
-            let Some(tag_end_delta) = raw[link_start..].find('>') else {
-                break;
-            };
-            let tag_end = link_start + tag_end_delta;
-            let body_start = tag_end + 1;
-            let Some(close_delta) = lower[body_start..].find("</a>") else {
-                break;
-            };
-            let close_start = body_start + close_delta;
-            Self::push_html_plain(&raw[cursor..link_start], &mut spans);
-            let target = html_link_target(&raw[link_start..=tag_end]);
-            let text = TextParser::html_fragment_text(&raw[body_start..close_start]);
-            if let Some(target) = target {
-                spans.extend(Self::linked_span(text, target, ViewerTextStyle::default()));
-            } else {
-                spans.extend(Self::plain_span(&text, ViewerTextStyle::default()));
-            }
-            cursor = close_start + "</a>".len();
+        while let Some(segment) = next_html_link_segment(raw, &lower, cursor) {
+            Self::push_html_plain(&raw[cursor..segment.link_start], &mut spans);
+            Self::push_html_link(&segment, raw, &mut spans);
+            cursor = segment.next_cursor;
         }
         Self::push_html_plain(&raw[cursor..], &mut spans);
         spans
@@ -54,8 +39,46 @@ impl ViewerNodeClassifier {
         if text.is_empty() {
             return;
         }
-        spans.push(ViewerTextSpan::plain(text));
+        spans.extend(Self::plain_span(
+            &text,
+            html_style(raw, ViewerTextStyle::default()),
+        ));
     }
+
+    fn push_html_link(segment: &HtmlLinkSegment<'_>, raw: &str, spans: &mut Vec<ViewerTextSpan>) {
+        let target = html_link_target(segment.tag);
+        let text = TextParser::html_fragment_text(segment.body);
+        let style = html_style(segment.tag, html_style(raw, ViewerTextStyle::default()));
+        if let Some(target) = target {
+            spans.extend(Self::linked_span(text, target, style));
+        } else {
+            spans.extend(Self::plain_span(&text, style));
+        }
+    }
+}
+
+struct HtmlLinkSegment<'a> {
+    link_start: usize,
+    next_cursor: usize,
+    tag: &'a str,
+    body: &'a str,
+}
+
+fn next_html_link_segment<'a>(
+    raw: &'a str,
+    lower: &str,
+    cursor: usize,
+) -> Option<HtmlLinkSegment<'a>> {
+    let link_start = cursor + lower[cursor..].find("<a ")?;
+    let tag_end = link_start + raw[link_start..].find('>')?;
+    let body_start = tag_end + 1;
+    let close_start = body_start + lower[body_start..].find("</a>")?;
+    Some(HtmlLinkSegment {
+        link_start,
+        next_cursor: close_start + "</a>".len(),
+        tag: &raw[link_start..=tag_end],
+        body: &raw[body_start..close_start],
+    })
 }
 
 fn html_link_target(html: &str) -> Option<String> {
@@ -77,24 +100,28 @@ fn html_link_target(html: &str) -> Option<String> {
 }
 
 fn html_style(html: &str, style: ViewerTextStyle) -> ViewerTextStyle {
-    let lower = html.to_ascii_lowercase();
-    if lower.contains("<code") {
-        return style.inline_code();
+    let properties = HtmlStyleProperties::from_fragment(html);
+    let mut style = style;
+    if properties.inline_code {
+        style = style.inline_code();
     }
-    if lower.contains("<strong") || lower.contains("<b") {
-        return style.bold();
+    if properties.bold {
+        style = style.bold();
     }
-    if lower.contains("<em") || lower.contains("<i") {
-        return style.italic();
+    if properties.italic {
+        style = style.italic();
     }
-    if lower.contains("<u") {
-        return style.underline();
+    if properties.underline {
+        style = style.underline();
     }
-    if lower.contains("<mark") {
-        return style.highlight();
+    if properties.highlight {
+        style = style.highlight();
     }
-    if lower.contains("<s") || lower.contains("<del") {
-        return style.strikethrough();
+    if properties.strikethrough {
+        style = style.strikethrough();
+    }
+    if let Some(color) = properties.color_rgba {
+        style = style.color_rgba(color);
     }
     style
 }

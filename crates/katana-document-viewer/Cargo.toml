@@ -12,6 +12,8 @@ description = "KatanA document viewer artifact, render evaluation, and export fo
 path = "src/lib.rs"
 
 [dependencies]
+katana-ui-core = { workspace = true }
+katana-ui-core-text-raster = { workspace = true }
 cosmic-text = { workspace = true }
 epaint_default_fonts = { workspace = true }
 flate2 = { workspace = true }
@@ -24,7 +26,6 @@ serde_json = { workspace = true }
 syntect = { workspace = true }
 thiserror = { workspace = true }
 tiny-skia = { workspace = true }
-v8 = { workspace = true }
 xmltree = { workspace = true }
 
 [dev-dependencies]

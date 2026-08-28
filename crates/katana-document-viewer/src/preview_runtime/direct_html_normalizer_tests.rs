@@ -9,6 +9,18 @@ fn direct_html_is_split_into_top_level_blocks() {
     assert!(normalized.contains("<details open><summary>Details</summary><p>Body</p></details>"));
 }
 
+#[test]
+fn direct_html_skips_head_style_and_script_as_body_text() {
+    let normalized = DirectHtmlNormalizer::normalize(&document_source());
+
+    assert!(!normalized.contains("Hidden metadata"));
+    assert!(!normalized.contains("body { color: red; }"));
+    assert!(!normalized.contains("window.bad = true"));
+    assert!(normalized.contains("Visible"));
+    assert!(normalized.contains("color: red"));
+    assert!(normalized.contains("font-weight: bold"));
+}
+
 fn source() -> String {
     [
         "<main>",
@@ -18,6 +30,28 @@ fn source() -> String {
         "<p>Body</p>",
         "</details>",
         "</main>",
+    ]
+    .join("\n")
+}
+
+fn document_source() -> String {
+    [
+        "<!doctype html>",
+        "<html>",
+        "<head>",
+        "<title>Hidden metadata</title>",
+        "<style>",
+        "body { color: red; }",
+        ".important { font-weight: bold; }",
+        "</style>",
+        "</head>",
+        "<body>",
+        r#"<p class="important">Visible</p>"#,
+        "<script>",
+        "window.bad = true;",
+        "</script>",
+        "</body>",
+        "</html>",
     ]
     .join("\n")
 }
