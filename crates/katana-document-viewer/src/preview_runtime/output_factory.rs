@@ -83,7 +83,7 @@ impl PreviewOutputFactory {
         source: &MarkdownSource,
         config: &PreviewConfig,
     ) -> Result<crate::ViewerInput, PreviewError> {
-        let prepared = PreviewSourceNormalizer::normalize(source);
+        let prepared = PreviewSourceNormalizer::normalize(source)?;
         let content = MarkdownFenceNormalizer::normalize(&prepared.content);
         let document = Self::parse_document(&prepared, &content)?;
         let document_source =

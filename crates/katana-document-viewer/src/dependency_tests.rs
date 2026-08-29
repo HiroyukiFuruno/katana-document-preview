@@ -31,7 +31,10 @@ fn manifest_dependencies(value: &toml::Value) -> Result<&toml::Table, Box<dyn st
 
 fn assert_neutral_dependencies(dependencies: &toml::Table) {
     for dependency in FORBIDDEN_VIEWER_DEPENDENCIES {
-        assert!(!dependencies.contains_key(dependency));
+        assert!(
+            !dependencies.contains_key(dependency),
+            "{dependency} must stay out of katana-document-viewer"
+        );
     }
     assert!(
         !dependencies

@@ -103,6 +103,15 @@ fn inline_html_spans_supports_style_markers() {
 }
 
 #[test]
+fn html_block_spans_applies_inline_css_style() {
+    let spans = node_spans_from_html(r#"<p style="color: #ff0000; font-weight: bold">Red</p>"#);
+
+    assert_eq!("Red", spans[0].text);
+    assert_eq!([255, 0, 0, 255], spans[0].style.color_rgba);
+    assert!(spans[0].style.bold);
+}
+
+#[test]
 fn inline_html_spans_skips_unclosed_anchor_tag_as_plain() {
     let spans = inline_node_spans("<a href=\"/broken\">broken");
 

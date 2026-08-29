@@ -46,8 +46,8 @@ impl SpanTextWidthMeasurer {
             if character.is_whitespace() && character != '\n' {
                 width = width.saturating_add(self.segment_width(&segment, span.style, font_size));
                 segment.clear();
-                width =
-                    width.saturating_add(whitespace_width(font_size, preserves_whitespace(span)));
+                width = width
+                    .saturating_add(whitespace_width(font_size, preserves_whitespace(span)));
                 continue;
             }
             segment.push(character);

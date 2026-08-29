@@ -16,6 +16,9 @@ fn svg_surface_cache_reuses_same_fingerprint() -> Result<(), Box<dyn std::error:
 
     assert_eq!(first, second);
     assert!(ViewerImageSurfaceCache::get(&first.fingerprint).is_some());
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &first.fingerprint
+    ));
     Ok(())
 }
 
@@ -30,6 +33,12 @@ fn svg_surface_cache_keeps_scale_variants_separate() -> Result<(), Box<dyn std::
     assert_ne!(standard.fingerprint, narrow.fingerprint);
     assert!(ViewerImageSurfaceCache::get(&standard.fingerprint).is_some());
     assert!(ViewerImageSurfaceCache::get(&narrow.fingerprint).is_some());
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &standard.fingerprint
+    ));
+    assert!(ViewerImageSurfaceCache::contains_for_tests(
+        &narrow.fingerprint
+    ));
     Ok(())
 }
 

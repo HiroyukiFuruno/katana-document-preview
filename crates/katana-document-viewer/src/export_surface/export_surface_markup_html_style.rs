@@ -1,0 +1,34 @@
+use crate::export_surface_span::SurfaceTextStyle;
+use crate::html_style::HtmlStyleProperties;
+use image::Rgba;
+
+pub(crate) struct SurfaceHtmlStyle;
+
+impl SurfaceHtmlStyle {
+    pub(crate) fn apply(fragment: &str, style: SurfaceTextStyle) -> SurfaceTextStyle {
+        let properties = HtmlStyleProperties::from_fragment(fragment);
+        let mut style = style;
+        if properties.inline_code {
+            style = style.inline_code();
+        }
+        if properties.bold {
+            style = style.bold();
+        }
+        if properties.italic {
+            style = style.italic();
+        }
+        if properties.underline {
+            style = style.underline();
+        }
+        if properties.highlight {
+            style = style.highlight();
+        }
+        if properties.strikethrough {
+            style = style.strikethrough();
+        }
+        if let Some([red, green, blue, alpha]) = properties.color_rgba {
+            style = style.with_color(Rgba([red, green, blue, alpha]));
+        }
+        style
+    }
+}

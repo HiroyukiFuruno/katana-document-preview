@@ -51,7 +51,7 @@ impl SurfaceBlockFactory {
             Self::append_right_html(blocks, fragment);
             return;
         }
-        if Self::append_linked_html(blocks, fragment, quote_depth, list_depth) {
+        if Self::append_rich_html(blocks, fragment, quote_depth, list_depth) {
             return;
         }
         Self::append_wrapped(blocks, text, quote_depth, list_depth);
@@ -145,14 +145,14 @@ impl SurfaceBlockFactory {
         }
     }
 
-    fn append_linked_html(
+    fn append_rich_html(
         blocks: &mut Vec<SurfaceBlock>,
         fragment: &str,
         quote_depth: u32,
         list_depth: u32,
     ) -> bool {
         let spans = SurfaceHtmlMarkup::html_spans(fragment);
-        if !Self::has_link_span(&spans) {
+        if !Self::has_rich_span(&spans) {
             return false;
         }
         for line_spans in super::text::SurfaceInlineLineWrapper::wrap(
@@ -164,8 +164,8 @@ impl SurfaceBlockFactory {
         true
     }
 
-    fn has_link_span(spans: &[SurfaceTextSpan]) -> bool {
-        spans.iter().any(|span| span.link_target.is_some())
+    fn has_rich_span(spans: &[SurfaceTextSpan]) -> bool {
+        spans.iter().any(|span| !span.is_plain())
     }
 }
 

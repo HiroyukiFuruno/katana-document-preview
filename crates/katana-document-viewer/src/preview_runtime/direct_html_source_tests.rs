@@ -194,3 +194,6 @@ fn assert_no_empty_paragraph(plan: &ViewerNodePlan) {
         plan.nodes
     );
 }
+
+#[path = "direct_html_source_script_tests.rs"]
+mod script_tests;

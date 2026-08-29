@@ -1,4 +1,5 @@
 use super::{SurfaceHtmlMarkup, SurfaceTextStyle};
+use image::Rgba;
 
 #[test]
 fn normalize_text_compacts_spacing_and_normalizes_pipe_token() {
@@ -106,6 +107,21 @@ fn centered_html_spans_builds_mixed_text_and_link_spans() {
     assert_eq!(spans[2].text, "B");
     assert_eq!(spans[2].link_target, None);
     assert_eq!(spans[2].style, SurfaceTextStyle::default());
+}
+
+#[test]
+fn html_spans_apply_inline_css_style() {
+    let spans =
+        SurfaceHtmlMarkup::html_spans(r#"<p style="color: #ff0000; font-weight: bold">Red</p>"#);
+
+    assert_eq!(1, spans.len());
+    assert_eq!("Red", spans[0].text);
+    assert_eq!(
+        SurfaceTextStyle::default()
+            .bold()
+            .with_color(Rgba([255, 0, 0, 255])),
+        spans[0].style
+    );
 }
 
 #[test]

@@ -71,6 +71,7 @@ mod forge_diagram_render;
 mod forge_diagram_render_types;
 mod forge_types;
 mod html_sanitizer;
+mod html_style;
 mod markdown_fence_normalizer;
 pub mod multi_format;
 mod preview_runtime;
@@ -156,9 +157,9 @@ pub use multi_format::{
     ViewerQualityProfile, ViewerQualityProfileKind, ViewerSource, ViewerSourceIdentity,
 };
 pub use preview_runtime::{
-    MarkdownPreview, MarkdownSource, PreviewAssetLoadReport, PreviewAssetLoader, PreviewConfig,
-    PreviewDiagnostics, PreviewError, PreviewOutput, PreviewOutputFactory, PreviewRenderEngine,
-    PreviewSurfaceImage, PreviewTheme, RenderTarget,
+    DirectHtmlPreviewRenderer, MarkdownPreview, MarkdownSource, PreviewAssetLoadReport,
+    PreviewAssetLoader, PreviewConfig, PreviewDiagnostics, PreviewError, PreviewOutput,
+    PreviewOutputFactory, PreviewRenderEngine, PreviewSurfaceImage, PreviewTheme, RenderTarget,
 };
 pub use preview_surface::{
     KDV_INTERACTIVE_PREVIEW_SURFACE_HORIZONTAL_PADDING_PX,
