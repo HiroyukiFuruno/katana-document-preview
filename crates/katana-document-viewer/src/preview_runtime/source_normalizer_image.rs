@@ -21,7 +21,7 @@ impl PreviewSourceNormalizer {
             return trimmed.to_string();
         }
         let image_uri = Self::image_uri(trimmed, source_name);
-        let alt_source_name = source_name.replace('\\', "/");
+        let alt_source_name = Self::normalized_text(source_name);
         let alt = Path::new(&alt_source_name)
             .file_name()
             .and_then(|name| name.to_str())
@@ -43,9 +43,12 @@ impl PreviewSourceNormalizer {
         if source_name.starts_with("http://") || source_name.starts_with("https://") {
             return source_name.to_string();
         }
-        let normalized = source_name.replace('\\', "/");
+        let normalized = Self::normalized_text(source_name);
         if normalized.starts_with("file://") {
             return normalized;
+        }
+        if normalized.starts_with("//") {
+            return format!("file:{normalized}");
         }
         if normalized.starts_with('/') {
             return format!("file://{normalized}");
@@ -77,7 +80,8 @@ impl PreviewSourceNormalizer {
 
     pub(super) fn extension(path: &Path) -> Option<String> {
         let path_text = path.to_string_lossy();
-        let normalized = Self::strip_query_fragment(&path_text);
+        let normalized_text = Self::normalized_text(&path_text);
+        let normalized = Self::strip_query_fragment(&normalized_text);
         Path::new(normalized)
             .extension()
             .and_then(|extension| extension.to_str())
@@ -86,5 +90,16 @@ impl PreviewSourceNormalizer {
 
     fn strip_query_fragment(value: &str) -> &str {
         value.split(['?', '#']).next().unwrap_or(value)
+    }
+
+    fn normalized_text(value: &str) -> String {
+        let normalized = value.replace('\\', "/");
+        if let Some(unc) = normalized.strip_prefix("//?/UNC/") {
+            return format!("//{unc}");
+        }
+        normalized
+            .strip_prefix("//?/")
+            .unwrap_or(&normalized)
+            .to_string()
     }
 }

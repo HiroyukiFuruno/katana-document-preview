@@ -5,6 +5,12 @@ mod html_wrapping_tests;
 #[path = "html_test_support.rs"]
 mod support;
 
+use crate::export_surface_helpers::BODY_MAX_CHARS;
+use crate::export_surface_line::SurfaceLine;
+use crate::theme::KdvThemeSnapshot;
+use katana_markdown_model::HtmlBlockRole;
+
+use super::SurfaceBlockFactory;
 use support::{graph, node};
 
 #[test]
