@@ -141,3 +141,7 @@ fn tag_end(fragment: &str) -> Option<usize> {
     }
     None
 }
+
+#[cfg(test)]
+#[path = "direct_html_visibility_tests.rs"]
+mod tests;

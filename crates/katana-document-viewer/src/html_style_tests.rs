@@ -1,0 +1,81 @@
+use super::HtmlStyleProperties;
+
+#[test]
+fn parses_tag_styles_and_all_supported_declaration_effects() {
+    let properties = HtmlStyleProperties::from_fragment(
+        r#"<strong><em><u><mark><del><code style="color: #abc; font-weight: 600; font-style: italic; text-decoration: underline line-through; background-color: yellow; font-family: monospace">styled</code>"#,
+    );
+
+    assert!(properties.bold);
+    assert!(properties.italic);
+    assert!(properties.underline);
+    assert!(properties.strikethrough);
+    assert!(properties.highlight);
+    assert!(properties.inline_code);
+    assert_eq!(Some([170, 187, 204, 255]), properties.color_rgba);
+}
+
+#[test]
+fn accepts_named_and_rgb_colors_and_rejects_invalid_colors() {
+    assert_named_colors();
+    assert_eq!(
+        Some([1, 2, 3, 255]),
+        HtmlStyleProperties::from_fragment(r#"<span style="color: rgb(1, 2, 3)">x</span>"#)
+            .color_rgba
+    );
+    assert_eq!(
+        None,
+        HtmlStyleProperties::from_fragment(r#"<span style="color: rgb(1, 2)">x</span>"#).color_rgba
+    );
+    assert_eq!(
+        None,
+        HtmlStyleProperties::from_fragment(
+            r#"<span style="color: #12; font-weight: 500">x</span>"#
+        )
+        .color_rgba
+    );
+    assert!(!HtmlStyleProperties::from_fragment(r#"<span style="font-weight: 500">x</span>"#).bold);
+    assert!(
+        !HtmlStyleProperties::from_fragment(r#"<span style="font-weight: unknown">x</span>"#).bold
+    );
+}
+
+fn assert_named_colors() {
+    for (name, expected) in [
+        ("black", [0, 0, 0, 255]),
+        ("white", [255, 255, 255, 255]),
+        ("red", [255, 0, 0, 255]),
+        ("green", [0, 128, 0, 255]),
+        ("blue", [0, 0, 255, 255]),
+        ("gray", [128, 128, 128, 255]),
+        ("grey", [128, 128, 128, 255]),
+    ] {
+        assert_eq!(
+            Some(expected),
+            HtmlStyleProperties::from_fragment(&format!(r#"<span style="color: {name}">x</span>"#))
+                .color_rgba
+        );
+    }
+}
+
+#[test]
+fn handles_unquoted_and_malformed_style_attributes() {
+    assert_eq!(
+        Some([255, 0, 0, 255]),
+        HtmlStyleProperties::from_fragment("<div style=color:red>").color_rgba
+    );
+    assert_eq!(
+        HtmlStyleProperties::default(),
+        HtmlStyleProperties::from_fragment("<div style>")
+    );
+    assert_eq!(
+        HtmlStyleProperties::default(),
+        HtmlStyleProperties::from_fragment(r#"<div style="color: red>"#)
+    );
+    assert!(
+        !HtmlStyleProperties::from_fragment(
+            r#"<div style="not-a-declaration; background: transparent">x</div>"#
+        )
+        .highlight
+    );
+}

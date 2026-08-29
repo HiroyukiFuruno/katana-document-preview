@@ -21,6 +21,24 @@ fn direct_html_skips_head_style_and_script_as_body_text() {
     assert!(normalized.contains("font-weight: bold"));
 }
 
+#[test]
+fn direct_html_normalizes_a_table_as_one_block() {
+    let normalized = DirectHtmlNormalizer::normalize(
+        "<table>\n<tr><th>Feature</th><td>Status</td></tr>\n</table>",
+    );
+
+    assert_eq!("| Feature | Status |\n| --- | --- |", normalized);
+}
+
+#[test]
+fn direct_html_malformed_style_blocks_fail_closed() {
+    assert_eq!("<style", DirectHtmlNormalizer::normalize("<style"));
+    assert_eq!(
+        "",
+        DirectHtmlNormalizer::normalize("<style>body { color: red; }")
+    );
+}
+
 fn source() -> String {
     [
         "<main>",

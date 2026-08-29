@@ -166,3 +166,7 @@ fn named_color(value: &str) -> Option<[u8; 4]> {
         _ => return None,
     })
 }
+
+#[cfg(test)]
+#[path = "html_style_tests.rs"]
+mod tests;

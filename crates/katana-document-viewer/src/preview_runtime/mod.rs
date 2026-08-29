@@ -57,6 +57,9 @@ mod asset_loader_tests;
 #[path = "direct_diagram_score_matrix_tests.rs"]
 mod direct_diagram_score_matrix_tests;
 #[cfg(test)]
+#[path = "direct_html_preview_renderer_tests.rs"]
+mod direct_html_preview_renderer_tests;
+#[cfg(test)]
 #[path = "direct_html_source_tests.rs"]
 mod direct_html_source_tests;
 #[cfg(test)]

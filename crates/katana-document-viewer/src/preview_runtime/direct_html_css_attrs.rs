@@ -70,3 +70,7 @@ fn quoted_attribute_value_at(tag: &str, start: usize) -> Option<(String, std::op
         .unwrap_or(value.len());
     Some((value[..end].to_string(), value_start..value_start + end))
 }
+
+#[cfg(test)]
+#[path = "direct_html_css_attrs_tests.rs"]
+mod tests;

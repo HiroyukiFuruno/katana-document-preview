@@ -32,3 +32,7 @@ impl SurfaceHtmlStyle {
         style
     }
 }
+
+#[cfg(test)]
+#[path = "export_surface_markup_html_style_tests.rs"]
+mod tests;
