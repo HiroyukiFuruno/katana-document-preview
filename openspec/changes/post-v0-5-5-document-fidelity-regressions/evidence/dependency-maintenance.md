@@ -3,9 +3,9 @@
 Checked on 2026-08-29 before the KDV patch release. The KRR update is tracked
 by <https://github.com/HiroyukiFuruno/katana-document-viewer/issues/44>.
 
-- `katana-render-runtime` was updated from 0.4.16 through 0.4.18 to exact
-  registry version `=0.4.19`; the lockfile contains the crates.io source and
-  checksum.
+- `katana-render-runtime` was updated from 0.4.16 through 0.4.19 to the
+  caret-compatible registry requirement `0.4.19` (not an exact pin); the
+  lockfile contains the crates.io source and checksum.
 - `epaint_default_fonts` was updated from 0.35.0 to 0.36.1. All 424 focused
   export-surface tests passed after the font dependency change.
 - `office2pdf-katana` remains the latest published exact version, `=0.6.10`.

@@ -15,9 +15,10 @@ from pathlib import Path
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 RELEASE_CONTRACT = "multi-format-viewer"
-KRR_MIN_VERSION = (0, 4, 18)
-KRR_DECLARED_VERSION = "=" + ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "=0.4.18"
+KRR_MIN_VERSION = (0, 4, 19)
+# Cargoの裸のバージョン指定はcaret互換のため、KRRを完全固定しない。
+KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
+KRR_VERSION_REQUIREMENT = "^0.4.19"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
@@ -551,14 +552,14 @@ version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.18"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.4.19"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.4.17"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.18"', 'version = "0.5.0"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.18"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.20"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))
