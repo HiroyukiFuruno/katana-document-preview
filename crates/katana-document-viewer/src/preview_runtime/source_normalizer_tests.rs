@@ -58,10 +58,7 @@ fn source_name_defaults_to_preview_md_when_document_id_missing() -> Result<(), P
 
 #[test]
 fn image_markdown_preserves_image_markdown_reference() -> Result<(), PreviewError> {
-    let prepared = normalize(&source(
-        "![alt](http://example.com/image.png)",
-        "image.png",
-    ))?;
+    let prepared = normalize(&source("![alt](http://example.com/image.png)", "image.png"))?;
 
     assert_eq!("![alt](http://example.com/image.png)", prepared.content);
     Ok(())
@@ -164,10 +161,7 @@ fn windows_verbatim_image_source_keeps_extension_and_valid_file_uri() -> Result<
 #[test]
 fn windows_verbatim_unc_image_source_keeps_extension_and_valid_file_uri() -> Result<(), PreviewError>
 {
-    let prepared = normalize(&source(
-        "",
-        r"\\?\UNC\server\share\assets\sample.png",
-    ))?;
+    let prepared = normalize(&source("", r"\\?\UNC\server\share\assets\sample.png"))?;
 
     assert_eq!(crate::SourceKind::Image, prepared.source_kind);
     assert_eq!(
