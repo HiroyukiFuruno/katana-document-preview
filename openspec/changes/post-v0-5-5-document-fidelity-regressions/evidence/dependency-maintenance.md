@@ -28,11 +28,21 @@ change is appropriate for those rows.
 - 同じ解決で互換な推移依存を`libredox` 0.1.23、`rust_decimal` 1.43.0、
   `smallvec` 1.16.0へ更新した。`cargo outdated --workspace`で確認できる
   KDV所有の他の互換direct updateはない。
-- `katana-ui-core-storybook`はcrates.ioに公開されておらず、KUC 0.3.3の公開
-  core APIにもKDV Storybookが必要とするpresentation/canvas/host APIはない。
-  そのためGit tag `v0.3.0`は開発専用Storybook dependencyにだけ残し、公開KDV
-  crate、package検査、registry consumerには含めない。これはKDV-local gate、
-  Draft PR準備、CIを止める理由にしない。
+- `katana-ui-core-storybook`はKUC v0.3.3でも`publish = false`でcrates.ioに
+  公開されておらず、KUC 0.3.3の公開core APIにもKDV Storybookが必要とする
+  presentation/canvas/host APIはない。さらにv0.3.3のGit Storybook packageは
+  `eframe`/`egui`を解決し、`document-surface-boundary-check`の中立Storybook
+  境界を破るため採用しない。Git tag `v0.3.0`は開発専用Storybook dependencyに
+  だけ残し、公開KDV crate、package検査、registry consumerには含めない。公開API
+  または中立なregistry Storybook packageが提供されるまでこの開発用境界は残るが、
+  KDV-local gate、Draft PR準備、CIを止める理由にしない。
+- 2026-09-02にKatanA current screenshotがregistry `katana-ui-core` 0.3.3、KDV
+  StorybookがGit `katana-ui-core-storybook`/core 0.3.0を解決することを再確認した。
+  同一KRR 0.4.19のKatanA candidate `sample_diagrams.md` cropは、KDV側でKatanAの
+  実効content rect `1187x2225 logical -> 2374x4450 physical -> 1280x2400`へ正規化しても
+  `88/95`に留まる。major diagram bboxはKDV Storybook側で約8%小さく、公開runtimeとの差を
+  KDV固有のscale補正で隠さない。必要なneutral/public Storybook boundaryはKUC
+  <https://github.com/HiroyukiFuruno/katana-ui-core/issues/35>でownerへ追跡を依頼した。
 - KUC 0.3.3にはセル四辺ごとのstyle/color border型・描画APIもない。Issue #48の
   KDV metadata保持とfidelity計測は完了済みで、thin projectionはその公開KUC APIを
   前提とする別の未完了項目として`tasks.md`に維持する。

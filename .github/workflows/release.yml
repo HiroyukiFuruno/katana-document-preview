@@ -65,7 +65,7 @@ jobs:
       - name: Install diagram test dependencies / Install acceptance artifact dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y graphviz imagemagick xvfb xclip
+          sudo apt-get install -y fonts-noto-cjk graphviz imagemagick xvfb xclip
           sudo mkdir -p /opt/local/bin
           sudo ln -sf /usr/bin/dot /opt/local/bin/dot
           if ! command -v magick >/dev/null 2>&1; then

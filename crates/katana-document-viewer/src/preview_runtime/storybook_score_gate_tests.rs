@@ -243,7 +243,7 @@ fn assert_legacy_storybook_acceptance_contract(
 }
 
 #[test]
-fn ci_workflows_pin_plantuml_graphviz_runtime_for_katana_reference_scores()
+fn ci_workflows_pin_linux_font_and_graphviz_runtime_for_katana_reference_scores()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
     let ci = std::fs::read_to_string(root.join(".github/workflows/test-and-build.yml"))?;
@@ -672,7 +672,7 @@ const CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install Graphviz (Ubuntu)",
-    "apt-get install -y graphviz",
+    "apt-get install -y fonts-noto-cjk graphviz",
     "/opt/local/bin/dot",
     "GRAPHVIZ_DOT",
     "Install Graphviz (macOS)",
@@ -699,7 +699,7 @@ const PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
-    "apt-get install -y graphviz imagemagick xvfb xclip",
+    "apt-get install -y fonts-noto-cjk graphviz imagemagick xvfb xclip",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -714,7 +714,7 @@ const RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install diagram test dependencies",
-    "apt-get install -y graphviz imagemagick xvfb xclip",
+    "apt-get install -y fonts-noto-cjk graphviz imagemagick xvfb xclip",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
