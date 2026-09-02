@@ -1,5 +1,7 @@
 use super::{SpreadsheetEngineError, SpreadsheetEngineSession};
-use crate::multi_format::spreadsheet_filter_test_support::representative_with_auto_filter;
+use crate::multi_format::spreadsheet_filter_test_support::{
+    representative_with_auto_filter, representative_with_auto_filter_and_blank,
+};
 use crate::multi_format::{SpreadsheetCoordinate, SpreadsheetViewerLimits};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -51,6 +53,28 @@ fn filter_limits_and_authored_hidden_rows_remain_enforced() -> TestResult {
     let applied = engine.apply_filter(0, 0, vec!["North".to_owned()])?;
     assert_eq!(3, applied.visible_row_count);
     assert!(engine.clear_filter(1, None).is_err());
+    Ok(())
+}
+
+#[test]
+fn filter_accepts_blank_and_multiple_values_from_the_real_xlsx_fixture() -> TestResult {
+    let mut engine = SpreadsheetEngineSession::open(
+        representative_with_auto_filter_and_blank()?,
+        "filter-blank.xlsx",
+        SpreadsheetViewerLimits::strict(),
+    )?;
+    let (candidates, truncated) = engine.filter_candidates(0, 0, 16)?;
+    assert_eq!(vec!["", "East", "North", "South"], candidates);
+    assert!(!truncated);
+
+    let applied = engine.apply_filter(0, 0, vec!["".to_owned(), "North".to_owned()])?;
+    assert_eq!(vec![4, 5], applied.filtered_out_rows);
+    assert_eq!(5, applied.visible_row_count);
+
+    let cleared = engine.clear_filter(0, None)?;
+    assert!(cleared.applied_columns.is_empty());
+    assert!(cleared.filtered_out_rows.is_empty());
+    assert_eq!(7, cleared.visible_row_count);
     Ok(())
 }
 

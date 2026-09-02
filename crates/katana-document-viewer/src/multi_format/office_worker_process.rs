@@ -28,7 +28,10 @@ impl OfficeWorkerProcess {
             workspace,
             "office",
         );
-        let mut child = spawn_worker(&mut command, config)?;
+        let mut child = {
+            let _spawn = super::debug_trace::DebugTrace::start("office.worker_spawn");
+            spawn_worker(&mut command, config)?
+        };
         #[cfg(target_os = "macos")]
         let memory_monitor = MacOsMemoryMonitor::start(child.id(), config.max_memory_bytes);
         let result = wait_for_worker(&mut child, config)?;

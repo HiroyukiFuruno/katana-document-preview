@@ -42,6 +42,20 @@ pub enum SpreadsheetVerticalAlignment {
     Distributed,
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpreadsheetCellBorderArtifact {
+    pub left: Option<SpreadsheetBorderSideArtifact>,
+    pub right: Option<SpreadsheetBorderSideArtifact>,
+    pub top: Option<SpreadsheetBorderSideArtifact>,
+    pub bottom: Option<SpreadsheetBorderSideArtifact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpreadsheetBorderSideArtifact {
+    pub style: String,
+    pub color: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpreadsheetCellStyleArtifact {
     pub font_name: String,
@@ -56,6 +70,8 @@ pub struct SpreadsheetCellStyleArtifact {
     pub vertical_alignment: SpreadsheetVerticalAlignment,
     pub wrap_text: bool,
     pub number_format: String,
+    #[serde(default)]
+    pub borders: SpreadsheetCellBorderArtifact,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

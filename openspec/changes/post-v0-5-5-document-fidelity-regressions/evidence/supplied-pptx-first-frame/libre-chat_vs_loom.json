@@ -1,0 +1,546 @@
+{
+  "fixture": {
+    "name": "libre-chat_vs_loom.pptx",
+    "sha256": "34f462ac1c38e581f8b286f549aaf54fe55cd45c6d28a16cfbf1ebb163b3af57",
+    "expected_sha256": "34f462ac1c38e581f8b286f549aaf54fe55cd45c6d28a16cfbf1ebb163b3af57",
+    "bytes": 40852621
+  },
+  "iterations": 5,
+  "cold_process": true,
+  "preparation_command": [
+    "cargo",
+    "test",
+    "-p",
+    "katana-document-viewer",
+    "--test",
+    "multi_format_document_session_contract",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "command": [
+    "/Users/hiroyuki_furuno/works/private/kdv-post-v0.5.5-document-fidelity/target/debug/deps/multi_format_document_session_contract-c2ce88c752ad557a",
+    "user_supplied_office_fixtures_open_through_the_unified_session",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "baseline": {
+    "test_name": "supplied_pptx_measurement_noop_baseline",
+    "iterations": 5,
+    "measurements": [
+      {
+        "elapsed_ms": 16,
+        "first_frame_elapsed_ms": null,
+        "peak_rss_bytes": 8110080,
+        "stage_elapsed_ms": {},
+        "stage_occurrences": {}
+      },
+      {
+        "elapsed_ms": 11,
+        "first_frame_elapsed_ms": null,
+        "peak_rss_bytes": 8110080,
+        "stage_elapsed_ms": {},
+        "stage_occurrences": {}
+      },
+      {
+        "elapsed_ms": 10,
+        "first_frame_elapsed_ms": null,
+        "peak_rss_bytes": 8110080,
+        "stage_elapsed_ms": {},
+        "stage_occurrences": {}
+      },
+      {
+        "elapsed_ms": 10,
+        "first_frame_elapsed_ms": null,
+        "peak_rss_bytes": 8142848,
+        "stage_elapsed_ms": {},
+        "stage_occurrences": {}
+      },
+      {
+        "elapsed_ms": 9,
+        "first_frame_elapsed_ms": null,
+        "peak_rss_bytes": 8159232,
+        "stage_elapsed_ms": {},
+        "stage_occurrences": {}
+      }
+    ],
+    "summary": {
+      "elapsed_ms": {
+        "minimum": 9,
+        "p50": 10,
+        "p95": 16,
+        "maximum": 16
+      },
+      "peak_rss_bytes": {
+        "minimum": 8110080,
+        "p50": 8110080,
+        "p95": 8159232,
+        "maximum": 8159232
+      }
+    }
+  },
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "measurements": [
+    {
+      "elapsed_ms": 5403,
+      "first_frame_elapsed_ms": 5263,
+      "peak_rss_bytes": 818446336,
+      "stage_elapsed_ms": {
+        "office.preflight": 4,
+        "office.package_parse": 4,
+        "office.archive_intake": 4,
+        "office.workspace": 5,
+        "office.transfer_to_worker": 5,
+        "office.worker_spawn": 5,
+        "worker.resource_limits": 0,
+        "worker.sandbox": 9,
+        "office.runtime_init": 9,
+        "office.worker_input": 6,
+        "office.worker_fonts": 16,
+        "office.parse_layout": 1704,
+        "office.worker_output_write": 7,
+        "office.worker_total": 1744,
+        "office.monitor_finish": 82,
+        "office.conversion": 5043,
+        "office.response_decode": 2,
+        "office.transfer_from_worker": 2,
+        "office.total": 5070,
+        "office.pdf_decode": 0,
+        "office.session_open": 5134,
+        "pdf.render": 250,
+        "office.raster": 250,
+        "office.frame_publication": 0,
+        "document.close": 0,
+        "document.drop": 0
+      },
+      "stage_occurrences": {
+        "office.preflight": 1,
+        "office.package_parse": 1,
+        "office.archive_intake": 1,
+        "office.workspace": 1,
+        "office.transfer_to_worker": 1,
+        "office.worker_spawn": 1,
+        "worker.resource_limits": 1,
+        "worker.sandbox": 1,
+        "office.runtime_init": 1,
+        "office.worker_input": 1,
+        "office.worker_fonts": 1,
+        "office.parse_layout": 1,
+        "office.worker_output_write": 1,
+        "office.worker_total": 1,
+        "office.monitor_finish": 1,
+        "office.conversion": 1,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1,
+        "office.pdf_decode": 1,
+        "office.session_open": 1,
+        "pdf.render": 2,
+        "office.raster": 3,
+        "office.frame_publication": 3,
+        "document.close": 2,
+        "document.drop": 1
+      },
+      "peak_rss_delta_from_noop_bytes": 810336256
+    },
+    {
+      "elapsed_ms": 2202,
+      "first_frame_elapsed_ms": 2060,
+      "peak_rss_bytes": 819167232,
+      "stage_elapsed_ms": {
+        "office.preflight": 4,
+        "office.package_parse": 5,
+        "office.archive_intake": 5,
+        "office.workspace": 7,
+        "office.transfer_to_worker": 7,
+        "office.worker_spawn": 2,
+        "worker.resource_limits": 0,
+        "worker.sandbox": 4,
+        "office.runtime_init": 4,
+        "office.worker_input": 4,
+        "office.worker_fonts": 3,
+        "office.parse_layout": 1720,
+        "office.worker_output_write": 7,
+        "office.worker_total": 1740,
+        "office.monitor_finish": 77,
+        "office.conversion": 1840,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1869,
+        "office.pdf_decode": 0,
+        "office.session_open": 1933,
+        "pdf.render": 248,
+        "office.raster": 248,
+        "office.frame_publication": 0,
+        "document.close": 0,
+        "document.drop": 0
+      },
+      "stage_occurrences": {
+        "office.preflight": 1,
+        "office.package_parse": 1,
+        "office.archive_intake": 1,
+        "office.workspace": 1,
+        "office.transfer_to_worker": 1,
+        "office.worker_spawn": 1,
+        "worker.resource_limits": 1,
+        "worker.sandbox": 1,
+        "office.runtime_init": 1,
+        "office.worker_input": 1,
+        "office.worker_fonts": 1,
+        "office.parse_layout": 1,
+        "office.worker_output_write": 1,
+        "office.worker_total": 1,
+        "office.monitor_finish": 1,
+        "office.conversion": 1,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1,
+        "office.pdf_decode": 1,
+        "office.session_open": 1,
+        "pdf.render": 2,
+        "office.raster": 3,
+        "office.frame_publication": 3,
+        "document.close": 2,
+        "document.drop": 1
+      },
+      "peak_rss_delta_from_noop_bytes": 811057152
+    },
+    {
+      "elapsed_ms": 2081,
+      "first_frame_elapsed_ms": 1941,
+      "peak_rss_bytes": 818954240,
+      "stage_elapsed_ms": {
+        "office.preflight": 4,
+        "office.package_parse": 4,
+        "office.archive_intake": 4,
+        "office.workspace": 7,
+        "office.transfer_to_worker": 7,
+        "office.worker_spawn": 2,
+        "worker.resource_limits": 0,
+        "worker.sandbox": 4,
+        "office.runtime_init": 4,
+        "office.worker_input": 4,
+        "office.worker_fonts": 3,
+        "office.parse_layout": 1678,
+        "office.worker_output_write": 7,
+        "office.worker_total": 1699,
+        "office.monitor_finish": 7,
+        "office.conversion": 1730,
+        "office.response_decode": 0,
+        "office.transfer_from_worker": 1,
+        "office.total": 1756,
+        "office.pdf_decode": 0,
+        "office.session_open": 1820,
+        "pdf.render": 241,
+        "office.raster": 241,
+        "office.frame_publication": 0,
+        "document.close": 0,
+        "document.drop": 0
+      },
+      "stage_occurrences": {
+        "office.preflight": 1,
+        "office.package_parse": 1,
+        "office.archive_intake": 1,
+        "office.workspace": 1,
+        "office.transfer_to_worker": 1,
+        "office.worker_spawn": 1,
+        "worker.resource_limits": 1,
+        "worker.sandbox": 1,
+        "office.runtime_init": 1,
+        "office.worker_input": 1,
+        "office.worker_fonts": 1,
+        "office.parse_layout": 1,
+        "office.worker_output_write": 1,
+        "office.worker_total": 1,
+        "office.monitor_finish": 1,
+        "office.conversion": 1,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1,
+        "office.pdf_decode": 1,
+        "office.session_open": 1,
+        "pdf.render": 2,
+        "office.raster": 3,
+        "office.frame_publication": 3,
+        "document.close": 2,
+        "document.drop": 1
+      },
+      "peak_rss_delta_from_noop_bytes": 810844160
+    },
+    {
+      "elapsed_ms": 2061,
+      "first_frame_elapsed_ms": 1921,
+      "peak_rss_bytes": 818315264,
+      "stage_elapsed_ms": {
+        "office.preflight": 4,
+        "office.package_parse": 4,
+        "office.archive_intake": 4,
+        "office.workspace": 7,
+        "office.transfer_to_worker": 7,
+        "office.worker_spawn": 2,
+        "worker.resource_limits": 0,
+        "worker.sandbox": 4,
+        "office.runtime_init": 4,
+        "office.worker_input": 4,
+        "office.worker_fonts": 3,
+        "office.parse_layout": 1671,
+        "office.worker_output_write": 8,
+        "office.worker_total": 1692,
+        "office.monitor_finish": 0,
+        "office.conversion": 1714,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1738,
+        "office.pdf_decode": 0,
+        "office.session_open": 1802,
+        "pdf.render": 239,
+        "office.raster": 239,
+        "office.frame_publication": 0,
+        "document.close": 0,
+        "document.drop": 0
+      },
+      "stage_occurrences": {
+        "office.preflight": 1,
+        "office.package_parse": 1,
+        "office.archive_intake": 1,
+        "office.workspace": 1,
+        "office.transfer_to_worker": 1,
+        "office.worker_spawn": 1,
+        "worker.resource_limits": 1,
+        "worker.sandbox": 1,
+        "office.runtime_init": 1,
+        "office.worker_input": 1,
+        "office.worker_fonts": 1,
+        "office.parse_layout": 1,
+        "office.worker_output_write": 1,
+        "office.worker_total": 1,
+        "office.monitor_finish": 1,
+        "office.conversion": 1,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1,
+        "office.pdf_decode": 1,
+        "office.session_open": 1,
+        "pdf.render": 2,
+        "office.raster": 3,
+        "office.frame_publication": 3,
+        "document.close": 2,
+        "document.drop": 1
+      },
+      "peak_rss_delta_from_noop_bytes": 810205184
+    },
+    {
+      "elapsed_ms": 2198,
+      "first_frame_elapsed_ms": 2054,
+      "peak_rss_bytes": 821297152,
+      "stage_elapsed_ms": {
+        "office.preflight": 4,
+        "office.package_parse": 4,
+        "office.archive_intake": 4,
+        "office.workspace": 10,
+        "office.transfer_to_worker": 10,
+        "office.worker_spawn": 2,
+        "worker.resource_limits": 0,
+        "worker.sandbox": 4,
+        "office.runtime_init": 4,
+        "office.worker_input": 4,
+        "office.worker_fonts": 3,
+        "office.parse_layout": 1698,
+        "office.worker_output_write": 8,
+        "office.worker_total": 1719,
+        "office.monitor_finish": 88,
+        "office.conversion": 1830,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1861,
+        "office.pdf_decode": 0,
+        "office.session_open": 1926,
+        "pdf.render": 248,
+        "office.raster": 249,
+        "office.frame_publication": 0,
+        "document.close": 0,
+        "document.drop": 0
+      },
+      "stage_occurrences": {
+        "office.preflight": 1,
+        "office.package_parse": 1,
+        "office.archive_intake": 1,
+        "office.workspace": 1,
+        "office.transfer_to_worker": 1,
+        "office.worker_spawn": 1,
+        "worker.resource_limits": 1,
+        "worker.sandbox": 1,
+        "office.runtime_init": 1,
+        "office.worker_input": 1,
+        "office.worker_fonts": 1,
+        "office.parse_layout": 1,
+        "office.worker_output_write": 1,
+        "office.worker_total": 1,
+        "office.monitor_finish": 1,
+        "office.conversion": 1,
+        "office.response_decode": 1,
+        "office.transfer_from_worker": 1,
+        "office.total": 1,
+        "office.pdf_decode": 1,
+        "office.session_open": 1,
+        "pdf.render": 2,
+        "office.raster": 3,
+        "office.frame_publication": 3,
+        "document.close": 2,
+        "document.drop": 1
+      },
+      "peak_rss_delta_from_noop_bytes": 813187072
+    }
+  ],
+  "summary": {
+    "elapsed_ms": {
+      "minimum": 2061,
+      "p50": 2198,
+      "p95": 5403,
+      "maximum": 5403
+    },
+    "first_frame_elapsed_ms": {
+      "minimum": 1921,
+      "p50": 2054,
+      "p95": 5263,
+      "maximum": 5263
+    },
+    "peak_rss_bytes": {
+      "minimum": 818315264,
+      "p50": 818954240,
+      "p95": 821297152,
+      "maximum": 821297152
+    },
+    "peak_rss_delta_from_noop_bytes": {
+      "minimum": 810205184,
+      "p50": 810844160,
+      "p95": 813187072,
+      "maximum": 813187072
+    },
+    "stage_elapsed_ms": {
+      "office.archive_intake": {
+        "minimum": 4,
+        "p50": 4,
+        "p95": 5,
+        "maximum": 5
+      },
+      "office.package_parse": {
+        "minimum": 4,
+        "p50": 4,
+        "p95": 5,
+        "maximum": 5
+      },
+      "office.worker_spawn": {
+        "minimum": 2,
+        "p50": 2,
+        "p95": 5,
+        "maximum": 5
+      },
+      "office.runtime_init": {
+        "minimum": 4,
+        "p50": 4,
+        "p95": 9,
+        "maximum": 9
+      },
+      "office.transfer_to_worker": {
+        "minimum": 5,
+        "p50": 7,
+        "p95": 10,
+        "maximum": 10
+      },
+      "office.conversion": {
+        "minimum": 1714,
+        "p50": 1830,
+        "p95": 5043,
+        "maximum": 5043
+      },
+      "office.parse_layout": {
+        "minimum": 1671,
+        "p50": 1698,
+        "p95": 1720,
+        "maximum": 1720
+      },
+      "office.transfer_from_worker": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 2,
+        "maximum": 2
+      },
+      "office.frame_publication": {
+        "minimum": 0,
+        "p50": 0,
+        "p95": 0,
+        "maximum": 0
+      },
+      "office.raster": {
+        "minimum": 239,
+        "p50": 248,
+        "p95": 250,
+        "maximum": 250
+      }
+    },
+    "stage_occurrences": {
+      "office.archive_intake": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.package_parse": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.worker_spawn": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.runtime_init": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.transfer_to_worker": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.conversion": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.parse_layout": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.transfer_from_worker": {
+        "minimum": 1,
+        "p50": 1,
+        "p95": 1,
+        "maximum": 1
+      },
+      "office.frame_publication": {
+        "minimum": 3,
+        "p50": 3,
+        "p95": 3,
+        "maximum": 3
+      },
+      "office.raster": {
+        "minimum": 3,
+        "p50": 3,
+        "p95": 3,
+        "maximum": 3
+      }
+    }
+  }
+}

@@ -45,6 +45,7 @@ mod spreadsheet_artifact;
 mod spreadsheet_cell_cache;
 mod spreadsheet_engine;
 mod spreadsheet_engine_cell;
+mod spreadsheet_engine_cell_border;
 mod spreadsheet_engine_sheet;
 mod spreadsheet_engine_support;
 mod spreadsheet_filter_command;
@@ -119,12 +120,13 @@ pub use spreadsheet_filter_command::{
     SpreadsheetFilterCommand, SpreadsheetFilterEvent, SpreadsheetFrameMetadata,
 };
 pub use spreadsheet_worker_artifact::{
-    SpreadsheetAutoFilterArtifact, SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact,
-    SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
-    SpreadsheetDataBarArtifact, SpreadsheetFilterColumnArtifact, SpreadsheetFilterCriterion,
-    SpreadsheetFilterRange, SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact,
-    SpreadsheetMergedCellArtifact, SpreadsheetRatingArtifact, SpreadsheetSheetArtifact,
-    SpreadsheetTrackArtifact, SpreadsheetVerticalAlignment, SpreadsheetViewerLimits,
+    SpreadsheetAutoFilterArtifact, SpreadsheetBorderSideArtifact, SpreadsheetCellArtifact,
+    SpreadsheetCellBorderArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
+    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
+    SpreadsheetFilterColumnArtifact, SpreadsheetFilterCriterion, SpreadsheetFilterRange,
+    SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,
+    SpreadsheetRatingArtifact, SpreadsheetSheetArtifact, SpreadsheetTrackArtifact,
+    SpreadsheetVerticalAlignment, SpreadsheetViewerLimits,
 };
 pub use spreadsheet_worker_entrypoint::SpreadsheetWorkerEntrypoint;
 pub use spreadsheet_worker_parent::SpreadsheetViewerSession;

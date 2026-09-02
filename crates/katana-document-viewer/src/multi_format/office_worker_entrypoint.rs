@@ -20,6 +20,9 @@ use response_writer::write_response_with;
 #[path = "office_worker_format.rs"]
 mod format;
 use format::{conversion_options, engine_format};
+#[path = "office_worker_runtime.rs"]
+mod runtime;
+use runtime::apply_runtime_constraints;
 
 const EXIT_USAGE: i32 = 64;
 const EXIT_FAILURE: i32 = 70;
@@ -80,11 +83,7 @@ fn execute_with_constraints(
     apply_constraints: ConstraintApplier,
 ) -> Result<OfficeWorkerResponse, (String, String)> {
     let _worker = super::debug_trace::DebugTrace::start("office.worker_total");
-    apply_constraints(
-        &arguments.workspace,
-        arguments.max_memory_bytes,
-        arguments.max_cpu_seconds,
-    )?;
+    apply_runtime_constraints(arguments, apply_constraints)?;
     let input = {
         let _read = super::debug_trace::DebugTrace::start("office.worker_input");
         std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?
@@ -115,7 +114,7 @@ fn convert_document(
     input: &[u8],
     font_path: PathBuf,
 ) -> Result<office2pdf::error::ConvertResult, (String, String)> {
-    let _engine = super::debug_trace::DebugTrace::start("office.worker_engine");
+    let _engine = super::debug_trace::DebugTrace::start("office.parse_layout");
     let options = conversion_options(font_path);
     office2pdf::convert_bytes(input, engine_format(arguments.format), &options)
         .map_err(engine_failure)

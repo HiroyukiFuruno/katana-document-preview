@@ -144,7 +144,7 @@ expect_strict_line_with_allowed_exception_passes() {
 
   write_workspace "$workspace" \
     "- [/] 監査証跡を残す。証跡: $(valid_payload)
-- [x] 直列作業を行う。delegation-exception: \`直列のクリティカルパス\`"
+- [x] 直列作業を行う。delegation-exception: \`直列のクリティカルパス\` / 証跡: file: \`dummy\`"
   run_harness "$workspace" || fail_test "allowed delegation exception should pass"
 }
 expect_optional_delegation_regex_terms_fail() {

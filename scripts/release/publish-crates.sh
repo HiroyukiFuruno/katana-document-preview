@@ -58,14 +58,15 @@ publish_with_retry() {
 }
 
 if is_published katana-document-viewer; then
-  echo "KDV ${version} is already published; skipping."
-  exit 0
+  echo "KDV ${version} is already published; skipping publication."
+else
+  require_clean_worktree
+  require_token
+
+  if ! is_published katana-document-viewer; then
+    publish_with_retry
+    wait_until_published katana-document-viewer
+  fi
 fi
 
-require_clean_worktree
-require_token
-
-if ! is_published katana-document-viewer; then
-  publish_with_retry
-  wait_until_published katana-document-viewer
-fi
+python3 "$(dirname "$0")/verify-registry-consumer-link.py" "${version}"

@@ -97,12 +97,13 @@ pub use document::{
     SourceRevision, SourceUri,
 };
 pub use document_surface::{
-    DocumentGridCell, DocumentGridCellAppearance, DocumentGridCommand, DocumentGridCoordinate,
-    DocumentGridDataBar, DocumentGridEvent, DocumentGridHorizontalAlignment, DocumentGridIcon,
-    DocumentGridNavigation, DocumentGridRating, DocumentGridSurfaceFrame,
-    DocumentGridVerticalAlignment, DocumentGridViewport, DocumentPageSurfaceFrame, DocumentRect,
-    DocumentSurfaceCommand, DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceKind,
-    DocumentViewport, PdfOutlineItem, SpreadsheetGridSurface,
+    DocumentGridBorderSide, DocumentGridCell, DocumentGridCellAppearance, DocumentGridCellBorders,
+    DocumentGridCommand, DocumentGridCoordinate, DocumentGridDataBar, DocumentGridEvent,
+    DocumentGridHorizontalAlignment, DocumentGridIcon, DocumentGridNavigation, DocumentGridRating,
+    DocumentGridSurfaceFrame, DocumentGridVerticalAlignment, DocumentGridViewport,
+    DocumentPageSurfaceFrame, DocumentRect, DocumentSurfaceCommand, DocumentSurfaceError,
+    DocumentSurfaceFrame, DocumentSurfaceKind, DocumentViewport, PdfOutlineItem,
+    SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,
@@ -144,7 +145,8 @@ pub use multi_format::{
     OfficeStaticItemArtifact, OfficeStaticViewerSession, OfficeWorkerConfig,
     OfficeWorkerEntrypoint, OfficeWorkerError, PdfDocumentArtifact, PdfPageArtifact,
     PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage, PdfResourceLimitKind, PdfViewerError,
-    PdfViewerLimits, PdfViewerSession, SpreadsheetAutoFilterArtifact, SpreadsheetCellArtifact,
+    PdfViewerLimits, PdfViewerSession, SpreadsheetAutoFilterArtifact,
+    SpreadsheetBorderSideArtifact, SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact,
     SpreadsheetCellStyleArtifact, SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact,
     SpreadsheetCoordinate, SpreadsheetDataBarArtifact, SpreadsheetDocumentArtifact,
     SpreadsheetFilterColumnArtifact, SpreadsheetFilterCommand, SpreadsheetFilterCriterion,
@@ -192,9 +194,7 @@ pub use viewer::{
     ViewerTextStyle, ViewerTocCommandFactory, ViewerTocItem, ViewerTocModel,
     ViewerTypographyConfig, ViewerVector, ViewerViewport, ViewerVisibleRange,
 };
-
 #[cfg(test)]
 mod dependency_tests;
-
 #[cfg(test)]
 mod test_support;

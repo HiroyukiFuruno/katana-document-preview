@@ -9,9 +9,37 @@ pub(super) fn representative_with_auto_filter() -> TestResult<Vec<u8>> {
     inject_auto_filter(&std::fs::read(fixture)?)
 }
 
+pub(super) fn representative_with_auto_filter_and_blank() -> TestResult<Vec<u8>> {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/fixtures/multi-format/representative.xlsx");
+    inject_auto_filter_and_blank(&std::fs::read(fixture)?)
+}
+
 fn inject_auto_filter(bytes: &[u8]) -> TestResult<Vec<u8>> {
+    rewrite_worksheet(bytes, worksheet_with_filter)
+}
+
+fn inject_auto_filter_and_blank(bytes: &[u8]) -> TestResult<Vec<u8>> {
+    rewrite_worksheet(bytes, |content| {
+        let content = worksheet_with_filter(content)?;
+        let xml = String::from_utf8(content)?;
+        let blank_cell = r#"<c r="A7" s="3" t="inlineStr"><is><t>West</t></is></c>"#;
+        if !xml.contains(blank_cell) {
+            return Err("worksheet blank-cell source is missing".into());
+        }
+        Ok(xml
+            .replacen(blank_cell, r#"<c r="A7" s="3"/>"#, 1)
+            .into_bytes())
+    })
+}
+
+fn rewrite_worksheet(
+    bytes: &[u8],
+    rewrite: impl FnOnce(Vec<u8>) -> TestResult<Vec<u8>>,
+) -> TestResult<Vec<u8>> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
     let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let mut rewrite = Some(rewrite);
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
         let name = entry.name().to_owned();
@@ -23,7 +51,10 @@ fn inject_auto_filter(bytes: &[u8]) -> TestResult<Vec<u8>> {
         let mut content = Vec::new();
         entry.read_to_end(&mut content)?;
         if name == "xl/worksheets/sheet1.xml" {
-            content = worksheet_with_filter(content)?;
+            let rewrite = rewrite
+                .take()
+                .ok_or("worksheet rewrite ran more than once")?;
+            content = rewrite(content)?;
         }
         output.start_file(name, options)?;
         output.write_all(&content)?;

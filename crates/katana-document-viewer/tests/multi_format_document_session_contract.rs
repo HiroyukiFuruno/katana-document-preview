@@ -1,14 +1,19 @@
 use katana_document_viewer::{
     BinaryDocumentSource, DocumentFitMode, DocumentGridCommand, DocumentGridEvent,
-    DocumentGridNavigation, DocumentSession, DocumentSessionCommand, DocumentSessionCommandKind,
-    DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent, DocumentSurfaceCommand,
-    DocumentSurfaceKind, DocumentViewerCommand, DocumentViewerEvent, DocumentViewport,
-    OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, SpreadsheetFilterCommand,
-    ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus, ViewerSource, ViewerSourceIdentity,
+    DocumentGridNavigation, DocumentResourceSnapshot, DocumentSession, DocumentSessionCommand,
+    DocumentSessionCommandKind, DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent,
+    DocumentSurfaceCommand, DocumentSurfaceKind, DocumentViewerCommand, DocumentViewerEvent,
+    DocumentViewport, OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig,
+    SpreadsheetFilterCommand, ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus,
+    ViewerSource, ViewerSourceIdentity,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+const SUPPLIED_PPTX_CYCLES: usize = 10;
 
 fn fixture_path(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -279,6 +284,84 @@ fn unified_session_preserves_invalid_pdf_failures() {
 #[test]
 #[ignore = "requires KDV_ACCEPTANCE_FIXTURE_DIR with user-supplied Office documents"]
 fn user_supplied_office_fixtures_open_through_the_unified_session() -> TestResult {
+    let mut failures = Vec::new();
+    for path in acceptance_office_fixture_paths()? {
+        let (source, format) = acceptance_office_source(&path)?;
+        let first_frame_started = Instant::now();
+        let mut session = match DocumentSession::open(source, config()) {
+            Ok(session) => session,
+            Err(error) => {
+                failures.push(format!("{} failed to open: {error}", path.display()));
+                continue;
+            }
+        };
+        let result = match format {
+            OfficeDocumentFormat::Pptx => match assert_pptx_first_frame(&mut session) {
+                Ok(()) => {
+                    trace_supplied_pptx_first_frame(first_frame_started);
+                    assert_pptx_source_reuse_after_first_frame(&mut session)
+                }
+                Err(error) => Err(error),
+            },
+            OfficeDocumentFormat::Xlsx => {
+                let scroll = DocumentSessionCommand::Surface(DocumentSurfaceCommand::Grid(
+                    DocumentGridCommand::ScrollTo { x: 320, y: 20_000 },
+                ));
+                session
+                    .frame()
+                    .and_then(|_| session.apply(scroll))
+                    .and_then(|_| session.frame())
+                    .map(|_| ())
+                    .map_err(Into::into)
+            }
+            OfficeDocumentFormat::Docx => session.frame().map(|_| ()).map_err(Into::into),
+        };
+        if let Err(error) = result {
+            failures.push(format!("{} failed to render: {error}", path.display()));
+        }
+        session.close();
+    }
+    if !failures.is_empty() {
+        return Err(failures.join("\n").into());
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires KDV_ACCEPTANCE_FIXTURE_DIR with the supplied PPTX corpus"]
+fn supplied_pptx_reuses_its_source_and_cleans_up_after_ten_cycles() -> TestResult {
+    let paths = acceptance_office_fixture_paths()?
+        .into_iter()
+        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("pptx"))
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        return Err("no supplied PPTX fixtures found".into());
+    }
+
+    let baseline = DocumentResourceSnapshot::capture();
+    for cycle in 0..SUPPLIED_PPTX_CYCLES {
+        for path in &paths {
+            let (source, format) = acceptance_office_source(path)?;
+            assert_eq!(OfficeDocumentFormat::Pptx, format);
+            let mut session = DocumentSession::open(source, config())?;
+            assert_pptx_source_reuse(&mut session)?;
+            session.close();
+            assert_eq!(
+                baseline,
+                DocumentResourceSnapshot::capture(),
+                "cycle {cycle}, fixture {} leaked resources",
+                path.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "used as the matched no-op process baseline by measure-office-first-frame.py"]
+fn supplied_pptx_measurement_noop_baseline() {}
+
+fn acceptance_office_fixture_paths() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let directory = PathBuf::from(std::env::var("KDV_ACCEPTANCE_FIXTURE_DIR")?);
     let requested_name = std::env::var("KDV_ACCEPTANCE_FIXTURE_NAME").ok();
     let mut paths = std::fs::read_dir(&directory)?
@@ -300,71 +383,90 @@ fn user_supplied_office_fixtures_open_through_the_unified_session() -> TestResul
     if paths.is_empty() {
         return Err(format!("no Office fixtures found in {}", directory.display()).into());
     }
+    Ok(paths)
+}
 
-    let mut failures = Vec::new();
-    for path in paths {
-        let extension = path
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default();
-        let format = match extension {
-            "docx" => OfficeDocumentFormat::Docx,
-            "xlsx" => OfficeDocumentFormat::Xlsx,
-            "pptx" => OfficeDocumentFormat::Pptx,
-            _ => continue,
-        };
-        let name = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| format!("fixture name is not UTF-8: {}", path.display()))?;
-        let source = ViewerSource::Office(OfficeDocumentSource::new(
-            ViewerSourceIdentity::new(
-                format!("file://{}", path.display()),
-                format!("acceptance:{name}"),
-            ),
-            format,
-            match format {
-                OfficeDocumentFormat::Docx => {
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                }
-                OfficeDocumentFormat::Xlsx => {
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }
-                OfficeDocumentFormat::Pptx => {
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                }
-            },
-            std::fs::read(&path)?,
-        ));
-        let mut session = match DocumentSession::open(source, config()) {
-            Ok(session) => session,
-            Err(error) => {
-                failures.push(format!("{} failed to open: {error}", path.display()));
-                continue;
-            }
-        };
-        if let Err(error) = session.frame() {
-            failures.push(format!(
-                "{} failed to render its first frame: {error}",
-                path.display()
-            ));
-        } else if format == OfficeDocumentFormat::Xlsx {
-            let scroll = DocumentSessionCommand::Surface(DocumentSurfaceCommand::Grid(
-                DocumentGridCommand::ScrollTo { x: 320, y: 20_000 },
-            ));
-            if let Err(error) = session.apply(scroll).and_then(|_| session.frame()) {
-                failures.push(format!(
-                    "{} failed to render after spreadsheet scrolling: {error}",
-                    path.display()
-                ));
-            }
+fn acceptance_office_source(
+    path: &Path,
+) -> Result<(ViewerSource, OfficeDocumentFormat), Box<dyn std::error::Error>> {
+    let format = match path.extension().and_then(|value| value.to_str()) {
+        Some("docx") => OfficeDocumentFormat::Docx,
+        Some("xlsx") => OfficeDocumentFormat::Xlsx,
+        Some("pptx") => OfficeDocumentFormat::Pptx,
+        _ => return Err(format!("unsupported Office fixture: {}", path.display()).into()),
+    };
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| format!("fixture name is not UTF-8: {}", path.display()))?;
+    let source = ViewerSource::Office(OfficeDocumentSource::new(
+        ViewerSourceIdentity::new(
+            format!("file://{}", path.display()),
+            format!("acceptance:{name}"),
+        ),
+        format,
+        mime_for_office_format(format),
+        std::fs::read(path)?,
+    ));
+    Ok((source, format))
+}
+
+const fn mime_for_office_format(format: OfficeDocumentFormat) -> &'static str {
+    match format {
+        OfficeDocumentFormat::Docx => {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }
-        session.close();
+        OfficeDocumentFormat::Xlsx => {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+        OfficeDocumentFormat::Pptx => {
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        }
     }
-    if !failures.is_empty() {
-        return Err(failures.join("\n").into());
+}
+
+fn assert_pptx_source_reuse(session: &mut DocumentSession) -> TestResult {
+    assert_pptx_first_frame(session)?;
+    assert_pptx_source_reuse_after_first_frame(session)
+}
+
+fn assert_pptx_first_frame(session: &mut DocumentSession) -> TestResult {
+    assert_frame(
+        session,
+        ViewerDocumentFormat::Pptx,
+        DocumentSurfaceKind::Page,
+    )
+}
+
+fn assert_pptx_source_reuse_after_first_frame(session: &mut DocumentSession) -> TestResult {
+    assert_eq!(
+        DocumentSessionEvent::None,
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Resize(DocumentViewport::new(900, 700))
+        ))?
+    );
+    assert_frame(
+        session,
+        ViewerDocumentFormat::Pptx,
+        DocumentSurfaceKind::Page,
+    )?;
+    assert_frame(
+        session,
+        ViewerDocumentFormat::Pptx,
+        DocumentSurfaceKind::Page,
+    )
+}
+
+fn trace_supplied_pptx_first_frame(first_frame_started: Instant) {
+    if std::env::var("DEBUG")
+        .ok()
+        .is_some_and(|value| value.eq_ignore_ascii_case("true") || value == "1")
+    {
+        eprintln!(
+            "[KDV_ACCEPTANCE] stage=first_frame elapsed_ms={}",
+            first_frame_started.elapsed().as_millis()
+        );
     }
-    Ok(())
 }
 
 fn assert_frame(

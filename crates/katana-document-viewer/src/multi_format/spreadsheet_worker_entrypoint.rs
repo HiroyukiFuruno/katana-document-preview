@@ -8,7 +8,6 @@ use super::spreadsheet_worker_protocol::{
 };
 use std::ffi::OsString;
 use std::io::{BufReader, BufWriter, Write};
-
 #[path = "spreadsheet_worker_io.rs"]
 mod io;
 #[cfg(test)]
@@ -17,7 +16,6 @@ use io::{
     write_encoded_response,
 };
 use io::{read_request, write_response, write_response_limited};
-
 const EXIT_USAGE: i32 = 64;
 const EXIT_FAILURE: i32 = 70;
 type SpreadsheetWorker = fn(SpreadsheetWorkerArguments) -> Result<(), (String, String)>;
@@ -75,11 +73,14 @@ impl SpreadsheetWorkerLoop {
         arguments: SpreadsheetWorkerArguments,
         apply_constraints: ConstraintApplier,
     ) -> Result<(), (String, String)> {
-        apply_constraints(
-            &arguments.workspace,
-            arguments.max_memory_bytes,
-            arguments.max_cpu_seconds,
-        )?;
+        {
+            let _runtime_init = super::debug_trace::DebugTrace::start("spreadsheet.runtime_init");
+            apply_constraints(
+                &arguments.workspace,
+                arguments.max_memory_bytes,
+                arguments.max_cpu_seconds,
+            )?;
+        }
         let engine = open_engine(&arguments)?;
         let mut worker = Self {
             engine,
@@ -166,7 +167,7 @@ impl SpreadsheetWorkerLoop {
 fn open_engine(
     arguments: &SpreadsheetWorkerArguments,
 ) -> Result<SpreadsheetEngineSession, (String, String)> {
-    let _open = super::debug_trace::DebugTrace::start("spreadsheet.worker_engine_open");
+    let _open = super::debug_trace::DebugTrace::start("spreadsheet.package_parse");
     let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
     let name = arguments.workspace.join(INPUT_NAME);
     SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)

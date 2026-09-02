@@ -14,6 +14,7 @@ fn ten_mixed_document_cycles_return_resources_to_baseline() -> TestResult {
     for cycle in 0..CYCLES {
         run_pdf_cycle(cycle)?;
         run_spreadsheet_cycle(cycle)?;
+        run_presentation_cycle(cycle)?;
         assert_eq!(baseline, DocumentResourceSnapshot::capture());
     }
     Ok(())
@@ -42,6 +43,23 @@ fn run_spreadsheet_cycle(cycle: usize) -> TestResult {
         ViewerSourceIdentity::new("file:///cycle.xlsx", format!("cycle:{cycle}")),
         OfficeDocumentFormat::Xlsx,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        std::fs::read(fixture)?,
+    );
+    let config = DocumentSessionConfig::new(DocumentViewport::new(320, 240))
+        .office_worker(OfficeWorkerConfig::new(worker_binary_path()?));
+    let mut session = DocumentSession::open(ViewerSource::Office(source), config)?;
+    let _ = session.frame()?;
+    session.close();
+    Ok(())
+}
+
+fn run_presentation_cycle(cycle: usize) -> TestResult {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/fixtures/multi-format/representative.pptx");
+    let source = OfficeDocumentSource::new(
+        ViewerSourceIdentity::new("file:///cycle.pptx", format!("cycle:{cycle}")),
+        OfficeDocumentFormat::Pptx,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         std::fs::read(fixture)?,
     );
     let config = DocumentSessionConfig::new(DocumentViewport::new(320, 240))

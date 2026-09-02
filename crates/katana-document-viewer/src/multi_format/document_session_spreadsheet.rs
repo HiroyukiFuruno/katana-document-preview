@@ -62,6 +62,7 @@ impl SpreadsheetDocumentSession {
     }
 
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let _publication = super::debug_trace::DebugTrace::start("spreadsheet.frame_publication");
         let coordinates = self.surface.materialization_request();
         let cells = self
             .engine

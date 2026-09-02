@@ -24,6 +24,10 @@ KDVは列の候補値取得、選択値適用、filter解除をtyped commandと�
 - **WHEN** hostがsheetのfilter解除commandを送る
 - **THEN** KDVは元からhiddenのrowを除きfilter起因の非表示を解除する
 
+#### Scenario: 文字列・数値・空白・複数値を適用する
+- **WHEN** hostが実XLSX fixtureの文字列、数値、空白、同一列の複数値をtyped commandで指定する
+- **THEN** KDVは元row indexを保ったvisible-row stateとgrid frame metadataを返し、Clear後はfilter起因の非表示を残さない
+
 ### Requirement: Filterは大規模sheetでもworker境界とresource limitを維持しなければならない
 KDVはfilter評価を隔離spreadsheet worker内で行い、全cellをhostへ転送せず既存resource limitを維持しなければならない（MUST）。
 

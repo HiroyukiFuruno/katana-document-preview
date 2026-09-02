@@ -11,7 +11,7 @@ fn viewer_manifest_is_backend_neutral_and_uses_registry_kuc()
     let dependencies = manifest_dependencies(&value)?;
 
     assert_neutral_dependencies(dependencies);
-    assert_registry_dependency(dependencies, "katana-ui-core", "0.3.0")?;
+    assert_registry_dependency(dependencies, "katana-ui-core", "0.3.3")?;
     assert_no_egui_feature(&value);
     Ok(())
 }

@@ -9,6 +9,8 @@ pub(super) struct SpreadsheetCellCache {
     cells: HashMap<CacheKey, (SpreadsheetCellArtifact, usize)>,
     order: VecDeque<CacheKey>,
     bytes: usize,
+    max_cells: usize,
+    max_bytes: usize,
 }
 
 impl SpreadsheetCellCache {
@@ -17,6 +19,19 @@ impl SpreadsheetCellCache {
             cells: HashMap::new(),
             order: VecDeque::new(),
             bytes: 0,
+            max_cells: MAX_CACHED_CELLS,
+            max_bytes: MAX_CACHED_BYTES,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_limits(max_cells: usize, max_bytes: usize) -> Self {
+        Self {
+            cells: HashMap::new(),
+            order: VecDeque::new(),
+            bytes: 0,
+            max_cells,
+            max_bytes,
         }
     }
 
@@ -38,7 +53,7 @@ impl SpreadsheetCellCache {
             self.remove(key);
         }
         let bytes = cell_bytes(&cell);
-        if bytes > MAX_CACHED_BYTES {
+        if bytes > self.max_bytes {
             return;
         }
         self.evict_until_available(bytes);
@@ -85,8 +100,8 @@ impl SpreadsheetCellCache {
 
     fn evict_until_available(&mut self, incoming_bytes: usize) {
         while !self.order.is_empty()
-            && (self.cells.len() >= MAX_CACHED_CELLS
-                || self.bytes.saturating_add(incoming_bytes) > MAX_CACHED_BYTES)
+            && (self.cells.len() >= self.max_cells
+                || self.bytes.saturating_add(incoming_bytes) > self.max_bytes)
         {
             if let Some(key) = self.order.pop_front() {
                 self.remove(key);

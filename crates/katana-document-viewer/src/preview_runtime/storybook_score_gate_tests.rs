@@ -486,6 +486,37 @@ fn document_surface_boundary_resolves_cargo_dependency_when_sibling_repo_is_miss
 }
 
 #[test]
+fn document_surface_boundary_checks_kuc_optional_backends_from_the_resolved_graph()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
+    let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
+
+    assert_contains_all(
+        "document-surface-boundary-check.sh",
+        &script,
+        &[
+            "resolve_cargo_package_tree katana-ui-core registry+",
+            "kuc_tree=",
+            "check_kuc_core_semantic_boundary \"katana-ui-core\"",
+            "check_embedded_kuc_source_boundary",
+        ],
+    );
+    let semantic_boundary_start = script
+        .find("check_kuc_core_semantic_boundary() {")
+        .ok_or_else(|| std::io::Error::other("KUC semantic boundary function must exist"))?;
+    let embedded_boundary_start = script
+        .find("check_embedded_kuc_source_boundary() {")
+        .ok_or_else(|| std::io::Error::other("embedded KUC source boundary function must exist"))?;
+    let semantic_boundary = &script[semantic_boundary_start..embedded_boundary_start];
+    assert!(
+        !semantic_boundary.contains("$source_pattern"),
+        "registry KUC optional backends must be checked from the resolved dependency graph, not dormant source modules"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn storybook_link_footnote_gate_keeps_real_pointer_jump_tests()
 -> Result<(), Box<dyn std::error::Error>> {
     let justfile = std::fs::read_to_string(workspace_root()?.join("Justfile"))?;

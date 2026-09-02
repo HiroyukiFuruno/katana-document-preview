@@ -20,8 +20,11 @@ impl OfficeWorkerWindowsProcess {
         let staged_executable = stage_windows_worker(workspace, config)?;
         let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
         let options = build_options(workspace, &staged_executable, format, config);
-        let child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
-            .map_err(|error| launch_error(config, &staged_executable, error))?;
+        let child = {
+            let _spawn = crate::multi_format::debug_trace::DebugTrace::start("office.worker_spawn");
+            rappct::launch::launch_in_container_with_io(&capabilities, &options)
+        }
+        .map_err(|error| launch_error(config, &staged_executable, error))?;
         child
             .wait(Some(config.timeout))
             .map(|status| Some(i64::from(status)))

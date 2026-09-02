@@ -1,24 +1,25 @@
-use super::{MAX_CACHED_BYTES, MAX_CACHED_CELLS, SpreadsheetCellCache};
+use super::{MAX_CACHED_BYTES, SpreadsheetCellCache};
 use crate::{
-    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
-    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
+    SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact, SpreadsheetCellStyleArtifact,
+    SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
     SpreadsheetHorizontalAlignment, SpreadsheetVerticalAlignment,
 };
 
 #[test]
 fn cache_resolves_in_request_order_and_evicts_by_entry_limit()
 -> Result<(), Box<dyn std::error::Error>> {
-    let mut cache = SpreadsheetCellCache::new();
-    for row in 0..=MAX_CACHED_CELLS {
+    let max_cells = 3;
+    let mut cache = SpreadsheetCellCache::with_limits(max_cells, MAX_CACHED_BYTES);
+    for row in 0..=max_cells {
         cache.insert(0, cell(row, "value"));
     }
-    assert_eq!(MAX_CACHED_CELLS, cache.len());
+    assert_eq!(max_cells, cache.len());
     assert_eq!(
         vec![SpreadsheetCoordinate::new(0, 0)],
         cache.missing(0, &[SpreadsheetCoordinate::new(0, 0)])
     );
     let coordinates = [
-        SpreadsheetCoordinate::new(MAX_CACHED_CELLS, 0),
+        SpreadsheetCoordinate::new(max_cells, 0),
         SpreadsheetCoordinate::new(1, 0),
     ];
     let resolved = cache.resolve(0, &coordinates)?;
@@ -65,6 +66,7 @@ fn cell(row: usize, text: &str) -> SpreadsheetCellArtifact {
             vertical_alignment: SpreadsheetVerticalAlignment::Bottom,
             wrap_text: false,
             number_format: "General".to_owned(),
+            borders: SpreadsheetCellBorderArtifact::default(),
         },
         conditional_formatting: SpreadsheetConditionalFormattingArtifact::default(),
     }

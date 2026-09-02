@@ -19,7 +19,7 @@ name = "kdv-spreadsheet-worker"
 path = "src/kdv_spreadsheet_worker.rs"
 
 [dependencies]
-katana-ui-core = "0.3.0"
+katana-ui-core = "0.3.3"
 cosmic-text = { workspace = true }
 epaint_default_fonts = { workspace = true }
 flate2 = { workspace = true }

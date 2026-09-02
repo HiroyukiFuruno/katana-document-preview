@@ -4,13 +4,12 @@ use super::{
     SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetRatingArtifact,
     SpreadsheetVerticalAlignment,
     spreadsheet_engine::{SpreadsheetEngineError, SpreadsheetEngineSupport},
+    spreadsheet_engine_cell_border::{borders, color},
 };
 use ironcalc::base::Model;
 use ironcalc::base::cell::CellValue;
 use ironcalc::base::cf_types::{CfDataBar, CfIcon, CfRating, ExtendedStyle};
-use ironcalc::base::types::{
-    Alignment, Color, HorizontalAlignment, Style, Theme, VerticalAlignment,
-};
+use ironcalc::base::types::{Alignment, HorizontalAlignment, Style, Theme, VerticalAlignment};
 
 pub(crate) struct SpreadsheetCellMaterializer;
 
@@ -83,8 +82,8 @@ impl SpreadsheetCellMaterializer {
         SpreadsheetCellStyleArtifact {
             font_name: style.font.name.clone(),
             font_size: style.font.sz.max(0) as f32,
-            font_color: Self::color(&style.font.color, theme),
-            fill_color: Self::color(&style.fill.color, theme),
+            font_color: color(&style.font.color, theme),
+            fill_color: color(&style.fill.color, theme),
             bold: style.font.b,
             italic: style.font.i,
             underline: style.font.u,
@@ -93,6 +92,7 @@ impl SpreadsheetCellMaterializer {
             vertical_alignment: Self::vertical_alignment(&alignment),
             wrap_text: alignment.wrap_text,
             number_format: style.num_fmt.clone(),
+            borders: borders(&style.border, theme),
         }
     }
 
@@ -119,8 +119,8 @@ impl SpreadsheetCellMaterializer {
 
     fn data_bar(bar: CfDataBar, theme: &Theme) -> SpreadsheetDataBarArtifact {
         SpreadsheetDataBarArtifact {
-            positive_color: Self::color(&bar.positive_color, theme),
-            negative_color: Self::color(&bar.negative_color, theme),
+            positive_color: color(&bar.positive_color, theme),
+            negative_color: color(&bar.negative_color, theme),
             value: bar.value,
             axis_position: bar.axis_position,
             gradient: bar.is_gradient,
@@ -131,7 +131,7 @@ impl SpreadsheetCellMaterializer {
     fn icon(icon: CfIcon, theme: &Theme) -> SpreadsheetIconArtifact {
         SpreadsheetIconArtifact {
             name: format!("{:?}", icon.icon),
-            color: Self::color(&icon.color, theme),
+            color: color(&icon.color, theme),
             show_value: icon.show_value,
         }
     }
@@ -141,7 +141,7 @@ impl SpreadsheetCellMaterializer {
             icon_name: format!("{:?}", rating.icon),
             count: rating.count,
             maximum: rating.max,
-            color: Self::color(&rating.color, theme),
+            color: color(&rating.color, theme),
             show_value: rating.show_value,
         }
     }
@@ -178,11 +178,6 @@ impl SpreadsheetCellMaterializer {
             CellValue::Number(value) => SpreadsheetCellValue::Number(value),
             CellValue::Boolean(value) => SpreadsheetCellValue::Boolean(value),
         }
-    }
-
-    fn color(color: &Color, theme: &Theme) -> Option<String> {
-        let value = color.to_rgb(theme);
-        (!value.is_empty()).then_some(value)
     }
 }
 

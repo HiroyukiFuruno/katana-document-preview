@@ -109,14 +109,14 @@ check_strict_task_line() {
   local line="$3"
   local payload
 
-  if [[ "$line" == *"証跡:"* ]]; then
-    payload="${line#*証跡:}"
-    check_evidence_payload "${file} (line ${line_no})" "$payload"
+  if [[ "$line" == *"delegation-exception:"* ]]; then
+    check_delegation_exception "${file} (line ${line_no})" "$line"
     return
   fi
 
-  if [[ "$line" == *"delegation-exception:"* ]]; then
-    check_delegation_exception "${file} (line ${line_no})" "$line"
+  if [[ "$line" == *"証跡:"* ]]; then
+    payload="${line#*証跡:}"
+    check_evidence_payload "${file} (line ${line_no})" "$payload"
     return
   fi
 

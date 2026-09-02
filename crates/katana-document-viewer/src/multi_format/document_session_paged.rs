@@ -110,6 +110,11 @@ impl PagedDocumentSession {
         &self,
         rendered: PdfRenderedPage,
     ) -> Result<DocumentFrame, DocumentSessionError> {
+        let stage = match &self.engine {
+            PagedEngine::Pdf(_) => "pdf.frame_publication",
+            PagedEngine::Office(_) => "office.frame_publication",
+        };
+        let _publication = super::debug_trace::DebugTrace::start(stage);
         DocumentSurfaceFrame::from_rendered_page("Document page", rendered)
             .map(|surface| DocumentFrame {
                 surface: surface.with_navigation_metadata(Vec::new(), self.outline_items.clone()),

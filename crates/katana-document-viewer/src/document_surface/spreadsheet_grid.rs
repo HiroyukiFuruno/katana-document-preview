@@ -5,7 +5,10 @@ use super::{
     DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceError, DocumentSurfaceFrame,
     DocumentViewport,
 };
-use crate::{SpreadsheetCellArtifact, SpreadsheetCoordinate, SpreadsheetSheetArtifact};
+use crate::{
+    SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact, SpreadsheetCoordinate,
+    SpreadsheetSheetArtifact,
+};
 use katana_ui_core::molecule::{
     GenericGrid, GridAction, GridCoordinate, GridEvent, GridNavigationIntent, GridViewport,
 };
@@ -13,6 +16,7 @@ use katana_ui_core::render_model::UiGridValidationError;
 use mapping::{
     cell_content, cell_span, row_track_provider, spreadsheet_coordinate, track_provider,
 };
+use std::collections::HashMap;
 
 const DEFAULT_ROW_SIZE: u32 = 20;
 const DEFAULT_COLUMN_SIZE: u32 = 80;
@@ -29,6 +33,7 @@ impl From<UiGridValidationError> for DocumentSurfaceError {
 pub struct SpreadsheetGridSurface {
     sheet_index: usize,
     grid: GenericGrid,
+    cell_borders: HashMap<SpreadsheetCoordinate, SpreadsheetCellBorderArtifact>,
 }
 
 impl SpreadsheetGridSurface {
@@ -59,6 +64,7 @@ impl SpreadsheetGridSurface {
         Ok(Self {
             sheet_index: sheet.index,
             grid,
+            cell_borders: HashMap::new(),
         })
     }
 
@@ -80,10 +86,15 @@ impl SpreadsheetGridSurface {
         &mut self,
         cells: Vec<SpreadsheetCellArtifact>,
     ) -> Result<(), DocumentSurfaceError> {
+        let cell_borders = cells
+            .iter()
+            .map(|cell| (cell.coordinate, cell.style.borders.clone()))
+            .collect();
         self.grid = self
             .grid
             .clone()
             .with_visible_cells(cells.into_iter().map(cell_content).collect())?;
+        self.cell_borders = cell_borders;
         Ok(())
     }
 
@@ -95,7 +106,8 @@ impl SpreadsheetGridSurface {
     }
 
     pub fn frame(&self) -> Result<DocumentSurfaceFrame, DocumentSurfaceError> {
-        DocumentSurfaceFrame::from_node(self.grid.clone().into())
+        Ok(DocumentSurfaceFrame::from_node(self.grid.clone().into())?
+            .with_grid_cell_borders(&self.cell_borders))
     }
 }
 
@@ -163,12 +175,12 @@ const fn navigation_intent(intent: DocumentGridNavigation) -> GridNavigationInte
     }
 }
 
-#[path = "spreadsheet_grid_state.rs"]
-mod state;
-
 #[cfg(test)]
 #[path = "spreadsheet_grid_alignment_tests.rs"]
 mod alignment_tests;
+#[cfg(test)]
+#[path = "spreadsheet_grid_appearance_tests.rs"]
+mod appearance_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_command_tests.rs"]
 mod command_tests;
@@ -178,6 +190,8 @@ mod filter_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_pointer_tests.rs"]
 mod pointer_tests;
+#[path = "spreadsheet_grid_state.rs"]
+mod state;
 #[cfg(test)]
 #[path = "spreadsheet_grid_test_support.rs"]
 mod test_support;

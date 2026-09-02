@@ -1,6 +1,6 @@
 ## Context
 
-KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで表示し、DOCX/PPTXを別processのoffice2pdfでpage/slideへ変換する。現在のXLSX artifactにはAutoFilterがなく、grid commandは選択・移動・scrollだけである。Office preflightは中央directoryに加えてlocal headerを走査するが、data descriptor時の実fixtureがない。paged sessionは変換済みartifactをsession内に保持し、性能と解放を数値で証明するgateが不足している。
+KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで表示し、DOCX/PPTXを別processのoffice2pdfでpage/slideへ変換する。XLSX AutoFilter、local-header data descriptor、session cache、worker cleanupのowner-layer実装は導入済みだが、KatanAで再現した全20 entryのDOCX fixture、V8の公開consumer link、DOCX/XLSXのsource-renderer fidelity比較をrelease DoDとして固定する必要がある。
 
 ## Goals / Non-Goals
 
@@ -25,8 +25,10 @@ KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで�
 3. AutoFilter XMLはOOXML worksheetの`autoFilter`、`filterColumn`、`filters/filter`だけをbounded streaming parseする。未対応criteriaは診断として保持し、誤った絞り込みを行わない。
 4. ZIP local-header走査はdata descriptorを「中央directory検証へ委譲可能な状態」として型で判定する。error文字列一致だけに依存する案を廃止し、実descriptor fixtureで中央directory・CRC・entry安全検査が維持されることを固定する。
 5. PPTXはsource identityと変換設定からcache keyを作り、同一sessionの不変入力では変換artifactを再利用する。global無制限cacheは採用せず、session所有の個数・bytes上限付きLRUとする。
-6. worker spawn、preflight、convert、decode、first-frameを`DEBUG=true`時だけstage traceへ出す。release版の通常出力と処理分岐は変えない。
+6. worker spawn、runtime init、package parse、preflight、convert、decode、frame publication、rasterを`DEBUG=true`時だけstage traceへ出す。XLSXには同じ責務の`spreadsheet.*` stageを出し、release版の通常出力と処理分岐は変えない。
 7. `close`と`Drop`の両方がworker shutdown、temporary workspace、frame/cacheを解放する。二重closeは成功する冪等操作とする。
+8. KDV direct `v8 =152.2.0`とKRR 0.4.19のV8を単一registry packageへ解決する。local `cargo tree -d`と公開KDV APIを参照するconsumer linkに加え、publish後はpath/gitなしのtemporary registry consumerをfresh resolveして同じ条件を再確認する。
+9. DOCX/XLSX fidelityのsource rendererはLibreOffice 26.8.0.3、72 dpi、`representative.docx`/`representative.xlsx`のSHA-256、DOCX 842x596/XLSX 596x842 viewportに固定する。KDV runtimeへLibreOffice等を追加するのではなく、比較harnessのsourceとしてのみ扱う。XLSX border metadataはworker artifactから公開frameまでKDVが保持し、KUCのcustom border描画が公開された時だけthin projectionを接続する。
 
 ## Risks / Trade-offs
 
@@ -34,6 +36,9 @@ KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで�
 - [Risk] 行visibilityの更新でselection/scroll位置が無効になる → 可視な最寄りrowへ正規化し、eventでhostへ通知する。
 - [Risk] cacheにより古いartifactを返す → content hash、format、worker設定をkeyに含め、closeで破棄する。
 - [Risk] data descriptor受理がarchive検査を弱める → 中央directory、CRC、重複名、展開量、relationship検査は必須のままにする。
+- [Risk] KDV/KRRが異なるV8を解決するとconsumer binaryが二重静的runtimeをlinkする → version、lockfile、duplicate tree、local link、registry linkを別々に必須化する。
+- [Risk] source renderer未合意のままfidelity scoreを採用すると比較対象が恣意的になる → LibreOffice 26.8.0.3 / 72 dpi / fixture hash / viewport / artifact hashをfidelity recordへ固定し、変更時は再計測を必須にする。
+- [Risk] KUC 0.3.3はcellごとのcustom border描画を持たず、KDVだけで視覚差分を隠すとowner boundaryを越える → KDVはmetadataを保持してscoreへ露出し、visual gapはKUC公開版のthin projection待ちとして数値化する。
 
 ## Migration Plan
 
@@ -44,4 +49,4 @@ KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで�
 
 ## Open Questions
 
-- ユーザー提供DOCX本体が未添付のため、報告された個別ZIP errorのentry/header形態は実fixture入手後に追加確認する。
+- Issue #48のKUC custom cell border描画をどの公開版で受けるか。KDV側のsource artifact、border metadata、fidelity scoreは固定済みであり、KUC registry versionだけがvisual projectionの前提である。

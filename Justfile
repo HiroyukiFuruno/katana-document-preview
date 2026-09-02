@@ -60,7 +60,7 @@ coverage-missing:
     DEBUG=true {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --show-missing-lines --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Run the local quality gate
-check: fmt-check lint ast-lint storybook-entrypoint-check document-surface-boundary-check test release-target-script-test multi-format-scorecard-script-test multi-format-scorecard-check check-subagent-harness
+check: fmt-check lint ast-lint storybook-entrypoint-check document-surface-boundary-check test release-target-script-test multi-format-scorecard-script-test multi-format-scorecard-check data-descriptor-fixture-check office-profiling-stage-check office-performance-harness-check office-fidelity-harness-check v8-runtime-check check-subagent-harness
     @echo "checks passed"
 
 # Run release-line mapping tests without contacting external services.
@@ -73,6 +73,24 @@ multi-format-scorecard-script-test:
 
 multi-format-scorecard-check:
     python3 scripts/feasibility/verify-multi-format-scorecard.py
+
+data-descriptor-fixture-check:
+    python3 scripts/feasibility/verify-data-descriptor-docx.py
+
+office-profiling-stage-check:
+    python3 scripts/feasibility/verify-office-profiling-stages.py --self-test
+    python3 scripts/feasibility/verify-office-profiling-stages.py
+
+office-performance-harness-check:
+    python3 scripts/feasibility/measure-office-first-frame.py --self-test
+
+office-fidelity-harness-check:
+    python3 scripts/feasibility/measure-office-fidelity.py --self-test
+    python3 scripts/feasibility/measure-office-fidelity.py --verify-record openspec/changes/post-v0-5-5-document-fidelity-regressions/evidence/fidelity-baseline.json
+
+v8-runtime-check:
+    python3 scripts/release/verify-v8-runtime-singleton.py --self-test
+    python3 scripts/release/verify-v8-runtime-singleton.py
 
 # Verify subagent / Spark delegation evidence is explicitly recorded
 check-subagent-harness:
@@ -549,6 +567,7 @@ release-dod-check:
 release-contract-check:
     python3 scripts/release/verify-release-contract.py --self-test
     python3 scripts/release/verify-release-contract.py --target-version "{{TAG}}"
+    python3 scripts/release/verify-registry-consumer-link.py --self-test
     python3 scripts/feasibility/verify-multi-format-scorecard.py --require-approved
     {{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked -- --test-threads=1
 

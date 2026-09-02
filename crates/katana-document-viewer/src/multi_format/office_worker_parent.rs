@@ -113,28 +113,25 @@ pub(super) struct OfficeWorkerOutput {
     pub warnings: Vec<String>,
     pub preflight_diagnostics: Vec<ViewerDiagnostic>,
 }
-
 pub(super) struct OfficeWorkerRunner;
-
 impl OfficeWorkerRunner {
     pub fn convert(
         source: &OfficeDocumentSource,
         config: &OfficeWorkerConfig,
     ) -> Result<OfficeWorkerOutput, OfficeWorkerError> {
         let _conversion = super::debug_trace::DebugTrace::start("office.total");
-        let (_, preflight_diagnostics) = {
-            let _preflight = super::debug_trace::DebugTrace::start("office.preflight");
-            OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?
-        };
+        let preflight_diagnostics = preflight_diagnostics(source, config)?;
         let workspace = {
+            let _transfer = super::debug_trace::DebugTrace::start("office.transfer_to_worker");
             let _workspace = super::debug_trace::DebugTrace::start("office.workspace");
             OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?
         };
         let status = {
-            let _convert = super::debug_trace::DebugTrace::start("office.convert");
+            let _convert = super::debug_trace::DebugTrace::start("office.conversion");
             OfficeWorkerProcess::run(workspace.path(), source.format, config)?
         };
         let response = {
+            let _transfer = super::debug_trace::DebugTrace::start("office.transfer_from_worker");
             let _decode = super::debug_trace::DebugTrace::start("office.response_decode");
             OfficeWorkerOutputReader::read_response(workspace.path())?
         };
@@ -147,6 +144,17 @@ impl OfficeWorkerRunner {
             output
         })
     }
+}
+fn preflight_diagnostics(
+    source: &OfficeDocumentSource,
+    config: &OfficeWorkerConfig,
+) -> Result<Vec<ViewerDiagnostic>, OfficeWorkerError> {
+    let _archive_intake = super::debug_trace::DebugTrace::start("office.archive_intake");
+    let _package_parse = super::debug_trace::DebugTrace::start("office.package_parse");
+    let _preflight = super::debug_trace::DebugTrace::start("office.preflight");
+    let (_, diagnostics) =
+        OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?;
+    Ok(diagnostics)
 }
 
 fn complete_conversion(

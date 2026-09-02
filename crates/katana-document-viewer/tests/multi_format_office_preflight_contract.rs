@@ -181,6 +181,50 @@ fn data_descriptor_packages_pass_bounded_preflight_for_each_office_format() -> T
 }
 
 #[test]
+fn exact_katana_data_descriptor_docx_passes_bounded_preflight() -> TestResult {
+    let bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/fixtures/multi-format/data-descriptor.docx"),
+    )?;
+    let report =
+        OfficePackagePreflight::inspect(&docx(bytes.clone()), OfficePreflightLimits::strict())?;
+    assert_eq!(20, report.entry_count);
+
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes.as_slice()))?;
+    assert_eq!(20, archive.len());
+    let mut document_sizes = None;
+    for index in 0..archive.len() {
+        let (name, header_start, compressed_size, uncompressed_size) = {
+            let entry = archive.by_index(index)?;
+            (
+                entry.name().to_owned(),
+                usize::try_from(entry.header_start())?,
+                entry.compressed_size(),
+                entry.size(),
+            )
+        };
+        let header = bytes
+            .get(header_start..header_start + 30)
+            .ok_or("data-descriptor local header")?;
+        let flags = u16::from_le_bytes([header[6], header[7]]);
+        let crc32 = u32::from_le_bytes([header[14], header[15], header[16], header[17]]);
+        let compressed = u32::from_le_bytes([header[18], header[19], header[20], header[21]]);
+        let uncompressed = u32::from_le_bytes([header[22], header[23], header[24], header[25]]);
+        assert_ne!(0, flags & (1 << 3), "{name} must use a data descriptor");
+        assert_eq!(
+            (0, 0, 0),
+            (crc32, compressed, uncompressed),
+            "{name} local header must defer CRC and sizes"
+        );
+        if name == "word/document.xml" {
+            document_sizes = Some((compressed_size, uncompressed_size));
+        }
+    }
+    assert_eq!(Some((1383, 4907)), document_sizes);
+    Ok(())
+}
+
+#[test]
 fn zip64_data_descriptor_package_passes_bounded_preflight() -> TestResult {
     let bytes = streaming_package(&[("word/document.xml", b"<w:document/>")], true)?;
     let flags = u16::from_le_bytes([bytes[6], bytes[7]]);

@@ -34,9 +34,7 @@ impl SpreadsheetWorkerSpawn {
             workspace,
             "spreadsheet",
         );
-        let mut child = command
-            .spawn()
-            .map_err(|error| OfficeWorkerError::unavailable(&resolved, error.to_string()))?;
+        let mut child = spawn_child(&mut command, &resolved)?;
         #[cfg(target_os = "macos")]
         let process_id = child.id();
         let input = child.stdin.take().ok_or_else(stdin_unavailable)?;
@@ -60,6 +58,17 @@ impl SpreadsheetWorkerSpawn {
         let resolved = SpreadsheetWorkerExecutable::resolve(config);
         super::spreadsheet_worker_spawn_windows::spawn(workspace, &resolved)
     }
+}
+
+#[cfg(not(windows))]
+fn spawn_child(
+    command: &mut std::process::Command,
+    config: &OfficeWorkerConfig,
+) -> Result<std::process::Child, OfficeWorkerError> {
+    let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.worker_spawn");
+    command
+        .spawn()
+        .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
 }
 
 #[cfg(not(windows))]

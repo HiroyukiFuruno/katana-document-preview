@@ -133,25 +133,32 @@ while pending:
 PY
 }
 
-check_kuc_core_source_boundary() {
+check_kuc_core_semantic_boundary() {
   local label="$1"
   local root="$2"
-  local source_paths=("$root/Cargo.toml" "$root/src")
   local semantic_paths=("$root/src")
 
   if [[ -d "$root/tests" ]]; then
     semantic_paths+=("$root/tests")
   fi
 
+  if grep -R -n -E "$kuc_forbidden_viewer_semantic_pattern" "${semantic_paths[@]}"; then
+    echo "document-surface-boundary-check: viewer media semantics leaked into $label" >&2
+    exit 1
+  fi
+}
+
+check_embedded_kuc_source_boundary() {
+  local label="$1"
+  local root="$2"
+  local source_paths=("$root/Cargo.toml" "$root/src")
+
   if grep -R -n -E "$source_pattern" "${source_paths[@]}"; then
     echo "document-surface-boundary-check: vendor runtime source reference leaked into $label" >&2
     exit 1
   fi
 
-  if grep -R -n -E "$kuc_forbidden_viewer_semantic_pattern" "${semantic_paths[@]}"; then
-    echo "document-surface-boundary-check: viewer media semantics leaked into $label" >&2
-    exit 1
-  fi
+  check_kuc_core_semantic_boundary "$label" "$root"
 }
 
 check_file_tree_facade_contract() {
@@ -235,8 +242,8 @@ for package in "${packages[@]}"; do
   fi
 done
 
-if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV document surface must use required crates.io KUC 0.3.0" >&2
+if ! grep -q '^katana-ui-core = "0[.]3[.]3"$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV document surface must use required crates.io KUC 0.3.3" >&2
   exit 1
 fi
 
@@ -251,7 +258,7 @@ if [[ -e "$repo_root/crates/katana-document-viewer-kuc" ]] || grep -q '"crates/k
 fi
 
 if ! grep -q 'katana-ui-core.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest"; then
-  echo "document-surface-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
+  echo "document-surface-boundary-check: development-only private KUC Storybook crates must use tag v0.3.0" >&2
   exit 1
 fi
 
@@ -284,17 +291,18 @@ else
 fi
 
 if [[ ! -f "$kuc_core_source_root/Cargo.toml" || ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
-  echo "document-surface-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
+  echo "document-surface-boundary-check: resolved KUC package sources are unavailable" >&2
   exit 1
 fi
 
 kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+)"
+# KUC の任意 backend は未有効化でもソースに存在するため、解決済み依存グラフで判定する。
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
   echo "document-surface-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
   exit 1
 fi
 
-check_kuc_core_source_boundary "katana-ui-core" "$kuc_core_source_root"
+check_kuc_core_semantic_boundary "katana-ui-core" "$kuc_core_source_root"
 check_file_tree_facade_contract_for_root "katana-ui-core" "$kuc_core_source_root"
 
 kuc_storybook_lib="$kuc_storybook_source_root/src/lib.rs"
@@ -305,7 +313,7 @@ if grep -n -E 'present_frame,|present_frame[[:space:]]*}' "$kuc_storybook_lib" "
 fi
 
 if [[ -f "$embedded_kuc_root/Cargo.toml" ]]; then
-  check_kuc_core_source_boundary "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
+  check_embedded_kuc_source_boundary "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
   if grep -R -q 'pub struct FileTree' "$embedded_kuc_root/src" 2>/dev/null; then
     check_file_tree_facade_contract_for_root "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
   fi

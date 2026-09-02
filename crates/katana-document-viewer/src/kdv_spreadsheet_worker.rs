@@ -12,6 +12,8 @@ mod multi_format {
     mod spreadsheet_engine;
     #[path = "spreadsheet_engine_cell.rs"]
     mod spreadsheet_engine_cell;
+    #[path = "spreadsheet_engine_cell_border.rs"]
+    mod spreadsheet_engine_cell_border;
     #[path = "spreadsheet_engine_sheet.rs"]
     mod spreadsheet_engine_sheet;
     #[path = "spreadsheet_engine_support.rs"]

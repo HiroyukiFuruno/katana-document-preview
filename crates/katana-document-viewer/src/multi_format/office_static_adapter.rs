@@ -65,7 +65,7 @@ impl OfficeStaticViewerSession {
         &mut self,
         request: PdfPageRenderRequest,
     ) -> Result<PdfRenderedPage, PdfViewerError> {
-        let _render = super::debug_trace::DebugTrace::start("office.frame");
+        let _render = super::debug_trace::DebugTrace::start("office.raster");
         super::debug_trace::DebugTrace::event(
             "office.frame_artifact",
             format_args!("key={:?}", self.conversion_key),
