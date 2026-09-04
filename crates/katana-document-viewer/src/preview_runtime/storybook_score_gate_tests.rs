@@ -249,6 +249,7 @@ fn ci_workflows_pin_linux_font_and_graphviz_runtime_for_katana_reference_scores(
     let ci = std::fs::read_to_string(root.join(".github/workflows/test-and-build.yml"))?;
     let preflight = std::fs::read_to_string(root.join(".github/workflows/release-preflight.yml"))?;
     let release = std::fs::read_to_string(root.join(".github/workflows/release.yml"))?;
+    assert_linux_emoji_install_contract(&root, &ci, &preflight, &release)?;
 
     assert_linux_runtime_requirements(
         "CI PlantUML runtime",
@@ -712,12 +713,18 @@ const SCORE_OVERLAY_CONTROL_SNIPPETS: &[&str] = &[
     "reset-view",
 ];
 
-const LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS: &[&str] = &[
-    "fonts-noto-color-emoji",
-    "emoji_font=/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-    "expected_hash=93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477",
-    "test \"${actual_hash}\" = \"${expected_hash}\"",
-    "KUC_PINNED_LINUX_EMOJI_SHA256=${expected_hash}",
+const LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS: &[&str] =
+    &[".github/scripts/install-linux-render-dependencies.sh"];
+
+const LINUX_EMOJI_INSTALL_SCRIPT_REQUIRED_SNIPPETS: &[&str] = &[
+    "emoji_version='2.047-0ubuntu0.24.04.1'",
+    "emoji_package_url=\"https://archive.ubuntu.com/ubuntu/pool/main/f/fonts-noto-color-emoji/${emoji_package}_${emoji_version}_all.deb\"",
+    "emoji_package_sha256='b102b62ce6a7313315223cff5e052bdf8fc0ad162c9e961ce0dc2202bc139ce2'",
+    "emoji_font_sha256='93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477'",
+    "curl --fail --location --silent --show-error",
+    "sudo dpkg --install",
+    "fonts-noto-cjk graphviz imagemagick xvfb xclip",
+    "KUC_PINNED_LINUX_EMOJI_SHA256=${emoji_font_sha256}",
 ];
 
 const CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
@@ -726,7 +733,7 @@ const CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install Graphviz (Ubuntu)",
-    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "/opt/local/bin/dot",
     "GRAPHVIZ_DOT",
     "Install Graphviz (macOS)",
@@ -753,7 +760,7 @@ const PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
-    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz imagemagick xvfb xclip",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -768,7 +775,7 @@ const RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install diagram test dependencies",
-    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz imagemagick xvfb xclip",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -1814,6 +1821,53 @@ fn assert_linux_runtime_requirements(label: &str, workflow: &str, runtime_snippe
         &format!("{label} color emoji font pin"),
         workflow,
         LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS,
+    );
+}
+
+fn assert_linux_emoji_install_contract(
+    root: &std::path::Path,
+    ci: &str,
+    preflight: &str,
+    release: &str,
+) -> Result<(), std::io::Error> {
+    let install_script =
+        std::fs::read_to_string(root.join(".github/scripts/install-linux-render-dependencies.sh"))?;
+    assert_contains_all(
+        "Linux render dependency installer",
+        &install_script,
+        LINUX_EMOJI_INSTALL_SCRIPT_REQUIRED_SNIPPETS,
+    );
+    assert!(!install_script.contains("apt-get install -y fonts-noto-color-emoji"));
+    assert_ci_ubuntu_contract(ci);
+    assert_release_ubuntu_contract("release preflight Ubuntu runner", preflight);
+    assert_release_ubuntu_contract("Release Ubuntu runner", release);
+    Ok(())
+}
+
+fn assert_ci_ubuntu_contract(ci: &str) {
+    assert_contains_all(
+        "CI Ubuntu runner",
+        ci,
+        &[
+            "os: [macos-latest, ubuntu-latest, windows-latest]",
+            "ubuntu-24.04",
+            "runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-24.04' || matrix.os }}",
+            "Install cargo-llvm-cov\n        if: matrix.os == 'ubuntu-latest'",
+            "Install Graphviz (Ubuntu)\n        if: matrix.os == 'ubuntu-latest'",
+            "Run coverage\n        if: matrix.os == 'ubuntu-latest'",
+        ],
+    );
+    assert!(!ci.contains("runs-on: ${{ matrix.os }}"));
+}
+
+fn assert_release_ubuntu_contract(label: &str, workflow: &str) {
+    assert_contains_all(
+        label,
+        workflow,
+        &[
+            "ubuntu-24.04",
+            "run: |\n          .github/scripts/install-linux-render-dependencies.sh",
+        ],
     );
 }
 
