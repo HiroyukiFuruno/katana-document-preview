@@ -63,6 +63,9 @@ impl OfficeWorkerEntrypoint {
                 return EXIT_USAGE;
             }
         };
+        let _trace_session = super::debug_trace::DebugTrace::session_from_environment_or_workspace(
+            &arguments.workspace,
+        );
         match executor(&arguments) {
             Ok(response) => write_response(&arguments.workspace, &response, 0),
             Err((stage, message)) => write_response(

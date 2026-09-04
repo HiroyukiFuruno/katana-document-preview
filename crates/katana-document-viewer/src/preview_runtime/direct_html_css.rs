@@ -13,13 +13,28 @@ impl DirectHtmlCss {
     }
 
     pub(crate) fn apply_to_line(&self, line: &str) -> String {
-        let trimmed = line.trim();
-        let Some(tag_end) = DirectHtmlCssAttrs::html_tag_end(trimmed) else {
-            return line.to_string();
-        };
-        let tag = &trimmed[..=tag_end];
+        let mut output = String::with_capacity(line.len());
+        let mut cursor = 0;
+        while let Some(relative_start) = line[cursor..].find('<') {
+            let tag_start = cursor + relative_start;
+            output.push_str(&line[cursor..tag_start]);
+            let fragment = &line[tag_start..];
+            let Some(relative_end) = DirectHtmlCssAttrs::html_tag_end(fragment) else {
+                output.push_str(fragment);
+                return output;
+            };
+            let tag_end = tag_start + relative_end;
+            let tag = &line[tag_start..=tag_end];
+            output.push_str(&self.apply_to_tag(tag));
+            cursor = tag_end + 1;
+        }
+        output.push_str(&line[cursor..]);
+        output
+    }
+
+    fn apply_to_tag(&self, tag: &str) -> String {
         let Some(tag_name) = DirectHtmlCssAttrs::tag_name(tag) else {
-            return line.to_string();
+            return tag.to_string();
         };
         let mut matching_rules = self
             .rules
@@ -33,9 +48,9 @@ impl DirectHtmlCss {
             .flat_map(|(_, rule)| rule.declarations.iter().cloned())
             .collect::<Vec<_>>();
         if declarations.is_empty() {
-            return line.to_string();
+            return tag.to_string();
         }
-        merge_style_attribute(trimmed, &declarations)
+        merge_style_attribute(tag, &declarations)
     }
 }
 

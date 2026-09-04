@@ -149,6 +149,11 @@ fn configure_command_with_debug(
         .env_clear();
     if debug_enabled {
         command.stderr(Stdio::inherit()).env("DEBUG", "true");
+        if let Some((session, source)) = super::debug_trace::DebugTrace::worker_environment() {
+            command
+                .env("KDV_TRACE_SESSION", session)
+                .env("KDV_TRACE_SOURCE", source);
+        }
     } else {
         command.stderr(Stdio::null());
     }

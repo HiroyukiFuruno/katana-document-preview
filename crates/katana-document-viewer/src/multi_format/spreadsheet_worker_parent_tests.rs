@@ -2,7 +2,7 @@ use super::{SpreadsheetViewerSession, filter::filter_event, materialized_cells, 
 use crate::multi_format::spreadsheet_worker_protocol::SpreadsheetWorkerResponse;
 use crate::multi_format::{
     OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, OfficeWorkerError,
-    SpreadsheetCoordinate, ViewerSourceIdentity,
+    SpreadsheetCoordinate, ViewerSourceIdentity, debug_trace::DebugTrace,
 };
 use std::path::{Path, PathBuf};
 
@@ -80,6 +80,7 @@ fn debug_output_is_covered_with_the_isolated_worker() -> Result<(), Box<dyn std:
     let mut session =
         SpreadsheetViewerSession::open(source, OfficeWorkerConfig::new(worker_binary_path()?))?;
 
+    assert_trace_scope(&mut session);
     assert!(format!("{session:?}").contains("SpreadsheetViewerSession"));
     assert_eq!(2, session.artifact().sheet_count);
     session.update_candidates(0, 0, &["ignored".to_owned()]);
@@ -95,6 +96,15 @@ fn debug_output_is_covered_with_the_isolated_worker() -> Result<(), Box<dyn std:
         Err(OfficeWorkerError::EngineFailure { .. })
     ));
     Ok(())
+}
+
+fn assert_trace_scope(session: &mut SpreadsheetViewerSession) {
+    session.trace_session = Some((42, 0x0123_4567_89ab_cdef));
+    let _trace_scope = session.trace_scope();
+    assert_eq!(
+        Some((42, 0x0123_4567_89ab_cdef)),
+        DebugTrace::current_session()
+    );
 }
 
 #[test]

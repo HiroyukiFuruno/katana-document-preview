@@ -88,7 +88,7 @@ fn build_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(worker_environment(workspace)),
+        env: Some(worker_environment_with_trace(workspace)),
         stdio: StdioConfig::Null,
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
@@ -97,6 +97,18 @@ fn build_options(
         }),
         ..rappct::LaunchOptions::default()
     }
+}
+
+fn worker_environment_with_trace(
+    workspace: &Path,
+) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    let mut environment = worker_environment(workspace);
+    if crate::multi_format::debug_trace::DebugTrace::enabled() {
+        crate::multi_format::debug_trace::DebugTrace::configure_worker_environment(
+            &mut environment,
+        );
+    }
+    environment
 }
 
 fn worker_command_line(

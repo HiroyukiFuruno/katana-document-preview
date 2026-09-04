@@ -34,6 +34,10 @@ impl OfficeConversionKey {
             preflight_limits: config.preflight_limits,
         }
     }
+
+    pub(super) const fn content_bytes(&self) -> usize {
+        self.content_bytes
+    }
 }
 
 fn content_fingerprint(bytes: &[u8]) -> u128 {

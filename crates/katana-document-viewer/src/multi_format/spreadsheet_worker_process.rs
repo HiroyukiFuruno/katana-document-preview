@@ -6,7 +6,7 @@ use super::spreadsheet_worker_protocol::{
     MAX_SPREADSHEET_REQUEST_BYTES, SpreadsheetWorkerRequest, SpreadsheetWorkerResponse,
 };
 use super::spreadsheet_worker_reader::SpreadsheetResponseReader;
-use super::spreadsheet_worker_spawn::SpreadsheetWorkerSpawn;
+use super::spreadsheet_worker_spawn::{SpawnedSpreadsheetProcess, SpreadsheetWorkerSpawn};
 use super::{OfficeDocumentSource, OfficeWorkerConfig, OfficeWorkerError};
 use std::io::Write;
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
@@ -27,6 +27,7 @@ pub(crate) struct SpreadsheetWorkerProcess {
     max_memory_bytes: usize,
     _workspace: tempfile::TempDir,
     _resource_lease: super::resource_metrics::SpreadsheetWorkerLease,
+    trace_session: Option<super::debug_trace::TraceSession>,
     #[cfg(all(coverage, not(windows)))]
     coverage_profile: Option<super::coverage_profile::ChildCoverageProfile>,
 }
@@ -37,9 +38,7 @@ impl SpreadsheetWorkerProcess {
         config: &OfficeWorkerConfig,
     ) -> Result<Self, OfficeWorkerError> {
         let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.spawn");
-        let workspace =
-            OfficeWorkerWorkspace::prepare("kdv-spreadsheet-worker-", &source.bytes, config)?;
-        let spawned = SpreadsheetWorkerSpawn::spawn(workspace.path(), config)?;
+        let (workspace, spawned) = prepare_worker_process(source, config)?;
         let responses = SpreadsheetResponseReader::spawn(spawned.output);
         #[cfg(target_os = "macos")]
         let memory_monitor = Some(MacOsMemoryMonitor::start(
@@ -58,6 +57,7 @@ impl SpreadsheetWorkerProcess {
             max_memory_bytes: config.max_memory_bytes,
             _workspace: workspace,
             _resource_lease: super::resource_metrics::SpreadsheetWorkerLease::acquire(),
+            trace_session: super::debug_trace::DebugTrace::current_session(),
             #[cfg(all(coverage, not(windows)))]
             coverage_profile: spawned.coverage_profile,
         })
@@ -118,6 +118,16 @@ impl SpreadsheetWorkerProcess {
     }
 }
 
+fn prepare_worker_process(
+    source: &OfficeDocumentSource,
+    config: &OfficeWorkerConfig,
+) -> Result<(tempfile::TempDir, SpawnedSpreadsheetProcess), OfficeWorkerError> {
+    let workspace =
+        OfficeWorkerWorkspace::prepare("kdv-spreadsheet-worker-", &source.bytes, config)?;
+    let spawned = SpreadsheetWorkerSpawn::spawn(workspace.path(), config)?;
+    Ok((workspace, spawned))
+}
+
 fn encode_request(request: &SpreadsheetWorkerRequest) -> Result<Vec<u8>, OfficeWorkerError> {
     let mut bytes = serde_json::to_vec(request).map_err(OfficeWorkerError::protocol_json)?;
     bytes.push(b'\n');
@@ -131,6 +141,9 @@ fn encode_request(request: &SpreadsheetWorkerRequest) -> Result<Vec<u8>, OfficeW
 
 impl Drop for SpreadsheetWorkerProcess {
     fn drop(&mut self) {
+        let _trace_scope = self
+            .trace_session
+            .map(super::debug_trace::DebugTrace::session);
         let _drop = super::debug_trace::DebugTrace::start("spreadsheet.drop");
         let _ = self.send(&SpreadsheetWorkerRequest::Shutdown);
         self.owner.finish(GRACEFUL_SHUTDOWN_TIMEOUT);

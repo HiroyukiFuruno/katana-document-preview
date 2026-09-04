@@ -3,8 +3,8 @@ use super::{
     OfficeStaticViewerSession, OfficeWorkerConfig, OfficeWorkerError, PdfViewerError,
     PdfViewerSession, ViewerQualityProfile, static_profile,
 };
-use crate::multi_format::ViewerSourceIdentity;
 use crate::multi_format::office_conversion_key::OfficeConversionKey;
+use crate::multi_format::{ViewerSourceIdentity, debug_trace::DebugTrace};
 use std::path::PathBuf;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -23,6 +23,20 @@ fn artifact_getter_returns_the_session_artifact() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn trace_scope_restores_the_stored_office_correlation() -> TestResult {
+    let (_, _, mut session) = test_session()?;
+    session.trace_session = Some((42, 0x0123_4567_89ab_cdef));
+
+    let _trace_scope = session.trace_scope();
+
+    assert_eq!(
+        Some((42, 0x0123_4567_89ab_cdef)),
+        DebugTrace::current_session()
+    );
+    Ok(())
+}
+
 fn test_session() -> Result<SessionFixture, Box<dyn std::error::Error>> {
     let identity = ViewerSourceIdentity::new("file:///representative.pdf", "sha256:test");
     let pdf = representative_pdf(&identity)?;
@@ -37,6 +51,7 @@ fn test_session() -> Result<SessionFixture, Box<dyn std::error::Error>> {
             artifact,
             pdf,
             conversion_key: conversion_key.clone(),
+            trace_session: None,
         },
     ))
 }

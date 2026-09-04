@@ -32,6 +32,7 @@ fn process(
         max_memory_bytes: usize::MAX,
         _workspace: workspace,
         _resource_lease: super::super::resource_metrics::SpreadsheetWorkerLease::acquire(),
+        trace_session: None,
         #[cfg(all(coverage, not(windows)))]
         coverage_profile: None,
     }

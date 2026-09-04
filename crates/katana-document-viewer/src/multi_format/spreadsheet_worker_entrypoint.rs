@@ -1,5 +1,4 @@
 use super::office_worker_constraints::OfficeWorkerConstraints;
-use super::office_worker_protocol::INPUT_NAME;
 use super::spreadsheet_engine::SpreadsheetEngineSession;
 use super::spreadsheet_worker_arguments::SpreadsheetWorkerArguments;
 use super::spreadsheet_worker_protocol::{
@@ -16,6 +15,9 @@ use io::{
     write_encoded_response,
 };
 use io::{read_request, write_response, write_response_limited};
+#[path = "spreadsheet_worker_open.rs"]
+mod open;
+use open::{open_engine, protocol_failure};
 const EXIT_USAGE: i32 = 64;
 const EXIT_FAILURE: i32 = 70;
 type SpreadsheetWorker = fn(SpreadsheetWorkerArguments) -> Result<(), (String, String)>;
@@ -43,6 +45,10 @@ impl SpreadsheetWorkerEntrypoint {
             Ok(arguments) => arguments,
             Err(_) => return EXIT_USAGE,
         };
+        let _trace_session = super::debug_trace::DebugTrace::session_from_environment_or_workspace(
+            &arguments.workspace,
+        );
+        super::debug_trace::DebugTrace::event("spreadsheet.worker", "start=true");
         match worker(arguments) {
             Ok(()) => 0,
             Err((stage, message)) => {
@@ -162,34 +168,6 @@ impl SpreadsheetWorkerLoop {
     fn write(&mut self, response: &SpreadsheetWorkerResponse) -> Result<(), String> {
         write_response_limited(&mut self.writer, response, MAX_SPREADSHEET_RESPONSE_BYTES)
     }
-}
-
-fn open_engine(
-    arguments: &SpreadsheetWorkerArguments,
-) -> Result<SpreadsheetEngineSession, (String, String)> {
-    let _open = super::debug_trace::DebugTrace::start("spreadsheet.package_parse");
-    let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
-    let name = arguments.workspace.join(INPUT_NAME);
-    SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)
-        .map_err(spreadsheet_open_failure)
-}
-
-fn protocol_failure(message: String) -> (String, String) {
-    ("protocol".to_owned(), message)
-}
-
-fn input_failure(error: std::io::Error) -> (String, String) {
-    failure("input", error.to_string())
-}
-
-fn spreadsheet_open_failure(
-    error: super::spreadsheet_engine::SpreadsheetEngineError,
-) -> (String, String) {
-    failure("spreadsheet_open", error.to_string())
-}
-
-fn failure(stage: &str, message: String) -> (String, String) {
-    (stage.to_owned(), message)
 }
 
 #[path = "spreadsheet_worker_filter.rs"]

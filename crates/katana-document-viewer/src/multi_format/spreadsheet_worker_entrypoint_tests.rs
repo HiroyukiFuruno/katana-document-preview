@@ -1,8 +1,9 @@
+use super::open::{failure, input_failure, spreadsheet_open_failure};
 use super::{
     EXIT_FAILURE, EXIT_USAGE, OsString, SpreadsheetWorkerEntrypoint, SpreadsheetWorkerLoop,
-    SpreadsheetWorkerRequest, SpreadsheetWorkerResponse, failure, input_failure, invalid_request,
-    protocol_failure, protocol_read_failure, protocol_write_failure, read_request,
-    response_encoding_failure, spreadsheet_open_failure, write_encoded_response, write_response,
+    SpreadsheetWorkerRequest, SpreadsheetWorkerResponse, invalid_request, protocol_failure,
+    protocol_read_failure, protocol_write_failure, read_request, response_encoding_failure,
+    write_encoded_response, write_response,
 };
 use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use crate::multi_format::spreadsheet_worker_arguments::SpreadsheetWorkerArguments;

@@ -11,11 +11,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_STAGES = {
     "crates/katana-document-viewer/src/multi_format/office_worker_parent.rs": (
-        "office.archive_intake",
-        "office.package_parse",
         "office.transfer_to_worker",
         "office.conversion",
         "office.transfer_from_worker",
+    ),
+    "crates/katana-document-viewer/src/multi_format/office_worker_parent_preflight.rs": (
+        "office.archive_intake",
+        "office.package_parse",
     ),
     "crates/katana-document-viewer/src/multi_format/office_worker_process.rs": (
         "office.worker_spawn",
@@ -40,6 +42,8 @@ REQUIRED_STAGES = {
     ),
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_entrypoint.rs": (
         "spreadsheet.runtime_init",
+    ),
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_open.rs": (
         "spreadsheet.package_parse",
     ),
     "crates/katana-document-viewer/src/multi_format/document_session_spreadsheet.rs": (

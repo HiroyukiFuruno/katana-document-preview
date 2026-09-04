@@ -3,6 +3,9 @@ use super::ViewerNodeClassifier;
 use crate::export_surface_text::SurfaceTextParser as TextParser;
 use crate::html_style::HtmlStyleProperties;
 
+#[path = "classifier_html_spans_tag.rs"]
+mod html_tag;
+
 impl ViewerNodeClassifier {
     pub(super) fn inline_html_spans(html: &str, style: ViewerTextStyle) -> Vec<ViewerTextSpan> {
         let text = TextParser::html_fragment_text(html);
@@ -14,71 +17,100 @@ impl ViewerNodeClassifier {
     }
 
     pub(super) fn html_block_spans(raw: &str, fallback: String) -> Vec<ViewerTextSpan> {
-        let spans = Self::html_link_spans(raw);
+        let spans = Self::rich_html_spans(raw);
         if spans.is_empty() {
             return vec![ViewerTextSpan::plain(fallback)];
         }
         spans
     }
 
-    fn html_link_spans(raw: &str) -> Vec<ViewerTextSpan> {
-        let lower = raw.to_ascii_lowercase();
+    fn rich_html_spans(raw: &str) -> Vec<ViewerTextSpan> {
         let mut cursor = 0;
         let mut spans = Vec::new();
-        while let Some(segment) = next_html_link_segment(raw, &lower, cursor) {
-            Self::push_html_plain(&raw[cursor..segment.link_start], &mut spans);
-            Self::push_html_link(&segment, raw, &mut spans);
-            cursor = segment.next_cursor;
+        let mut contexts = vec![HtmlSpanContext::default()];
+        while let Some(tag_start) = html_tag::next_start(raw, cursor) {
+            Self::push_html_text(&raw[cursor..tag_start], contexts.last(), &mut spans);
+            let Some(tag_end) = html_tag::end(raw, tag_start) else {
+                trim_last_html_span(&mut spans);
+                return spans;
+            };
+            let tag = &raw[tag_start..=tag_end];
+            Self::apply_html_tag(tag, &mut contexts, &mut spans);
+            cursor = tag_end + 1;
         }
-        Self::push_html_plain(&raw[cursor..], &mut spans);
+        Self::push_html_text(&raw[cursor..], contexts.last(), &mut spans);
         spans
     }
 
-    fn push_html_plain(raw: &str, spans: &mut Vec<ViewerTextSpan>) {
-        let text = TextParser::html_fragment_text(raw);
-        if text.is_empty() {
+    fn apply_html_tag(
+        tag: &str,
+        contexts: &mut Vec<HtmlSpanContext>,
+        spans: &mut Vec<ViewerTextSpan>,
+    ) {
+        match html_tag::parse(tag) {
+            html_tag::HtmlTag::Opening { name, .. } if name == "br" => {
+                Self::push_html_text("\n", contexts.last(), spans);
+            }
+            html_tag::HtmlTag::Opening { name, .. } if name == "img" => {
+                Self::push_html_text(&TextParser::html_fragment_text(tag), contexts.last(), spans)
+            }
+            html_tag::HtmlTag::Opening { name, self_closing } => {
+                Self::push_html_context(tag, name, self_closing, contexts);
+            }
+            html_tag::HtmlTag::Closing { name } => close_html_context(name, contexts),
+            html_tag::HtmlTag::Other => {}
+        }
+    }
+
+    fn push_html_context(
+        tag: &str,
+        name: String,
+        self_closing: bool,
+        contexts: &mut Vec<HtmlSpanContext>,
+    ) {
+        if let (false, Some(parent)) = (self_closing, contexts.last()) {
+            contexts.push(HtmlSpanContext {
+                name,
+                style: html_style(tag, parent.style),
+                link_target: html_link_target(tag).or_else(|| parent.link_target.clone()),
+            });
+        }
+    }
+
+    fn push_html_text(
+        raw: &str,
+        context: Option<&HtmlSpanContext>,
+        spans: &mut Vec<ViewerTextSpan>,
+    ) {
+        let Some(context) = context else {
             return;
-        }
-        spans.extend(Self::plain_span(
-            &text,
-            html_style(raw, ViewerTextStyle::default()),
-        ));
-    }
-
-    fn push_html_link(segment: &HtmlLinkSegment<'_>, raw: &str, spans: &mut Vec<ViewerTextSpan>) {
-        let target = html_link_target(segment.tag);
-        let text = TextParser::html_fragment_text(segment.body);
-        let style = html_style(segment.tag, html_style(raw, ViewerTextStyle::default()));
-        if let Some(target) = target {
-            spans.extend(Self::linked_span(text, target, style));
+        };
+        let text = TextParser::decode_basic_entities(raw);
+        if let Some(target) = &context.link_target {
+            spans.extend(Self::linked_span(text, target.clone(), context.style));
         } else {
-            spans.extend(Self::plain_span(&text, style));
+            spans.extend(Self::styled_span(text, context.style));
         }
     }
 }
 
-struct HtmlLinkSegment<'a> {
-    link_start: usize,
-    next_cursor: usize,
-    tag: &'a str,
-    body: &'a str,
+#[derive(Default)]
+struct HtmlSpanContext {
+    name: String,
+    style: ViewerTextStyle,
+    link_target: Option<String>,
 }
 
-fn next_html_link_segment<'a>(
-    raw: &'a str,
-    lower: &str,
-    cursor: usize,
-) -> Option<HtmlLinkSegment<'a>> {
-    let link_start = cursor + lower[cursor..].find("<a ")?;
-    let tag_end = link_start + raw[link_start..].find('>')?;
-    let body_start = tag_end + 1;
-    let close_start = body_start + lower[body_start..].find("</a>")?;
-    Some(HtmlLinkSegment {
-        link_start,
-        next_cursor: close_start + "</a>".len(),
-        tag: &raw[link_start..=tag_end],
-        body: &raw[body_start..close_start],
-    })
+fn trim_last_html_span(spans: &mut [ViewerTextSpan]) {
+    if let Some(span) = spans.last_mut() {
+        span.text = span.text.trim_end().to_string();
+    }
+}
+
+fn close_html_context(name: String, contexts: &mut Vec<HtmlSpanContext>) {
+    if let Some(index) = contexts.iter().rposition(|context| context.name == name) {
+        contexts.truncate(index);
+    }
 }
 
 fn html_link_target(html: &str) -> Option<String> {
@@ -124,4 +156,25 @@ fn html_style(html: &str, style: ViewerTextStyle) -> ViewerTextStyle {
         style = style.color_rgba(color);
     }
     style
+}
+
+#[cfg(test)]
+mod html_span_tests {
+    use super::ViewerNodeClassifier;
+
+    #[test]
+    fn empty_html_context_discards_text() {
+        let mut spans = Vec::new();
+        ViewerNodeClassifier::push_html_text("discarded", None, &mut spans);
+        assert!(spans.is_empty());
+    }
+
+    #[test]
+    fn self_closing_and_other_tags_do_not_change_the_active_html_context() {
+        let spans = ViewerNodeClassifier::rich_html_spans(
+            "before<custom/>after<!-- ignored comment -->tail",
+        );
+        let text = spans.into_iter().map(|span| span.text).collect::<String>();
+        assert_eq!("beforeaftertail", text);
+    }
 }

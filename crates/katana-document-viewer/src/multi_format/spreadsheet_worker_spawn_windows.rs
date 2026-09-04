@@ -93,7 +93,7 @@ fn windows_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(worker_environment(workspace)),
+        env: Some(worker_environment_with_trace(workspace)),
         stdio: StdioConfig::Pipe,
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
@@ -102,6 +102,16 @@ fn windows_options(
         }),
         ..rappct::LaunchOptions::default()
     }
+}
+
+fn worker_environment_with_trace(
+    workspace: &Path,
+) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    let mut environment = worker_environment(workspace);
+    if super::debug_trace::DebugTrace::enabled() {
+        super::debug_trace::DebugTrace::configure_worker_environment(&mut environment);
+    }
+    environment
 }
 
 fn spreadsheet_command_line(

@@ -92,6 +92,16 @@ fn configure_command_with_debug(
     config: &OfficeWorkerConfig,
     debug_enabled: bool,
 ) {
+    configure_worker_command(command, workspace, config);
+    configure_debug_output(command, debug_enabled);
+}
+
+#[cfg(not(windows))]
+fn configure_worker_command(
+    command: &mut std::process::Command,
+    workspace: &Path,
+    config: &OfficeWorkerConfig,
+) {
     let limits = config.spreadsheet_limits;
     command
         .arg(SPREADSHEET_MODE)
@@ -104,12 +114,26 @@ fn configure_command_with_debug(
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .env_clear();
-    if debug_enabled {
-        command
-            .stderr(std::process::Stdio::inherit())
-            .env("DEBUG", "true");
-    } else {
+}
+
+#[cfg(not(windows))]
+fn configure_debug_output(command: &mut std::process::Command, debug_enabled: bool) {
+    if !debug_enabled {
         command.stderr(std::process::Stdio::null());
+        return;
+    }
+    command
+        .stderr(std::process::Stdio::inherit())
+        .env("DEBUG", "true");
+    propagate_trace_environment(command);
+}
+
+#[cfg(not(windows))]
+fn propagate_trace_environment(command: &mut std::process::Command) {
+    if let Some((session, source)) = super::debug_trace::DebugTrace::worker_environment() {
+        command
+            .env("KDV_TRACE_SESSION", session)
+            .env("KDV_TRACE_SOURCE", source);
     }
 }
 
@@ -126,42 +150,5 @@ pub(super) fn cpu_seconds(timeout: Duration) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    #[cfg(not(windows))]
-    use super::configure_command_with_debug;
-    use super::{cpu_seconds, stdin_unavailable, stdout_unavailable};
-    use crate::multi_format::OfficeWorkerError;
-    use std::time::Duration;
-
-    #[test]
-    fn pipe_failures_and_cpu_floor_are_typed() {
-        assert!(matches!(
-            stdin_unavailable(),
-            OfficeWorkerError::Protocol { .. }
-        ));
-        assert!(matches!(
-            stdout_unavailable(),
-            OfficeWorkerError::Protocol { .. }
-        ));
-        assert_eq!(1, cpu_seconds(Duration::ZERO));
-    }
-
-    #[cfg(not(windows))]
-    #[test]
-    fn debug_environment_is_propagated_only_when_enabled() {
-        for debug_enabled in [false, true] {
-            let mut command = std::process::Command::new("worker");
-            let config = crate::multi_format::OfficeWorkerConfig::new("worker".into());
-            configure_command_with_debug(
-                &mut command,
-                std::path::Path::new("workspace"),
-                &config,
-                debug_enabled,
-            );
-            let has_debug = command.get_envs().any(|(name, value)| {
-                name == "DEBUG" && value == Some(std::ffi::OsStr::new("true"))
-            });
-            assert_eq!(debug_enabled, has_debug);
-        }
-    }
-}
+#[path = "spreadsheet_worker_spawn_tests.rs"]
+mod tests;

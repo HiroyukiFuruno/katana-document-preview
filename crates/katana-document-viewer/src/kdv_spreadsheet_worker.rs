@@ -59,7 +59,6 @@ mod multi_format {
 
     impl WorkerApp {
         pub fn run() -> i32 {
-            debug_trace::DebugTrace::event("spreadsheet.worker", "start=true");
             let _ = SpreadsheetViewerLimits::strict();
             let _ = spreadsheet_worker_protocol::SPREADSHEET_MODE;
             spreadsheet_worker_entrypoint::SpreadsheetWorkerEntrypoint::run_from_env()

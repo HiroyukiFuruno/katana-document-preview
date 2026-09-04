@@ -94,6 +94,10 @@ impl PagedDocumentSession {
         })
     }
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let _trace_scope = match &self.engine {
+            PagedEngine::Pdf(_) => None,
+            PagedEngine::Office(session) => session.trace_scope(),
+        };
         let page_index = self.state.active_index;
         self.render_scale().and_then(|scale| {
             let request = PdfPageRenderRequest::new(page_index, scale);

@@ -3,9 +3,9 @@ use super::office_worker_process::OfficeWorkerProcess;
 use super::office_worker_protocol::OfficeWorkerResponse;
 use super::office_worker_workspace::OfficeWorkerWorkspace;
 use super::{
-    OfficeDocumentFormat, OfficeDocumentSource, OfficePackagePreflight, OfficePreflightError,
-    OfficePreflightLimits, PdfViewerError, SpreadsheetViewerLimits, ViewerDiagnostic,
-    ViewerDiagnosticCode, ViewerDiagnosticSeverity,
+    OfficeDocumentFormat, OfficeDocumentSource, OfficePreflightError, OfficePreflightLimits,
+    PdfViewerError, SpreadsheetViewerLimits, ViewerDiagnostic, ViewerDiagnosticCode,
+    ViewerDiagnosticSeverity,
 };
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -14,6 +14,12 @@ use thiserror::Error;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(45);
 const DEFAULT_MAX_MEMORY_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_OUTPUT_BYTES: u64 = 128 * 1024 * 1024;
+
+#[path = "office_worker_parent_preflight.rs"]
+mod preflight;
+#[path = "office_worker_trace.rs"]
+pub(super) mod trace;
+use preflight::preflight_diagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OfficeWorkerConfig {
@@ -114,6 +120,7 @@ pub(super) struct OfficeWorkerOutput {
     pub preflight_diagnostics: Vec<ViewerDiagnostic>,
 }
 pub(super) struct OfficeWorkerRunner;
+
 impl OfficeWorkerRunner {
     pub fn convert(
         source: &OfficeDocumentSource,
@@ -145,18 +152,6 @@ impl OfficeWorkerRunner {
         })
     }
 }
-fn preflight_diagnostics(
-    source: &OfficeDocumentSource,
-    config: &OfficeWorkerConfig,
-) -> Result<Vec<ViewerDiagnostic>, OfficeWorkerError> {
-    let _archive_intake = super::debug_trace::DebugTrace::start("office.archive_intake");
-    let _package_parse = super::debug_trace::DebugTrace::start("office.package_parse");
-    let _preflight = super::debug_trace::DebugTrace::start("office.preflight");
-    let (_, diagnostics) =
-        OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?;
-    Ok(diagnostics)
-}
-
 fn complete_conversion(
     workspace: &Path,
     status: Option<i64>,

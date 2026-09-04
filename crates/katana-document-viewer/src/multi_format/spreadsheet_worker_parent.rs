@@ -14,6 +14,7 @@ pub struct SpreadsheetViewerSession {
     next_request_id: u64,
     cell_cache: SpreadsheetCellCache,
     materialized_cell_limit: usize,
+    trace_session: Option<super::debug_trace::TraceSession>,
 }
 
 impl std::fmt::Debug for SpreadsheetViewerSession {
@@ -40,6 +41,9 @@ impl SpreadsheetViewerSession {
         source: OfficeDocumentSource,
         config: OfficeWorkerConfig,
     ) -> Result<Self, OfficeWorkerError> {
+        let trace_session =
+            super::office_worker_parent::trace::start_trace_session(&source.identity);
+        let _trace_scope = trace_session.map(super::debug_trace::DebugTrace::session);
         let _open = super::debug_trace::DebugTrace::start("spreadsheet.session_open");
         let (_, preflight_diagnostics) =
             OfficePackagePreflight::inspect_with_diagnostics(&source, config.preflight_limits)?;
@@ -56,6 +60,7 @@ impl SpreadsheetViewerSession {
             next_request_id: 1,
             cell_cache: SpreadsheetCellCache::new(),
             materialized_cell_limit,
+            trace_session,
         })
     }
 
@@ -69,6 +74,7 @@ impl SpreadsheetViewerSession {
         sheet_index: usize,
         coordinates: Vec<SpreadsheetCoordinate>,
     ) -> Result<Vec<SpreadsheetCellArtifact>, OfficeWorkerError> {
+        let _trace_scope = self.trace_scope();
         let _materialize = super::debug_trace::DebugTrace::start("spreadsheet.materialize");
         SpreadsheetMaterializationValidator::validate(
             &self.artifact,
@@ -84,6 +90,11 @@ impl SpreadsheetViewerSession {
         let materialized = self.materialize_missing(sheet_index, missing)?;
         self.cell_cache
             .resolve_materialized(sheet_index, &coordinates, materialized)
+    }
+
+    pub(super) fn trace_scope(&self) -> Option<super::debug_trace::TraceCorrelationGuard> {
+        self.trace_session
+            .map(super::debug_trace::DebugTrace::session)
     }
 
     fn materialize_missing(

@@ -16,6 +16,18 @@ fn applies_body_and_class_rules_to_html_line() {
 }
 
 #[test]
+fn applies_each_class_rule_to_every_element_in_a_minified_line() {
+    let css = DirectHtmlCss::parse(".a { color: red; } .b { color: blue; }");
+
+    let line = css.apply_to_line(r#"<p class="a">one</p><p class="b">two</p>"#);
+
+    assert_eq!(
+        r#"<p class="a" style="color: red">one</p><p class="b" style="color: blue">two</p>"#,
+        line
+    );
+}
+
+#[test]
 fn keeps_inline_style_after_stylesheet_declarations() {
     let css = DirectHtmlCss::parse("p { color: red; font-weight: bold; }");
 

@@ -62,6 +62,7 @@ impl SpreadsheetDocumentSession {
     }
 
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let _trace_scope = self.engine.trace_scope();
         let _publication = super::debug_trace::DebugTrace::start("spreadsheet.frame_publication");
         let coordinates = self.surface.materialization_request();
         let cells = self
@@ -93,6 +94,7 @@ impl SpreadsheetDocumentSession {
         &mut self,
         command: SpreadsheetFilterCommand,
     ) -> Result<SpreadsheetFilterEvent, DocumentSessionError> {
+        let _trace_scope = self.engine.trace_scope();
         let sheet_index = command.sheet_index();
         let event = self.engine.apply_filter(command)?;
         if sheet_index == self.state.active_index
