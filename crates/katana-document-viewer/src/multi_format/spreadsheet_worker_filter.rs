@@ -2,7 +2,7 @@ use super::SpreadsheetWorkerLoop;
 use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use crate::multi_format::spreadsheet_filter_engine::SpreadsheetFilterResult;
 use crate::multi_format::spreadsheet_worker_protocol::{
-    MAX_SPREADSHEET_RESPONSE_BYTES, SpreadsheetWorkerResponse,
+    MAX_SPREADSHEET_REQUEST_BYTES, MAX_SPREADSHEET_RESPONSE_BYTES, SpreadsheetWorkerResponse,
 };
 
 impl SpreadsheetWorkerLoop {
@@ -90,20 +90,48 @@ fn truncate_candidate_values(
 ) -> (Vec<String>, bool) {
     let mut response_bytes =
         candidate_response_envelope_bytes(request_id, sheet_index, column, truncated);
+    let mut apply_request_bytes =
+        apply_filter_request_envelope_bytes(u64::MAX, sheet_index, column);
     let mut accepted = Vec::with_capacity(values.len());
     for value in values {
         let value_bytes = json_string_bytes(&value);
         let separator_bytes = usize::from(!accepted.is_empty());
-        let candidate_bytes = response_bytes
-            .saturating_add(separator_bytes)
-            .saturating_add(value_bytes);
-        if candidate_bytes > max_bytes {
+        let candidate_bytes = next_json_array_bytes(response_bytes, separator_bytes, value_bytes);
+        let candidate_apply_request_bytes =
+            next_json_array_bytes(apply_request_bytes, separator_bytes, value_bytes);
+        if !candidate_fits_limits(candidate_bytes, candidate_apply_request_bytes, max_bytes) {
             return (accepted, true);
         }
         response_bytes = candidate_bytes;
+        apply_request_bytes = candidate_apply_request_bytes;
         accepted.push(value);
     }
     (accepted, truncated)
+}
+
+fn next_json_array_bytes(base: usize, separator: usize, value: usize) -> usize {
+    base.saturating_add(separator).saturating_add(value)
+}
+
+fn candidate_fits_limits(candidate_bytes: usize, apply_bytes: usize, max_bytes: usize) -> bool {
+    candidate_bytes <= max_bytes && apply_bytes <= MAX_SPREADSHEET_REQUEST_BYTES
+}
+
+fn apply_filter_request_envelope_bytes(
+    request_id: u64,
+    sheet_index: usize,
+    column: usize,
+) -> usize {
+    r#"{"command":"apply_filter","request_id":"#
+        .len()
+        .saturating_add(request_id.to_string().len())
+        .saturating_add(r#","sheet_index":"#.len())
+        .saturating_add(sheet_index.to_string().len())
+        .saturating_add(r#","column":"#.len())
+        .saturating_add(column.to_string().len())
+        .saturating_add(r#","values":["#.len())
+        .saturating_add(2)
+        .saturating_add(1)
 }
 
 fn candidate_response_envelope_bytes(

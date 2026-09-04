@@ -13,6 +13,9 @@ use std::io::Cursor;
 use zip::ZipArchive;
 use zip::result::ZipError;
 
+#[path = "spreadsheet_streaming_filter_reader.rs"]
+mod filter_reader;
+
 const STREAMING_WORKSHEET_THRESHOLD: u64 = 128 * 1024 * 1024;
 const METADATA_ENTRY_LIMIT: u64 = 16 * 1024 * 1024;
 type WorkbookMetadata = (Vec<WorkbookSheet>, HashMap<String, String>);
@@ -23,6 +26,8 @@ pub(super) struct StreamingSpreadsheetSession {
     sheets: Vec<StreamingSheet>,
     artifacts: Vec<SpreadsheetSheetArtifact>,
     shared_strings: Vec<String>,
+    #[cfg(test)]
+    filter_grid_scans: std::cell::Cell<usize>,
 }
 
 struct StreamingSheet {
@@ -65,6 +70,8 @@ impl StreamingSpreadsheetSession {
             sheets,
             artifacts,
             shared_strings,
+            #[cfg(test)]
+            filter_grid_scans: std::cell::Cell::new(0),
         })
     }
 

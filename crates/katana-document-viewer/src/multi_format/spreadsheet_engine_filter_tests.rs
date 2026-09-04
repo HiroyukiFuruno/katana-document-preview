@@ -6,6 +6,9 @@ use crate::multi_format::{SpreadsheetCoordinate, SpreadsheetViewerLimits};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+#[path = "spreadsheet_engine_filter_streaming_tests.rs"]
+mod streaming_tests;
+
 #[test]
 fn candidates_apply_and_clear_preserve_original_row_indices() -> TestResult {
     let mut engine = SpreadsheetEngineSession::open(

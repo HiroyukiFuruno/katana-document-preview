@@ -88,6 +88,15 @@ impl SpreadsheetEngineSession {
         ) -> Result<(), SpreadsheetEngineError>,
     ) -> Result<(), SpreadsheetEngineError> {
         let chunk_rows = (self.limits.max_materialized_cells / columns.len().max(1)).max(1);
+        if !rows.is_empty() {
+            self.validate_request(
+                sheet_index,
+                &filter_coordinates(columns, rows.start..rows.start.saturating_add(1)),
+            )?;
+        }
+        if let super::SpreadsheetEngineBackend::Streaming(streaming) = &self.backend {
+            return streaming.visit_filter_grid(sheet_index, columns, rows, chunk_rows, visitor);
+        }
         for start in (rows.start..rows.end).step_by(chunk_rows) {
             let end = start.saturating_add(chunk_rows).min(rows.end);
             let coordinates = filter_coordinates(columns, start..end);

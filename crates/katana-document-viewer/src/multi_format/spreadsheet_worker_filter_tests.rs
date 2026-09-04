@@ -1,5 +1,7 @@
 use super::truncate_candidate_values;
-use crate::multi_format::spreadsheet_worker_protocol::SpreadsheetWorkerResponse;
+use crate::multi_format::spreadsheet_worker_protocol::{
+    MAX_SPREADSHEET_REQUEST_BYTES, SpreadsheetWorkerRequest, SpreadsheetWorkerResponse,
+};
 
 #[test]
 fn candidate_truncation_stays_below_the_response_byte_limit()
@@ -34,6 +36,38 @@ fn candidate_truncation_counts_escaped_and_multibyte_json_values()
     assert!(truncated);
     assert!(candidate_response_bytes(accepted, truncated)? <= max_bytes.saturating_sub(1));
     Ok(())
+}
+
+#[test]
+fn candidate_truncation_keeps_every_returned_value_applicable()
+-> Result<(), Box<dyn std::error::Error>> {
+    let values = (0..2_000)
+        .map(|index| format!("candidate-{index}-{}", "x".repeat(300)))
+        .collect::<Vec<_>>();
+
+    let (accepted, truncated) = truncate_candidate_values(7, 3, 5, values, false, 16 * 1024 * 1024);
+
+    assert!(truncated);
+    assert!(!accepted.is_empty());
+    let mut encoded = serde_json::to_vec(&SpreadsheetWorkerRequest::ApplyFilter {
+        request_id: u64::MAX,
+        sheet_index: 3,
+        column: 5,
+        values: accepted,
+    })?;
+    encoded.push(b'\n');
+    assert!(encoded.len() <= MAX_SPREADSHEET_REQUEST_BYTES);
+    Ok(())
+}
+
+#[test]
+fn candidate_truncation_drops_a_value_that_cannot_fit_apply_values() {
+    let oversized = "x".repeat(MAX_SPREADSHEET_REQUEST_BYTES);
+    let (accepted, truncated) =
+        truncate_candidate_values(7, 3, 5, vec![oversized], false, 16 * 1024 * 1024);
+
+    assert!(accepted.is_empty());
+    assert!(truncated);
 }
 
 fn candidate_response_bytes(
