@@ -66,6 +66,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz imagemagick xvfb xclip
+          emoji_font=/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf
+          expected_hash=93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477
+          actual_hash="$(sha256sum "${emoji_font}" | cut -d ' ' -f 1)"
+          test "${actual_hash}" = "${expected_hash}"
+          echo "KUC_PINNED_LINUX_EMOJI_SHA256=${expected_hash}" >> "$GITHUB_ENV"
           sudo mkdir -p /opt/local/bin
           sudo ln -sf /usr/bin/dot /opt/local/bin/dot
           if ! command -v magick >/dev/null 2>&1; then
