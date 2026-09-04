@@ -114,11 +114,73 @@ fn close_html_context(name: String, contexts: &mut Vec<HtmlSpanContext>) {
 }
 
 fn html_link_target(html: &str) -> Option<String> {
-    let lower = html.to_ascii_lowercase();
-    let href_index = lower.find("href")?;
-    let after_href = &html[href_index + "href".len()..];
-    let equals_index = after_href.find('=')?;
-    let value = after_href[equals_index + 1..].trim_start();
+    let html = html.trim_start();
+    let tag_end = html_tag::end(html, 0)?;
+    let tag = &html[..=tag_end];
+    let html_tag::HtmlTag::Opening { name, .. } = html_tag::parse(tag) else {
+        return None;
+    };
+    if name != "a" || !is_exact_anchor_tag(tag) {
+        return None;
+    }
+    html_attribute_value(tag, "href")
+}
+
+fn is_exact_anchor_tag(tag: &str) -> bool {
+    let lower = tag.trim_start().to_ascii_lowercase();
+    let Some(after_name) = lower.strip_prefix("<a") else {
+        return false;
+    };
+    after_name.chars().next().is_some_and(|character| {
+        character.is_ascii_whitespace() || character == '>' || character == '/'
+    })
+}
+
+fn html_attribute_value(tag: &str, name: &str) -> Option<String> {
+    let lower = tag.to_ascii_lowercase();
+    let mut cursor = 0;
+    let mut quote = None;
+    while let Some(character) = lower[cursor..].chars().next() {
+        if let Some(delimiter) = quote {
+            if character == delimiter {
+                quote = None;
+            }
+            cursor += character.len_utf8();
+            continue;
+        }
+        if character == '"' || character == '\'' {
+            quote = Some(character);
+            cursor += character.len_utf8();
+            continue;
+        }
+        if character == '>' {
+            return None;
+        }
+        if attribute_value_starts_at(&lower, cursor, name) {
+            return html_attribute_value_at(tag, cursor + name.len());
+        }
+        cursor += character.len_utf8();
+    }
+    None
+}
+
+fn attribute_value_starts_at(tag: &str, start: usize, name: &str) -> bool {
+    if !tag[start..].starts_with(name)
+        || !tag[..start]
+            .chars()
+            .next_back()
+            .is_some_and(char::is_ascii_whitespace)
+    {
+        return false;
+    }
+    tag[start + name.len()..]
+        .trim_start_matches(char::is_whitespace)
+        .starts_with('=')
+}
+
+fn html_attribute_value_at(tag: &str, name_end: usize) -> Option<String> {
+    let after_name = tag[name_end..].trim_start_matches(char::is_whitespace);
+    let value = after_name.strip_prefix('=')?.trim_start();
     let quote = value.chars().next()?;
     if quote == '"' || quote == '\'' {
         let target = &value[quote.len_utf8()..];

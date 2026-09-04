@@ -18,7 +18,8 @@ from typing import Any
 
 
 TRACE_PATTERN = re.compile(
-    r"\[KDV_TRACE\]\s+stage=(?P<stage>[A-Za-z0-9_.-]+)\s+elapsed_ms=(?P<elapsed>\d+)"
+    r"\[KDV_TRACE\]\s+stage=(?P<stage>[A-Za-z0-9_.-]+)"
+    r"(?:\s+(?:session|source)=[^\s]+)*\s+elapsed_ms=(?P<elapsed>\d+)"
 )
 ACCEPTANCE_FIRST_FRAME_PATTERN = re.compile(
     r"\[KDV_ACCEPTANCE\]\s+stage=first_frame\s+elapsed_ms=(?P<elapsed>\d+)"
@@ -269,13 +270,13 @@ def self_test() -> None:
     assert normalized_sha256("A" * 64) == "a" * 64
     traces = parse_stage_elapsed(
         "[KDV_TRACE] stage=office.worker_spawn elapsed_ms=12\n"
-        "[KDV_TRACE] stage=office.worker_spawn elapsed_ms=3\n"
+        "[KDV_TRACE] stage=office.worker_spawn session=42 source=0123456789abcdef elapsed_ms=3\n"
         "[KDV_TRACE] stage=office.raster elapsed_ms=9\n"
     )
     assert traces == {"office.worker_spawn": 15, "office.raster": 9}
     assert parse_stage_occurrences(
-        "[KDV_TRACE] stage=office.conversion elapsed_ms=12\n"
-        "[KDV_TRACE] stage=office.conversion elapsed_ms=3\n"
+        "[KDV_TRACE] stage=office.conversion source=0123456789abcdef session=42 elapsed_ms=12\n"
+        "[KDV_TRACE] stage=office.conversion session=42 source=0123456789abcdef elapsed_ms=3\n"
     ) == {"office.conversion": 2}
     assert parse_first_frame_elapsed_ms(
         "[KDV_ACCEPTANCE] stage=first_frame elapsed_ms=123\n"

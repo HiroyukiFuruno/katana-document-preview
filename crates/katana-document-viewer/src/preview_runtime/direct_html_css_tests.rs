@@ -37,6 +37,20 @@ fn keeps_inline_style_after_stylesheet_declarations() {
 }
 
 #[test]
+fn escapes_quoted_css_values_in_generated_style_attributes() {
+    let css = DirectHtmlCss::parse(r#"p { font-family: "Fira Code"; }"#);
+
+    assert_eq!(
+        r#"<p style="font-family: &quot;Fira Code&quot;">Visible</p>"#,
+        css.apply_to_line("<p>Visible</p>")
+    );
+    assert_eq!(
+        r#"<p style="font-family: &quot;Fira Code&quot;; font-family: &quot;Existing&quot;">Visible</p>"#,
+        css.apply_to_line(r#"<p style='font-family: "Existing"'>Visible</p>"#)
+    );
+}
+
+#[test]
 fn applies_id_and_supported_properties_and_skips_complex_selectors() {
     let css = DirectHtmlCss::parse(concat!(
         "#hero { color: green; font-weight: 700; font-style: italic; ",

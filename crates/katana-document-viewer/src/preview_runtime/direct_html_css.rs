@@ -164,6 +164,7 @@ fn replace_style_attribute(
     range: std::ops::Range<usize>,
     merged_style: String,
 ) -> String {
+    let merged_style = escape_style_attribute_value(&merged_style);
     format!(
         "{}style=\"{}\"{}",
         &line[..range.start],
@@ -174,12 +175,17 @@ fn replace_style_attribute(
 
 fn insert_style_attribute(line: &str, tag: &str, tag_end: usize, inherited: String) -> String {
     let insert_at = style_insert_position(tag, tag_end);
+    let inherited = escape_style_attribute_value(&inherited);
     format!(
         "{} style=\"{}\"{}",
         &line[..insert_at],
         inherited,
         &line[insert_at..]
     )
+}
+
+fn escape_style_attribute_value(value: &str) -> String {
+    value.replace('"', "&quot;")
 }
 
 fn style_insert_position(tag: &str, tag_end: usize) -> usize {

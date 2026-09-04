@@ -25,6 +25,23 @@ fn parses_value_blank_and_unsupported_filter_metadata() -> TestResult {
 }
 
 #[test]
+fn marks_date_group_items_unsupported_until_typed_semantics_exist() -> TestResult {
+    let xml = br#"<worksheet><autoFilter ref="A1:B4"><filterColumn colId="0"><filters><dateGroupItem year="2026" month="9" dateTimeGrouping="month"/></filters></filterColumn></autoFilter></worksheet>"#;
+    let filter =
+        parse_worksheet(Cursor::new(xml.as_slice()))?.ok_or("auto filter was not parsed")?;
+
+    assert!(matches!(
+        filter.columns[0].criteria.as_slice(),
+        [SpreadsheetFilterCriterion::Unsupported(kind)] if kind == "dateGroupItem"
+    ));
+    assert_eq!(
+        vec!["unsupported AutoFilter criterion `dateGroupItem`".to_string()],
+        filter.diagnostics
+    );
+    Ok(())
+}
+
+#[test]
 fn reads_filter_metadata_in_workbook_sheet_order() -> TestResult {
     let workbook =
         br#"<workbook xmlns:r="urn:r"><sheets><sheet name="Data" r:id="r1"/></sheets></workbook>"#;

@@ -78,6 +78,26 @@ fn inline_html_spans_parses_unquoted_link_target() {
 }
 
 #[test]
+fn html_spans_require_an_anchor_and_an_exact_href_attribute() {
+    for raw in [
+        r#"<span data-href="/spoof">plain</span>"#,
+        r#"<a data-href="/spoof">plain</a>"#,
+        r#"<a hrefx="/spoof">plain</a>"#,
+        r#"<a-data href="/spoof">plain</a-data>"#,
+    ] {
+        let spans = inline_node_spans(raw);
+        assert_eq!(1, spans.len(), "{raw}");
+        assert_eq!("plain", spans[0].text, "{raw}");
+        assert!(spans[0].link_target.is_empty(), "{raw}");
+        assert!(!spans[0].style.underline, "{raw}");
+    }
+
+    let spans = node_spans_from_html(r#"<span data-href="/spoof">plain</span>"#);
+    assert_eq!(1, spans.len());
+    assert!(spans[0].link_target.is_empty());
+}
+
+#[test]
 fn inline_html_spans_keeps_anchor_text_as_plain_when_target_missing() {
     let spans = inline_node_spans("<a>plain</a>");
 

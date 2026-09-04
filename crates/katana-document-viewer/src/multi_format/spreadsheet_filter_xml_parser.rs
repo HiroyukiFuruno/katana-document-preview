@@ -169,6 +169,11 @@ fn add_value(
 fn unsupported_filter(kind: &str) -> bool {
     matches!(
         kind,
-        "customFilters" | "dynamicFilter" | "top10" | "colorFilter" | "iconFilter"
+        "customFilters"
+            | "dynamicFilter"
+            | "top10"
+            | "colorFilter"
+            | "iconFilter"
+            | "dateGroupItem"
     )
 }
