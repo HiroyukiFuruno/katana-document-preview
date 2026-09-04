@@ -29,8 +29,24 @@ impl SurfaceHtmlStyle {
         if let Some([red, green, blue, alpha]) = properties.color_rgba {
             style = style.with_color(Rgba([red, green, blue, alpha]));
         }
-        style
+        apply_boolean_overrides(style, properties)
     }
+}
+
+fn apply_boolean_overrides(
+    mut style: SurfaceTextStyle,
+    properties: HtmlStyleProperties,
+) -> SurfaceTextStyle {
+    if let Some(bold) = properties.bold_override {
+        style.bold = bold;
+    }
+    if let Some(underline) = properties.underline_override {
+        style.underline = underline;
+    }
+    if let Some(strikethrough) = properties.strikethrough_override {
+        style.strikethrough = strikethrough;
+    }
+    style
 }
 
 #[cfg(test)]

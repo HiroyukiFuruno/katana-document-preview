@@ -17,3 +17,15 @@ fn applies_all_supported_html_properties_to_surface_style() {
     assert!(style.inline_code);
     assert_eq!(Some(Rgba([170, 187, 204, 255])), style.color);
 }
+
+#[test]
+fn css_declarations_can_clear_inherited_surface_styles() {
+    let style = SurfaceHtmlStyle::apply(
+        r#"<strong><span style="font-weight: normal; text-decoration: none">plain</span></strong>"#,
+        SurfaceTextStyle::default(),
+    );
+
+    assert!(!style.bold);
+    assert!(!style.underline);
+    assert!(!style.strikethrough);
+}

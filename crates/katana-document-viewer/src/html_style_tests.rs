@@ -106,3 +106,21 @@ fn tag_name_prefixes_do_not_create_unrelated_text_decoration() {
     assert!(!HtmlStyleProperties::from_fragment(r#"<span title="<s>">plain</span>"#).strikethrough);
     assert!(HtmlStyleProperties::from_fragment("<s>struck</s>").strikethrough);
 }
+
+#[test]
+fn css_boolean_declarations_use_the_last_supported_value() {
+    let properties = HtmlStyleProperties::from_fragment(
+        r#"<span style="font-weight: bold; font-weight: normal; text-decoration: underline; text-decoration: none">x</span>"#,
+    );
+
+    assert_eq!(Some(false), properties.bold_override);
+    assert_eq!(Some(false), properties.underline_override);
+    assert_eq!(Some(false), properties.strikethrough_override);
+
+    let properties = HtmlStyleProperties::from_fragment(
+        r#"<span style="font-weight: normal; font-weight: bold; text-decoration: none; text-decoration: underline line-through">x</span>"#,
+    );
+    assert_eq!(Some(true), properties.bold_override);
+    assert_eq!(Some(true), properties.underline_override);
+    assert_eq!(Some(true), properties.strikethrough_override);
+}

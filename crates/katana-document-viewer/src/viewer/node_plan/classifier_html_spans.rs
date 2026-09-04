@@ -152,6 +152,22 @@ fn html_style(html: &str, style: ViewerTextStyle) -> ViewerTextStyle {
     if let Some(color) = properties.color_rgba {
         style = style.color_rgba(color);
     }
+    apply_boolean_overrides(style, properties)
+}
+
+fn apply_boolean_overrides(
+    mut style: ViewerTextStyle,
+    properties: HtmlStyleProperties,
+) -> ViewerTextStyle {
+    if let Some(bold) = properties.bold_override {
+        style.bold = bold;
+    }
+    if let Some(underline) = properties.underline_override {
+        style.underline = underline;
+    }
+    if let Some(strikethrough) = properties.strikethrough_override {
+        style.strikethrough = strikethrough;
+    }
     style
 }
 

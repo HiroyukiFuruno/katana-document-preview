@@ -7,6 +7,9 @@ pub(crate) struct HtmlStyleProperties {
     pub(crate) highlight: bool,
     pub(crate) inline_code: bool,
     pub(crate) color_rgba: Option<[u8; 4]>,
+    pub(crate) bold_override: Option<bool>,
+    pub(crate) underline_override: Option<bool>,
+    pub(crate) strikethrough_override: Option<bool>,
 }
 
 impl HtmlStyleProperties {
@@ -31,6 +34,9 @@ impl HtmlStyleProperties {
             highlight: tags::contains_opening_tag(&lower, "mark"),
             inline_code: tags::contains_opening_tag(&lower, "code"),
             color_rgba: None,
+            bold_override: None,
+            underline_override: None,
+            strikethrough_override: None,
         }
     }
 
@@ -48,11 +54,13 @@ impl HtmlStyleProperties {
         let value = value.to_ascii_lowercase();
         match name.as_str() {
             "color" => self.color_rgba = parse_color(&value),
-            "font-weight" if font_weight_is_bold(&value) => self.bold = true,
+            "font-weight" if font_weight_is_valid(&value) => {
+                self.bold_override = Some(font_weight_is_bold(&value));
+            }
             "font-style" if value == "italic" => self.italic = true,
             "text-decoration" => {
-                self.underline |= value.contains("underline");
-                self.strikethrough |= value.contains("line-through");
+                self.underline_override = Some(value.contains("underline"));
+                self.strikethrough_override = Some(value.contains("line-through"));
             }
             "background" | "background-color" if value != "transparent" => self.highlight = true,
             "font-family" if value.contains("monospace") => self.inline_code = true,
@@ -69,6 +77,10 @@ fn font_weight_is_bold(value: &str) -> bool {
         Ok(weight) => weight >= 600,
         Err(_) => false,
     }
+}
+
+fn font_weight_is_valid(value: &str) -> bool {
+    value == "normal" || value == "bold" || value.parse::<u16>().is_ok()
 }
 
 fn parse_color(value: &str) -> Option<[u8; 4]> {
