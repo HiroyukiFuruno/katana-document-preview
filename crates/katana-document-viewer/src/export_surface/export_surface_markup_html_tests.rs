@@ -96,7 +96,7 @@ fn centered_html_spans_builds_mixed_text_and_link_spans() {
     let spans =
         SurfaceHtmlMarkup::centered_html_spans("A <a href=\"https://example.com\">go</a> B");
     assert_eq!(spans.len(), 3);
-    assert_eq!(spans[0].text, "A");
+    assert_eq!(spans[0].text, "A ");
     assert_eq!(spans[0].link_target, None);
     assert_eq!(spans[0].style, SurfaceTextStyle::default());
     assert_eq!(spans[1].text, "go");
@@ -105,7 +105,7 @@ fn centered_html_spans_builds_mixed_text_and_link_spans() {
         Some("https://example.com".to_string())
     );
     assert_eq!(spans[1].style, SurfaceTextStyle::default().link());
-    assert_eq!(spans[2].text, "B");
+    assert_eq!(spans[2].text, " B");
     assert_eq!(spans[2].link_target, None);
     assert_eq!(spans[2].style, SurfaceTextStyle::default());
 }
@@ -157,10 +157,10 @@ fn centered_html_spans_stops_on_unclosed_or_empty_link() {
     let empty = SurfaceHtmlMarkup::centered_html_spans("before <a href=\"/x\"> </a> after");
 
     assert_eq!(unclosed.len(), 2);
-    assert_eq!(unclosed[0].text, "before");
+    assert_eq!(unclosed[0].text, "before ");
     assert_eq!(unclosed[1].text, "missing");
     assert_eq!(unclosed[1].link_target, Some("/x".to_string()));
     assert_eq!(empty.len(), 2);
-    assert_eq!(empty[0].text, "before");
+    assert_eq!(empty[0].text, "before ");
     assert_eq!(empty[1].text, "after");
 }

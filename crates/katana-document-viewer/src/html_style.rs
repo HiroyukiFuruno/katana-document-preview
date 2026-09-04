@@ -12,7 +12,7 @@ pub(crate) struct HtmlStyleProperties {
 impl HtmlStyleProperties {
     pub(crate) fn from_fragment(fragment: &str) -> Self {
         let mut properties = Self::from_tag_names(fragment);
-        for style in style_attributes(fragment) {
+        for style in attributes::style_values(fragment) {
             properties.apply_declarations(&style);
         }
         properties
@@ -69,44 +69,6 @@ fn font_weight_is_bold(value: &str) -> bool {
         Ok(weight) => weight >= 600,
         Err(_) => false,
     }
-}
-
-fn style_attributes(fragment: &str) -> Vec<String> {
-    let lower = fragment.to_ascii_lowercase();
-    let mut cursor = 0;
-    let mut values = Vec::new();
-    while let Some(relative_start) = lower[cursor..].find("style") {
-        let start = cursor + relative_start + "style".len();
-        let Some(equals_relative) = lower[start..].find('=') else {
-            break;
-        };
-        let value_start = start + equals_relative + 1;
-        let Some((value, next_cursor)) = attribute_value(fragment, value_start) else {
-            break;
-        };
-        values.push(value);
-        cursor = next_cursor;
-    }
-    values
-}
-
-fn attribute_value(fragment: &str, start: usize) -> Option<(String, usize)> {
-    let value = fragment[start..].trim_start();
-    let skipped = fragment[start..].len() - value.len();
-    let start = start + skipped;
-    let quote = value.chars().next()?;
-    if quote == '"' || quote == '\'' {
-        let body = &value[quote.len_utf8()..];
-        let end = body.find(quote)?;
-        return Some((
-            body[..end].to_string(),
-            start + quote.len_utf8() + end + quote.len_utf8(),
-        ));
-    }
-    let end = value
-        .find(|character: char| character.is_whitespace() || character == '>')
-        .unwrap_or(value.len());
-    Some((value[..end].to_string(), start + end))
 }
 
 fn parse_color(value: &str) -> Option<[u8; 4]> {
@@ -170,6 +132,8 @@ fn named_color(value: &str) -> Option<[u8; 4]> {
     })
 }
 
+#[path = "html_style_attributes.rs"]
+mod attributes;
 #[path = "html_style_tags.rs"]
 mod tags;
 #[cfg(test)]

@@ -9,7 +9,7 @@ fn html_spans_scope_nested_inline_styles_to_their_text_segments() {
     );
 
     assert_eq!(
-        vec!["plain", "bold", "red", "plain"],
+        vec!["plain ", "bold ", "red", " plain"],
         spans
             .iter()
             .map(|span| span.text.as_str())
@@ -24,6 +24,22 @@ fn html_spans_scope_nested_inline_styles_to_their_text_segments() {
         spans[2].style
     );
     assert_eq!(SurfaceTextStyle::default(), spans[3].style);
+}
+
+#[test]
+fn html_spans_preserve_spaces_across_inline_style_boundaries() {
+    let spans = SurfaceHtmlMarkup::html_spans("<p>plain <strong>bold</strong> plain</p>");
+
+    assert_eq!(
+        "plain bold plain",
+        spans
+            .iter()
+            .map(|span| span.text.as_str())
+            .collect::<String>()
+    );
+    assert_eq!("plain ", spans[0].text);
+    assert_eq!("bold", spans[1].text);
+    assert_eq!(" plain", spans[2].text);
 }
 
 #[test]

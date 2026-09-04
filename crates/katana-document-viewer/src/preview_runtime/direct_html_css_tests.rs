@@ -48,6 +48,15 @@ fn applies_id_and_supported_properties_and_skips_complex_selectors() {
 }
 
 #[test]
+fn applies_matching_rules_in_css_specificity_order() {
+    let css = DirectHtmlCss::parse("#hero { color: red; } p { color: blue; }");
+
+    let line = css.apply_to_line(r#"<p id="hero">Visible</p>"#);
+
+    assert!(line.contains(r#"style="color: blue; color: red""#));
+}
+
+#[test]
 fn handles_empty_existing_style_self_closing_tags_and_malformed_tags() {
     let css = DirectHtmlCss::parse("p { color: red; }");
 

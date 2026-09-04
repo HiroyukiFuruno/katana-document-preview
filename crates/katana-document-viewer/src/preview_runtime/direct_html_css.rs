@@ -21,11 +21,16 @@ impl DirectHtmlCss {
         let Some(tag_name) = DirectHtmlCssAttrs::tag_name(tag) else {
             return line.to_string();
         };
-        let declarations = self
+        let mut matching_rules = self
             .rules
             .iter()
-            .filter(|rule| rule.matches(tag, &tag_name))
-            .flat_map(|rule| rule.declarations.iter().cloned())
+            .enumerate()
+            .filter(|(_, rule)| rule.matches(tag, &tag_name))
+            .collect::<Vec<_>>();
+        matching_rules.sort_by_key(|(source_order, rule)| (rule.specificity(), *source_order));
+        let declarations = matching_rules
+            .into_iter()
+            .flat_map(|(_, rule)| rule.declarations.iter().cloned())
             .collect::<Vec<_>>();
         if declarations.is_empty() {
             return line.to_string();
@@ -55,6 +60,18 @@ impl CssRule {
                 .is_some_and(|value| value.eq_ignore_ascii_case(id));
         }
         self.selector.eq_ignore_ascii_case(tag_name)
+    }
+
+    fn specificity(&self) -> u8 {
+        if self.selector == "body" {
+            0
+        } else if self.selector.starts_with('#') {
+            100
+        } else if self.selector.starts_with('.') {
+            10
+        } else {
+            1
+        }
     }
 }
 

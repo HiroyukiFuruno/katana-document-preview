@@ -81,6 +81,20 @@ fn handles_unquoted_and_malformed_style_attributes() {
 }
 
 #[test]
+fn ignores_style_substrings_in_metadata_attributes_and_values() {
+    assert_eq!(
+        None,
+        HtmlStyleProperties::from_fragment(r#"<span data-style="color: red">plain</span>"#)
+            .color_rgba
+    );
+    assert_eq!(
+        None,
+        HtmlStyleProperties::from_fragment(r#"<span title="style=color:red">plain</span>"#)
+            .color_rgba
+    );
+}
+
+#[test]
 fn tag_name_prefixes_do_not_create_unrelated_text_decoration() {
     let properties = HtmlStyleProperties::from_fragment(
         "<strong>bold</strong><span>plain</span><section>section</section>",
