@@ -35,19 +35,70 @@ impl DirectHtmlCssAttrs {
 
     pub(crate) fn attribute_value(tag: &str, name: &str) -> Option<String> {
         let lower = tag.to_ascii_lowercase();
-        let start = lower.find(name)? + name.len();
-        let equals = lower[start..].find('=')? + start;
-        quoted_attribute_value_at(tag, equals + 1).map(|(value, _)| value)
+        let name = name.to_ascii_lowercase();
+        attribute_value_range(tag, &lower, &name).map(|(_, value, _)| value)
     }
 
     pub(crate) fn style_attribute_range(tag: &str) -> Option<(std::ops::Range<usize>, String)> {
         let lower = tag.to_ascii_lowercase();
-        let style_start = lower.find("style")?;
-        let equals = lower[style_start + "style".len()..].find('=')? + style_start + "style".len();
-        let value_start = equals + 1;
-        let (value, value_range) = quoted_attribute_value_at(tag, value_start)?;
-        Some((style_start..value_range.end, value))
+        let (start, value, value_range) = attribute_value_range(tag, &lower, "style")?;
+        Some((start..value_range.end, value))
     }
+}
+
+fn attribute_value_range(
+    tag: &str,
+    lower: &str,
+    name: &str,
+) -> Option<(usize, String, std::ops::Range<usize>)> {
+    let mut cursor = 0;
+    let mut quote = None;
+    while let Some(character) = lower[cursor..].chars().next() {
+        if quoted_character(&mut quote, character) {
+            cursor += character.len_utf8();
+            continue;
+        }
+        if character == '>' {
+            return None;
+        }
+        if let Some(value_start) = attribute_value_start(lower, cursor, name) {
+            let (value, range) = quoted_attribute_value_at(tag, value_start)?;
+            return Some((cursor, value, range));
+        }
+        cursor += character.len_utf8();
+    }
+    None
+}
+
+fn quoted_character(quote: &mut Option<char>, character: char) -> bool {
+    if let Some(delimiter) = *quote {
+        if character == delimiter {
+            *quote = None;
+        }
+        return true;
+    }
+    if character == '"' || character == '\'' {
+        *quote = Some(character);
+        return true;
+    }
+    false
+}
+
+fn attribute_value_start(tag: &str, start: usize, name: &str) -> Option<usize> {
+    if !tag[start..].starts_with(name) || !attribute_starts_after_whitespace(tag, start) {
+        return None;
+    }
+    let name_end = start + name.len();
+    let suffix = tag[name_end..].trim_start_matches(char::is_whitespace);
+    let skipped = tag[name_end..].len() - suffix.len();
+    suffix.starts_with('=').then_some(name_end + skipped + 1)
+}
+
+fn attribute_starts_after_whitespace(tag: &str, start: usize) -> bool {
+    tag[..start]
+        .chars()
+        .next_back()
+        .is_some_and(|character| character.is_ascii_whitespace())
 }
 
 fn quoted_attribute_value_at(tag: &str, start: usize) -> Option<(String, std::ops::Range<usize>)> {

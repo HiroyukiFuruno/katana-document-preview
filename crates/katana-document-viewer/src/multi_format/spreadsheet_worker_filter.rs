@@ -1,7 +1,9 @@
 use super::SpreadsheetWorkerLoop;
 use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use crate::multi_format::spreadsheet_filter_engine::SpreadsheetFilterResult;
-use crate::multi_format::spreadsheet_worker_protocol::SpreadsheetWorkerResponse;
+use crate::multi_format::spreadsheet_worker_protocol::{
+    MAX_SPREADSHEET_RESPONSE_BYTES, SpreadsheetWorkerResponse,
+};
 
 impl SpreadsheetWorkerLoop {
     pub(super) fn filter_candidates(
@@ -14,13 +16,9 @@ impl SpreadsheetWorkerLoop {
         let _filter =
             crate::multi_format::debug_trace::DebugTrace::start("spreadsheet.filter_candidates");
         let response = match self.engine.filter_candidates(sheet_index, column, limit) {
-            Ok((values, truncated)) => SpreadsheetWorkerResponse::FilterCandidates {
-                request_id,
-                sheet_index,
-                column,
-                values,
-                truncated,
-            },
+            Ok((values, truncated)) => {
+                candidate_response(request_id, sheet_index, column, values, truncated)
+            }
             Err(error) => spreadsheet_failure(request_id, error),
         };
         self.write(&response)
@@ -58,6 +56,84 @@ impl SpreadsheetWorkerLoop {
     }
 }
 
+fn candidate_response(
+    request_id: u64,
+    sheet_index: usize,
+    column: usize,
+    values: Vec<String>,
+    truncated: bool,
+) -> SpreadsheetWorkerResponse {
+    let (values, truncated) = truncate_candidate_values(
+        request_id,
+        sheet_index,
+        column,
+        values,
+        truncated,
+        MAX_SPREADSHEET_RESPONSE_BYTES,
+    );
+    SpreadsheetWorkerResponse::FilterCandidates {
+        request_id,
+        sheet_index,
+        column,
+        values,
+        truncated,
+    }
+}
+
+fn truncate_candidate_values(
+    request_id: u64,
+    sheet_index: usize,
+    column: usize,
+    values: Vec<String>,
+    truncated: bool,
+    max_bytes: usize,
+) -> (Vec<String>, bool) {
+    let mut response_bytes =
+        candidate_response_envelope_bytes(request_id, sheet_index, column, truncated);
+    let mut accepted = Vec::with_capacity(values.len());
+    for value in values {
+        let value_bytes = json_string_bytes(&value);
+        let separator_bytes = usize::from(!accepted.is_empty());
+        let candidate_bytes = response_bytes
+            .saturating_add(separator_bytes)
+            .saturating_add(value_bytes);
+        if candidate_bytes > max_bytes {
+            return (accepted, true);
+        }
+        response_bytes = candidate_bytes;
+        accepted.push(value);
+    }
+    (accepted, truncated)
+}
+
+fn candidate_response_envelope_bytes(
+    request_id: u64,
+    sheet_index: usize,
+    column: usize,
+    truncated: bool,
+) -> usize {
+    r#"{"status":"filter_candidates","request_id":"#
+        .len()
+        .saturating_add(request_id.to_string().len())
+        .saturating_add(r#","sheet_index":"#.len())
+        .saturating_add(sheet_index.to_string().len())
+        .saturating_add(r#","column":"#.len())
+        .saturating_add(column.to_string().len())
+        .saturating_add(r#","values":["#.len())
+        .saturating_add(r#"],"truncated":"#.len())
+        .saturating_add(if truncated { "true}" } else { "false}" }.len())
+}
+
+fn json_string_bytes(value: &str) -> usize {
+    value.bytes().fold(2, |bytes, byte| {
+        bytes.saturating_add(match byte {
+            b'"' | b'\\' | b'\x08' | b'\t' | b'\n' | b'\x0C' | b'\r' => 2,
+            0..=0x1F => 6,
+            _ => 1,
+        })
+    })
+}
+
 fn filter_visibility_response(
     request_id: u64,
     sheet_index: usize,
@@ -82,3 +158,7 @@ fn spreadsheet_failure(
         message: error.to_string(),
     }
 }
+
+#[cfg(test)]
+#[path = "spreadsheet_worker_filter_tests.rs"]
+mod tests;

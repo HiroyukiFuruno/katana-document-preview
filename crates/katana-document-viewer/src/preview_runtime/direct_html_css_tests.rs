@@ -57,6 +57,20 @@ fn applies_matching_rules_in_css_specificity_order() {
 }
 
 #[test]
+fn ignores_data_attributes_when_matching_and_merging_css_rules() {
+    let css = DirectHtmlCss::parse(
+        ".note { color: red; } #hero { font-weight: bold; } p { color: blue; }",
+    );
+
+    let line = css.apply_to_line(
+        r#"<p data-class="note" data-id="hero" data-style="color: red">Visible</p>"#,
+    );
+
+    assert!(line.contains(r#"data-style="color: red" style="color: blue""#));
+    assert!(!line.contains("font-weight: bold"));
+}
+
+#[test]
 fn handles_empty_existing_style_self_closing_tags_and_malformed_tags() {
     let css = DirectHtmlCss::parse("p { color: red; }");
 

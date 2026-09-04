@@ -1,9 +1,12 @@
 use super::{OfficeWorkerError, SpreadsheetCellArtifact, SpreadsheetCoordinate};
 use std::collections::{HashMap, VecDeque};
 
+#[path = "spreadsheet_cell_cache_bytes.rs"]
+mod bytes;
 #[path = "spreadsheet_cell_cache_materialized.rs"]
 mod materialized;
 
+use bytes::cell_bytes;
 use materialized::SpreadsheetMaterializedResponse;
 
 const MAX_CACHED_CELLS: usize = 8_192;
@@ -176,14 +179,9 @@ impl Drop for SpreadsheetCellCache {
     }
 }
 
-fn cell_bytes(cell: &SpreadsheetCellArtifact) -> usize {
-    std::mem::size_of::<SpreadsheetCellArtifact>()
-        .saturating_add(cell.display_text.len())
-        .saturating_add(cell.formula.as_ref().map_or(0, String::len))
-        .saturating_add(cell.style.font_name.len())
-        .saturating_add(cell.style.number_format.len())
-}
-
+#[cfg(test)]
+#[path = "spreadsheet_cell_cache_bytes_tests.rs"]
+mod byte_tests;
 #[cfg(test)]
 #[path = "spreadsheet_cell_cache_tests.rs"]
 mod tests;

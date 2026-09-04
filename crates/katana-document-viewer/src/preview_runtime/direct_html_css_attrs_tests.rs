@@ -45,3 +45,28 @@ fn parses_quoted_and_unquoted_attribute_values() {
     );
     assert_eq!(None, DirectHtmlCssAttrs::style_attribute_range("<p style>"));
 }
+
+#[test]
+fn requires_complete_attribute_names_outside_quoted_metadata() {
+    assert_eq!(
+        None,
+        DirectHtmlCssAttrs::attribute_value(r#"<p data-id="hero">"#, "id")
+    );
+    assert!(DirectHtmlCssAttrs::class_list(r#"<p data-class="note">"#).is_empty());
+    assert_eq!(
+        None,
+        DirectHtmlCssAttrs::style_attribute_range(r#"<p data-style="color: red">"#)
+    );
+    assert_eq!(
+        None,
+        DirectHtmlCssAttrs::attribute_value(r#"<p title="id=hero class=note">"#, "id")
+    );
+    assert_eq!(
+        Some((3..17, "hero".to_string())),
+        DirectHtmlCssAttrs::style_attribute_range(r#"<p style = 'hero'>"#)
+    );
+    assert_eq!(
+        None,
+        DirectHtmlCssAttrs::attribute_value("<p data-id=hero", "id")
+    );
+}

@@ -170,5 +170,11 @@ fn surface_for(
 }
 
 #[cfg(test)]
+#[path = "document_session_spreadsheet_filter_state_tests.rs"]
+mod filter_state_tests;
+#[cfg(test)]
+#[path = "document_session_spreadsheet_filter_tests.rs"]
+mod filter_tests;
+#[cfg(test)]
 #[path = "document_session_spreadsheet_tests.rs"]
 mod tests;
