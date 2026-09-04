@@ -250,17 +250,17 @@ fn ci_workflows_pin_linux_font_and_graphviz_runtime_for_katana_reference_scores(
     let preflight = std::fs::read_to_string(root.join(".github/workflows/release-preflight.yml"))?;
     let release = std::fs::read_to_string(root.join(".github/workflows/release.yml"))?;
 
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "CI PlantUML runtime",
         &ci,
         CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS,
     );
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "release preflight PlantUML runtime",
         &preflight,
         PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS,
     );
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "Release workflow acceptance runtime",
         &release,
         RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS,
@@ -712,13 +712,21 @@ const SCORE_OVERLAY_CONTROL_SNIPPETS: &[&str] = &[
     "reset-view",
 ];
 
+const LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS: &[&str] = &[
+    "fonts-noto-color-emoji",
+    "emoji_font=/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+    "expected_hash=93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477",
+    "test \"${actual_hash}\" = \"${expected_hash}\"",
+    "KUC_PINNED_LINUX_EMOJI_SHA256=${expected_hash}",
+];
+
 const CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "JAVA_TOOL_OPTIONS",
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install Graphviz (Ubuntu)",
-    "apt-get install -y fonts-noto-cjk graphviz",
+    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz",
     "/opt/local/bin/dot",
     "GRAPHVIZ_DOT",
     "Install Graphviz (macOS)",
@@ -745,7 +753,7 @@ const PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
-    "apt-get install -y fonts-noto-cjk graphviz imagemagick xvfb xclip",
+    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz imagemagick xvfb xclip",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -760,7 +768,7 @@ const RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install diagram test dependencies",
-    "apt-get install -y fonts-noto-cjk graphviz imagemagick xvfb xclip",
+    "apt-get install -y fonts-noto-cjk fonts-noto-color-emoji graphviz imagemagick xvfb xclip",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -1798,6 +1806,15 @@ fn assert_contains_all(label: &str, haystack: &str, needles: &[&str]) {
             "{label} must include `{needle}`"
         );
     }
+}
+
+fn assert_linux_runtime_requirements(label: &str, workflow: &str, runtime_snippets: &[&str]) {
+    assert_contains_all(label, workflow, runtime_snippets);
+    assert_contains_all(
+        &format!("{label} color emoji font pin"),
+        workflow,
+        LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS,
+    );
 }
 
 fn normalize_newlines(source: &str) -> String {
