@@ -1,10 +1,11 @@
 use super::SurfaceBadge;
-use super::export_surface_markup_html_style::SurfaceHtmlStyle;
-use crate::export_surface_span::{SurfaceTextSpan, SurfaceTextStyle};
+use crate::export_surface_span::SurfaceTextSpan;
 use crate::export_surface_text::SurfaceTextParser;
 
 #[path = "export_surface_markup_badge.rs"]
 mod badge;
+#[path = "export_surface_markup_html_spans.rs"]
+mod spans;
 
 pub(crate) struct SurfaceHtmlMarkup;
 
@@ -85,18 +86,7 @@ impl SurfaceHtmlMarkup {
     }
 
     pub(crate) fn html_spans(fragment: &str) -> Vec<SurfaceTextSpan> {
-        let mut spans = Vec::new();
-        let mut rest = fragment;
-        while let Some(link_start) = rest.find("<a") {
-            push_plain_html_text(&mut spans, &rest[..link_start]);
-            let after_link = &rest[link_start..];
-            let Some(next_rest) = append_centered_link_span(&mut spans, after_link) else {
-                break;
-            };
-            rest = next_rest;
-        }
-        push_plain_html_text(&mut spans, rest);
-        spans
+        spans::html_spans(fragment)
     }
 
     pub(crate) fn centered_html_spans(fragment: &str) -> Vec<SurfaceTextSpan> {
@@ -111,6 +101,9 @@ pub(crate) struct SurfaceHtmlImageRef {
     pub(crate) link_target: Option<String>,
 }
 
+#[cfg(test)]
+#[path = "export_surface_markup_html_spans_tests.rs"]
+mod spans_tests;
 #[cfg(test)]
 #[path = "export_surface_markup_html_tests.rs"]
 mod tests;
@@ -150,43 +143,4 @@ fn alignment_source(fragment: &str) -> String {
         .split_whitespace()
         .collect::<String>()
         .replace('\'', "\"")
-}
-
-fn append_centered_link_span<'a>(
-    spans: &mut Vec<SurfaceTextSpan>,
-    after_link: &'a str,
-) -> Option<&'a str> {
-    let open_end = after_link.find('>')?;
-    let link_tag = &after_link[..open_end];
-    let link_target =
-        quoted_attribute_value(link_tag, "href").unwrap_or_else(empty_attribute_value);
-    let content_start = open_end + 1;
-    let close_start = after_link[content_start..].find("</a>")?;
-    let content = &after_link[content_start..content_start + close_start];
-    push_centered_link_text(spans, link_tag, content, link_target);
-    Some(&after_link[content_start + close_start + "</a>".len()..])
-}
-
-fn push_centered_link_text(
-    spans: &mut Vec<SurfaceTextSpan>,
-    link_tag: &str,
-    content: &str,
-    link_target: String,
-) {
-    let text = SurfaceHtmlMarkup::normalize_text(&SurfaceTextParser::html_fragment_text(content));
-    if text.is_empty() {
-        return;
-    }
-    let style = SurfaceHtmlStyle::apply(link_tag, SurfaceTextStyle::default().link());
-    spans.push(SurfaceTextSpan::linked(text, link_target, style));
-}
-
-fn push_plain_html_text(spans: &mut Vec<SurfaceTextSpan>, fragment: &str) {
-    let text = SurfaceHtmlMarkup::normalize_text(&SurfaceTextParser::html_fragment_text(fragment));
-    if !text.is_empty() {
-        spans.push(SurfaceTextSpan::styled(
-            text,
-            SurfaceHtmlStyle::apply(fragment, SurfaceTextStyle::default()),
-        ));
-    }
 }

@@ -96,6 +96,26 @@ fn filter_evaluation_chunks_ranges_larger_than_materialization_limit() -> TestRe
 }
 
 #[test]
+fn filter_grid_visits_one_bounded_materialization_chunk_at_a_time() -> TestResult {
+    let limits = SpreadsheetViewerLimits {
+        max_sheets: 256,
+        max_logical_cells: 25_000_000,
+        max_materialized_cells: 2,
+    };
+    let engine =
+        SpreadsheetEngineSession::open(representative_with_auto_filter()?, "filter.xlsx", limits)?;
+    let rows = crate::multi_format::spreadsheet_filter_engine::filter_rows(engine.sheet(0)?);
+    let mut largest_chunk = 0;
+    engine.visit_filter_grid(0, &[0, 1], rows, |chunk_rows, cells| {
+        largest_chunk = largest_chunk.max(cells.len());
+        assert_eq!(chunk_rows.len() * 2, cells.len());
+        Ok(())
+    })?;
+    assert_eq!(2, largest_chunk);
+    Ok(())
+}
+
+#[test]
 fn invalid_filter_and_materialization_requests_fail_closed() -> TestResult {
     let mut engine = SpreadsheetEngineSession::open(
         representative_with_auto_filter()?,

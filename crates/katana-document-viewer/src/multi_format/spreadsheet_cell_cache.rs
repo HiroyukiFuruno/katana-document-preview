@@ -1,6 +1,11 @@
 use super::{OfficeWorkerError, SpreadsheetCellArtifact, SpreadsheetCoordinate};
 use std::collections::{HashMap, VecDeque};
 
+#[path = "spreadsheet_cell_cache_materialized.rs"]
+mod materialized;
+
+use materialized::SpreadsheetMaterializedResponse;
+
 const MAX_CACHED_CELLS: usize = 8_192;
 const MAX_CACHED_BYTES: usize = 4 * 1024 * 1024;
 type CacheKey = (usize, SpreadsheetCoordinate);
@@ -81,6 +86,47 @@ impl SpreadsheetCellCache {
             resolved.push(cell);
         }
         Ok(resolved)
+    }
+
+    pub(super) fn resolve_materialized(
+        &mut self,
+        sheet_index: usize,
+        coordinates: &[SpreadsheetCoordinate],
+        materialized: Vec<SpreadsheetCellArtifact>,
+    ) -> Result<Vec<SpreadsheetCellArtifact>, OfficeWorkerError> {
+        let cached = self.snapshot_requested_cells(sheet_index, coordinates);
+        let fresh = SpreadsheetMaterializedResponse::from_cells(coordinates, materialized)?;
+        self.cache_materialized_cells(sheet_index, coordinates, &fresh);
+        fresh.resolve(coordinates, &cached)
+    }
+
+    fn snapshot_requested_cells(
+        &mut self,
+        sheet_index: usize,
+        coordinates: &[SpreadsheetCoordinate],
+    ) -> HashMap<SpreadsheetCoordinate, SpreadsheetCellArtifact> {
+        let mut cached = HashMap::with_capacity(coordinates.len());
+        for coordinate in coordinates {
+            let key = (sheet_index, *coordinate);
+            if let Some((cell, _)) = self.cells.get(&key).cloned() {
+                self.touch(key);
+                cached.insert(*coordinate, cell);
+            }
+        }
+        cached
+    }
+
+    fn cache_materialized_cells(
+        &mut self,
+        sheet_index: usize,
+        coordinates: &[SpreadsheetCoordinate],
+        fresh: &SpreadsheetMaterializedResponse,
+    ) {
+        for coordinate in coordinates {
+            if let Some(cell) = fresh.cell(*coordinate) {
+                self.insert(sheet_index, cell.clone());
+            }
+        }
     }
 
     #[cfg(test)]

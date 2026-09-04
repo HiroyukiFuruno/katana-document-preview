@@ -79,3 +79,16 @@ fn handles_unquoted_and_malformed_style_attributes() {
         .highlight
     );
 }
+
+#[test]
+fn tag_name_prefixes_do_not_create_unrelated_text_decoration() {
+    let properties = HtmlStyleProperties::from_fragment(
+        "<strong>bold</strong><span>plain</span><section>section</section>",
+    );
+    assert!(properties.bold);
+    assert!(!properties.strikethrough);
+    assert!(!HtmlStyleProperties::from_fragment("<span>plain</span>").strikethrough);
+    assert!(!HtmlStyleProperties::from_fragment("<section>plain</section>").strikethrough);
+    assert!(!HtmlStyleProperties::from_fragment(r#"<span title="<s>">plain</span>"#).strikethrough);
+    assert!(HtmlStyleProperties::from_fragment("<s>struck</s>").strikethrough);
+}

@@ -15,6 +15,33 @@ pub(super) fn representative_with_auto_filter_and_blank() -> TestResult<Vec<u8>>
     inject_auto_filter_and_blank(&std::fs::read(fixture)?)
 }
 
+pub(super) fn representative_with_persisted_auto_filter() -> TestResult<Vec<u8>> {
+    representative_with_persisted_hidden_rows(&[5, 6, 7])
+}
+
+pub(super) fn representative_with_persisted_auto_filter_and_authored_hidden() -> TestResult<Vec<u8>>
+{
+    representative_with_persisted_hidden_rows(&[4, 5, 6, 7])
+}
+
+fn representative_with_persisted_hidden_rows(rows: &[usize]) -> TestResult<Vec<u8>> {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/fixtures/multi-format/representative.xlsx");
+    rewrite_worksheet(&std::fs::read(fixture)?, |content| {
+        let content = worksheet_with_filter(content)?;
+        let mut xml = String::from_utf8(content)?;
+        for row in rows {
+            let source = format!(r#"<row r="{row}""#);
+            let replacement = format!(r#"<row r="{row}" hidden="1""#);
+            if !xml.contains(&source) {
+                return Err(format!("worksheet row {row} is missing").into());
+            }
+            xml = xml.replacen(&source, &replacement, 1);
+        }
+        Ok(xml.into_bytes())
+    })
+}
+
 fn inject_auto_filter(bytes: &[u8]) -> TestResult<Vec<u8>> {
     rewrite_worksheet(bytes, worksheet_with_filter)
 }

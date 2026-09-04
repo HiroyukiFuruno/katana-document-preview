@@ -1,4 +1,5 @@
-use super::{SurfaceHtmlMarkup, SurfaceTextStyle};
+use super::SurfaceHtmlMarkup;
+use crate::export_surface_span::SurfaceTextStyle;
 use image::Rgba;
 
 #[test]
@@ -157,7 +158,8 @@ fn centered_html_spans_stops_on_unclosed_or_empty_link() {
 
     assert_eq!(unclosed.len(), 2);
     assert_eq!(unclosed[0].text, "before");
-    assert_eq!(unclosed[1].text, "before missing");
+    assert_eq!(unclosed[1].text, "missing");
+    assert_eq!(unclosed[1].link_target, Some("/x".to_string()));
     assert_eq!(empty.len(), 2);
     assert_eq!(empty[0].text, "before");
     assert_eq!(empty[1].text, "after");

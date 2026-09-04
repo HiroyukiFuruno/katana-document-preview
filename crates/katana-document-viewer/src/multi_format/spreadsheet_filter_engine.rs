@@ -4,16 +4,19 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_FILTER_VALUES: usize = 4_096;
 
+#[path = "spreadsheet_filter_engine_persisted.rs"]
+mod persisted;
+
 pub(super) type SpreadsheetActiveFilters = Vec<BTreeMap<usize, BTreeSet<String>>>;
+
+pub(super) fn persisted_filters(sheets: &[SpreadsheetSheetArtifact]) -> SpreadsheetActiveFilters {
+    persisted::SpreadsheetPersistedFilterEngine::persisted_filters(sheets)
+}
 
 pub(super) struct SpreadsheetFilterResult {
     pub(super) applied_columns: Vec<usize>,
     pub(super) visible_row_count: usize,
     pub(super) filtered_out_rows: Vec<usize>,
-}
-
-pub(super) fn empty_filters(sheet_count: usize) -> SpreadsheetActiveFilters {
-    vec![BTreeMap::new(); sheet_count]
 }
 
 pub(super) fn candidates(
@@ -29,16 +32,18 @@ pub(super) fn candidates(
             limit: MAX_FILTER_VALUES,
         });
     }
-    let cells = engine.materialize_filter_column(sheet_index, column, filter_rows(sheet))?;
     let mut values = BTreeSet::new();
     let mut truncated = false;
-    for cell in cells {
-        if values.len() == limit && !values.contains(&cell.display_text) {
-            truncated = true;
-            continue;
+    engine.visit_filter_grid(sheet_index, &[column], filter_rows(sheet), |_, cells| {
+        for cell in cells {
+            if values.len() == limit && !values.contains(&cell.display_text) {
+                truncated = true;
+                continue;
+            }
+            values.insert(cell.display_text);
         }
-        values.insert(cell.display_text);
-    }
+        Ok(())
+    })?;
     Ok((values.into_iter().collect(), truncated))
 }
 
@@ -80,7 +85,7 @@ pub(super) fn clear(
     evaluate(engine, active, sheet_index)
 }
 
-fn evaluate(
+pub(super) fn evaluate(
     engine: &SpreadsheetEngineSession,
     active: &SpreadsheetActiveFilters,
     sheet_index: usize,
@@ -96,8 +101,10 @@ fn evaluate(
     if !filters.is_empty() {
         let rows = filter_rows(sheet);
         let columns = filters.keys().copied().collect::<Vec<_>>();
-        let cells = engine.materialize_filter_grid(sheet_index, &columns, rows.clone())?;
-        filtered_out_rows = rejected_rows(rows, &columns, filters, cells);
+        engine.visit_filter_grid(sheet_index, &columns, rows, |chunk_rows, cells| {
+            filtered_out_rows.extend(rejected_rows(chunk_rows, &columns, filters, cells));
+            Ok(())
+        })?;
     }
     Ok(SpreadsheetFilterResult {
         applied_columns: filters.keys().copied().collect(),

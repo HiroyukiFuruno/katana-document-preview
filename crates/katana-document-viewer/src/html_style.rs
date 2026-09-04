@@ -21,12 +21,15 @@ impl HtmlStyleProperties {
     fn from_tag_names(fragment: &str) -> Self {
         let lower = fragment.to_ascii_lowercase();
         Self {
-            bold: lower.contains("<strong") || lower.contains("<b"),
-            italic: lower.contains("<em") || lower.contains("<i"),
-            underline: lower.contains("<u"),
-            strikethrough: lower.contains("<s") || lower.contains("<del"),
-            highlight: lower.contains("<mark"),
-            inline_code: lower.contains("<code"),
+            bold: tags::contains_opening_tag(&lower, "strong")
+                || tags::contains_opening_tag(&lower, "b"),
+            italic: tags::contains_opening_tag(&lower, "em")
+                || tags::contains_opening_tag(&lower, "i"),
+            underline: tags::contains_opening_tag(&lower, "u"),
+            strikethrough: tags::contains_opening_tag(&lower, "s")
+                || tags::contains_opening_tag(&lower, "del"),
+            highlight: tags::contains_opening_tag(&lower, "mark"),
+            inline_code: tags::contains_opening_tag(&lower, "code"),
             color_rgba: None,
         }
     }
@@ -167,6 +170,8 @@ fn named_color(value: &str) -> Option<[u8; 4]> {
     })
 }
 
+#[path = "html_style_tags.rs"]
+mod tags;
 #[cfg(test)]
 #[path = "html_style_tests.rs"]
 mod tests;

@@ -81,15 +81,16 @@ impl SpreadsheetViewerSession {
             super::debug_trace::DebugTrace::event("spreadsheet.cell_cache", "hit=true");
             return self.cell_cache.resolve(sheet_index, &coordinates);
         }
-        self.materialize_missing(sheet_index, missing)?;
-        self.cell_cache.resolve(sheet_index, &coordinates)
+        let materialized = self.materialize_missing(sheet_index, missing)?;
+        self.cell_cache
+            .resolve_materialized(sheet_index, &coordinates, materialized)
     }
 
     fn materialize_missing(
         &mut self,
         sheet_index: usize,
         missing: Vec<SpreadsheetCoordinate>,
-    ) -> Result<(), OfficeWorkerError> {
+    ) -> Result<Vec<SpreadsheetCellArtifact>, OfficeWorkerError> {
         super::debug_trace::DebugTrace::event(
             "spreadsheet.cell_cache",
             format_args!("hit=false missing={}", missing.len()),
@@ -101,10 +102,7 @@ impl SpreadsheetViewerSession {
             sheet_index,
             coordinates: missing,
         })?;
-        for cell in materialized_cells(request_id, self.worker.receive()?)? {
-            self.cell_cache.insert(sheet_index, cell);
-        }
-        Ok(())
+        materialized_cells(request_id, self.worker.receive()?)
     }
 }
 

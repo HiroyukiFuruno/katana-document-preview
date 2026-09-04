@@ -1,9 +1,8 @@
 use super::{
     SpreadsheetCellArtifact, SpreadsheetCoordinate, SpreadsheetSheetArtifact,
-    SpreadsheetViewerLimits,
-    spreadsheet_engine_cell::SpreadsheetCellMaterializer,
+    SpreadsheetViewerLimits, spreadsheet_engine_cell::SpreadsheetCellMaterializer,
     spreadsheet_engine_sheet::SpreadsheetSheetBuilder,
-    spreadsheet_filter_engine::{SpreadsheetActiveFilters, empty_filters},
+    spreadsheet_filter_engine::SpreadsheetActiveFilters,
     spreadsheet_filter_xml::SpreadsheetFilterCatalog,
     spreadsheet_streaming::StreamingSpreadsheetSession,
 };
@@ -61,12 +60,14 @@ impl SpreadsheetEngineSession {
         let mut sheets =
             SpreadsheetSheetBuilder::build(&model, limits.max_sheets, limits.max_logical_cells)?;
         SpreadsheetFilterCatalog::attach(&mut sheets, filters);
-        Ok(Self {
+        let mut session = Self {
             backend: SpreadsheetEngineBackend::Model(Box::new(model)),
-            active_filters: empty_filters(sheets.len()),
+            active_filters: Vec::new(),
             sheets,
             limits,
-        })
+        };
+        session.initialize_persisted_filters()?;
+        Ok(session)
     }
 
     fn open_streaming(
@@ -77,12 +78,14 @@ impl SpreadsheetEngineSession {
         let streaming = StreamingSpreadsheetSession::open(bytes, limits)?;
         let mut sheets = streaming.sheets().to_vec();
         SpreadsheetFilterCatalog::attach(&mut sheets, filters);
-        Ok(Self {
+        let mut session = Self {
             backend: SpreadsheetEngineBackend::Streaming(streaming),
-            active_filters: empty_filters(sheets.len()),
+            active_filters: Vec::new(),
             sheets,
             limits,
-        })
+        };
+        session.initialize_persisted_filters()?;
+        Ok(session)
     }
 
     pub(super) fn sheets(&self) -> &[SpreadsheetSheetArtifact] {
@@ -162,6 +165,12 @@ impl SpreadsheetEngineSession {
 #[path = "spreadsheet_engine_filter.rs"]
 mod filter;
 
+#[cfg(test)]
+#[path = "spreadsheet_engine_filter_error_tests.rs"]
+mod filter_error_tests;
+#[cfg(test)]
+#[path = "spreadsheet_engine_filter_persisted_tests.rs"]
+mod filter_persisted_tests;
 #[cfg(test)]
 #[path = "spreadsheet_engine_filter_tests.rs"]
 mod filter_tests;
