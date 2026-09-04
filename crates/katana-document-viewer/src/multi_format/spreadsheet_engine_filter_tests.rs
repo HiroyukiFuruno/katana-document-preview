@@ -9,6 +9,12 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[path = "spreadsheet_engine_filter_streaming_tests.rs"]
 mod streaming_tests;
 
+#[path = "spreadsheet_engine_filter_initialization_tests.rs"]
+mod initialization_tests;
+
+#[path = "spreadsheet_engine_filter_grid_tests.rs"]
+mod grid_tests;
+
 #[test]
 fn candidates_apply_and_clear_preserve_original_row_indices() -> TestResult {
     let mut engine = SpreadsheetEngineSession::open(
@@ -95,26 +101,6 @@ fn filter_evaluation_chunks_ranges_larger_than_materialization_limit() -> TestRe
     assert!(!truncated);
     let applied = engine.apply_filter(0, 0, vec!["West".to_owned()])?;
     assert_eq!(vec![3, 4, 5], applied.filtered_out_rows);
-    Ok(())
-}
-
-#[test]
-fn filter_grid_visits_one_bounded_materialization_chunk_at_a_time() -> TestResult {
-    let limits = SpreadsheetViewerLimits {
-        max_sheets: 256,
-        max_logical_cells: 25_000_000,
-        max_materialized_cells: 2,
-    };
-    let engine =
-        SpreadsheetEngineSession::open(representative_with_auto_filter()?, "filter.xlsx", limits)?;
-    let rows = crate::multi_format::spreadsheet_filter_engine::filter_rows(engine.sheet(0)?);
-    let mut largest_chunk = 0;
-    engine.visit_filter_grid(0, &[0, 1], rows, |chunk_rows, cells| {
-        largest_chunk = largest_chunk.max(cells.len());
-        assert_eq!(chunk_rows.len() * 2, cells.len());
-        Ok(())
-    })?;
-    assert_eq!(2, largest_chunk);
     Ok(())
 }
 

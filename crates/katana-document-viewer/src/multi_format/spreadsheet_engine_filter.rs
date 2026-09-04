@@ -3,6 +3,12 @@ use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use crate::multi_format::spreadsheet_filter_engine::SpreadsheetFilterResult;
 use crate::multi_format::{SpreadsheetCellArtifact, SpreadsheetCoordinate};
 
+type FilterGridVisitor<'a> = dyn FnMut(
+        std::ops::Range<usize>,
+        Vec<SpreadsheetCellArtifact>,
+    ) -> Result<(), SpreadsheetEngineError>
+    + 'a;
+
 impl SpreadsheetEngineSession {
     pub(super) fn initialize_persisted_filters(&mut self) -> Result<(), SpreadsheetEngineError> {
         let active =
@@ -82,10 +88,7 @@ impl SpreadsheetEngineSession {
         sheet_index: usize,
         columns: &[usize],
         rows: std::ops::Range<usize>,
-        mut visitor: impl FnMut(
-            std::ops::Range<usize>,
-            Vec<SpreadsheetCellArtifact>,
-        ) -> Result<(), SpreadsheetEngineError>,
+        visitor: &mut FilterGridVisitor<'_>,
     ) -> Result<(), SpreadsheetEngineError> {
         let chunk_rows = (self.limits.max_materialized_cells / columns.len().max(1)).max(1);
         if !rows.is_empty() {

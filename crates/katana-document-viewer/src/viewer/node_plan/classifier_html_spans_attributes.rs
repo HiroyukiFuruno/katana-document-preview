@@ -64,3 +64,18 @@ fn html_attribute_value_at(tag: &str, name_end: usize) -> Option<String> {
         .unwrap_or(value.len());
     Some(value[..end].trim_matches('/').to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{html_attribute_value, is_exact_anchor_tag};
+
+    #[test]
+    fn anchor_helper_rejects_non_anchor_prefixes() {
+        assert!(!is_exact_anchor_tag(" <span>"));
+    }
+
+    #[test]
+    fn attribute_helper_returns_none_after_scanning_without_a_match() {
+        assert_eq!(None, html_attribute_value(r#"<a class="button""#, "href"));
+    }
+}

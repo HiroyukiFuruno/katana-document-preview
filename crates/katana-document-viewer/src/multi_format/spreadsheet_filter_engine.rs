@@ -4,8 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_FILTER_VALUES: usize = 4_096;
 
+#[path = "spreadsheet_filter_engine_candidates.rs"]
+mod candidate_values;
 #[path = "spreadsheet_filter_engine_persisted.rs"]
 mod persisted;
+
+pub(super) use candidate_values::candidates;
 
 pub(super) type SpreadsheetActiveFilters = Vec<BTreeMap<usize, BTreeSet<String>>>;
 
@@ -17,34 +21,6 @@ pub(super) struct SpreadsheetFilterResult {
     pub(super) applied_columns: Vec<usize>,
     pub(super) visible_row_count: usize,
     pub(super) filtered_out_rows: Vec<usize>,
-}
-
-pub(super) fn candidates(
-    engine: &SpreadsheetEngineSession,
-    sheet_index: usize,
-    column: usize,
-    limit: usize,
-) -> Result<(Vec<String>, bool), SpreadsheetEngineError> {
-    let sheet = filter_sheet(engine, sheet_index, column)?;
-    if limit == 0 || limit > MAX_FILTER_VALUES {
-        return Err(SpreadsheetEngineError::FilterValueLimit {
-            actual: limit,
-            limit: MAX_FILTER_VALUES,
-        });
-    }
-    let mut values = BTreeSet::new();
-    let mut truncated = false;
-    engine.visit_filter_grid(sheet_index, &[column], filter_rows(sheet), |_, cells| {
-        for cell in cells {
-            if values.len() == limit && !values.contains(&cell.display_text) {
-                truncated = true;
-                continue;
-            }
-            values.insert(cell.display_text);
-        }
-        Ok(())
-    })?;
-    Ok((values.into_iter().collect(), truncated))
 }
 
 pub(super) fn apply(
@@ -101,10 +77,12 @@ pub(super) fn evaluate(
     if !filters.is_empty() {
         let rows = filter_rows(sheet);
         let columns = filters.keys().copied().collect::<Vec<_>>();
-        engine.visit_filter_grid(sheet_index, &columns, rows, |chunk_rows, cells| {
-            filtered_out_rows.extend(rejected_rows(chunk_rows, &columns, filters, cells));
-            Ok(())
-        })?;
+        let mut collect_rejected_rows =
+            |chunk_rows: std::ops::Range<usize>, cells: Vec<SpreadsheetCellArtifact>| {
+                filtered_out_rows.extend(rejected_rows(chunk_rows, &columns, filters, cells));
+                Ok(())
+            };
+        engine.visit_filter_grid(sheet_index, &columns, rows, &mut collect_rejected_rows)?;
     }
     Ok(SpreadsheetFilterResult {
         applied_columns: filters.keys().copied().collect(),

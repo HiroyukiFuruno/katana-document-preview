@@ -7,6 +7,12 @@ mod parse;
 #[path = "spreadsheet_streaming_filter_reader_source.rs"]
 mod source;
 
+type FilterGridVisitor<'a> = dyn FnMut(
+        std::ops::Range<usize>,
+        Vec<SpreadsheetCellArtifact>,
+    ) -> Result<(), SpreadsheetEngineError>
+    + 'a;
+
 impl StreamingSpreadsheetSession {
     pub(in crate::multi_format) fn visit_filter_grid(
         &self,
@@ -14,10 +20,7 @@ impl StreamingSpreadsheetSession {
         columns: &[usize],
         rows: std::ops::Range<usize>,
         chunk_rows: usize,
-        visitor: impl FnMut(
-            std::ops::Range<usize>,
-            Vec<SpreadsheetCellArtifact>,
-        ) -> Result<(), SpreadsheetEngineError>,
+        visitor: &mut FilterGridVisitor<'_>,
     ) -> Result<(), SpreadsheetEngineError> {
         #[cfg(test)]
         self.filter_grid_scans
@@ -37,37 +40,25 @@ impl StreamingSpreadsheetSession {
     }
 }
 
-fn visit_grid<Visitor>(
+fn visit_grid(
     session: &StreamingSpreadsheetSession,
     sheet_index: usize,
     columns: &[usize],
     rows: std::ops::Range<usize>,
     chunk_rows: usize,
-    visitor: Visitor,
-) -> Result<(), SpreadsheetEngineError>
-where
-    Visitor: FnMut(
-        std::ops::Range<usize>,
-        Vec<SpreadsheetCellArtifact>,
-    ) -> Result<(), SpreadsheetEngineError>,
-{
+    visitor: &mut FilterGridVisitor<'_>,
+) -> Result<(), SpreadsheetEngineError> {
     if rows.is_empty() || columns.is_empty() {
         return visit_empty_filter_grid(rows, chunk_rows, visitor);
     }
     source::read_grid(session, sheet_index, columns, rows, chunk_rows, visitor)
 }
 
-fn visit_empty_filter_grid<Visitor>(
+fn visit_empty_filter_grid(
     rows: std::ops::Range<usize>,
     chunk_rows: usize,
-    mut visitor: Visitor,
-) -> Result<(), SpreadsheetEngineError>
-where
-    Visitor: FnMut(
-        std::ops::Range<usize>,
-        Vec<SpreadsheetCellArtifact>,
-    ) -> Result<(), SpreadsheetEngineError>,
-{
+    visitor: &mut FilterGridVisitor<'_>,
+) -> Result<(), SpreadsheetEngineError> {
     for start in (rows.start..rows.end).step_by(chunk_rows) {
         let end = start.saturating_add(chunk_rows).min(rows.end);
         visitor(start..end, Vec::new())?;
@@ -75,12 +66,12 @@ where
     Ok(())
 }
 
-struct StreamingFilterGridReader<'a, Visitor> {
+struct StreamingFilterGridReader<'a, 'visitor> {
     columns: &'a [usize],
     rows: std::ops::Range<usize>,
     chunk_rows: usize,
     shared_strings: &'a [String],
-    visitor: Visitor,
+    visitor: &'visitor mut FilterGridVisitor<'visitor>,
     next_chunk_start: usize,
     chunk_cells: Vec<SpreadsheetCellArtifact>,
     current_row: usize,
@@ -88,19 +79,13 @@ struct StreamingFilterGridReader<'a, Visitor> {
     capture: Capture,
 }
 
-impl<'a, Visitor> StreamingFilterGridReader<'a, Visitor>
-where
-    Visitor: FnMut(
-        std::ops::Range<usize>,
-        Vec<SpreadsheetCellArtifact>,
-    ) -> Result<(), SpreadsheetEngineError>,
-{
+impl<'a, 'visitor> StreamingFilterGridReader<'a, 'visitor> {
     fn new(
         columns: &'a [usize],
         rows: std::ops::Range<usize>,
         chunk_rows: usize,
         shared_strings: &'a [String],
-        visitor: Visitor,
+        visitor: &'visitor mut FilterGridVisitor<'visitor>,
     ) -> Self {
         Self {
             columns,
@@ -117,11 +102,7 @@ where
     }
 
     fn finish(mut self) -> Result<(), SpreadsheetEngineError> {
-        self.flush_before(self.rows.end)?;
-        while self.next_chunk_start < self.rows.end {
-            self.emit_chunk()?;
-        }
-        Ok(())
+        self.flush_before(self.rows.end)
     }
 
     fn flush_before(&mut self, row: usize) -> Result<(), SpreadsheetEngineError> {

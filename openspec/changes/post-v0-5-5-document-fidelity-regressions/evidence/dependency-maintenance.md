@@ -1,10 +1,35 @@
 # Dependency maintenance
 
-## 2026-09-04 completion evidence before the release gates
+## 2026-09-04 completion evidence before the public release gates
 
-The KUC publication boundary is complete, but this evidence does not assert
-that KDV `just check`, coverage, PR, release, or KatanA acceptance is complete.
-Those remain explicitly open in `tasks.md` (5.3, 5.4, 5.5, and 6.7).
+The KUC publication boundary and the KDV local release preflight are complete.
+This evidence does not assert that the Draft PR review, three-OS CI, GitHub
+Release, crates.io artifact, fresh public consumer, or KatanA acceptance is
+complete. Those remain explicitly open in `tasks.md` (5.3, 5.4, 5.5, and 6.7).
+
+## 2026-09-04 v0.5.6 release-check監査
+
+- 実行日時: `2026-09-04T23:19:24+0900`。実行元は`release/v0.5.6`の候補作業ツリー
+  （基底commit `404b6e0aec0428cc6ded69b187d7368a3adb4108`へ、coverage回帰を追加した
+  未commit差分）である。commit/push後のPR最終HEADでは、KatanA候補reference更新を含めて
+  同じgateを再実行する。
+- 実行コマンド: `rtk proxy just VERSION=v0.5.6 release-check`。
+- 結果: exit `0`。release contract、`just check`、boundary、scorecard、
+  data-descriptor DOCX worker、Office profiling、V8 singleton、subagent harnessを通過した。
+- strict coverage: functions `3531/3531`、lines `29061/29061`（各`100%`）、
+  uncovered functions/lines `0`。
+- 隔離 package buildは`868 files`を検証し、`cargo publish --dry-run`は成功した。
+  `assert-crates-not-published.sh v0.5.6`は未公開を確認した。
+- このローカルpreflightは公開・下流採用の証明ではない。three-OS CI、Draft PRの
+  fresh-head review、GitHub Release、crates.io artifact、公開registryのみを使うconsumer、
+  KatanAのpackaged acceptanceはそれぞれ別の必須gateとして残る。
+
+### Historical failed attempt
+
+The earlier 2026-09-04 attempt at `404b6e0` failed strict coverage at
+functions `99.97%` and lines `99.90%`. It is superseded by the successful
+local preflight above; the added regressions keep the required thresholds at
+100% without lowering any gate.
 
 - KUC `0.3.5` is public at its tag, GitHub Release, and crates.io artifact.
   KDV resolves the exact registry package and has no path/git override.

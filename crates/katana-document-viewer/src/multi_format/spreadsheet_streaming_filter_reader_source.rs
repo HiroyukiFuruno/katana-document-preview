@@ -1,29 +1,23 @@
 use super::super::{StreamingSpreadsheetSession, zip_error};
-use super::StreamingFilterGridReader;
-use crate::multi_format::SpreadsheetCellArtifact;
+use super::{FilterGridVisitor, StreamingFilterGridReader};
 use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use std::io::{BufReader, Cursor};
 use zip::ZipArchive;
 
-pub(super) fn read_grid<Visitor>(
+pub(super) fn read_grid(
     session: &StreamingSpreadsheetSession,
     sheet_index: usize,
     columns: &[usize],
     rows: std::ops::Range<usize>,
     chunk_rows: usize,
-    visitor: Visitor,
-) -> Result<(), SpreadsheetEngineError>
-where
-    Visitor: FnMut(
-        std::ops::Range<usize>,
-        Vec<SpreadsheetCellArtifact>,
-    ) -> Result<(), SpreadsheetEngineError>,
-{
+    visitor: &mut FilterGridVisitor<'_>,
+) -> Result<(), SpreadsheetEngineError> {
     let path = filter_sheet_path(session, sheet_index)?;
     let mut archive = ZipArchive::new(Cursor::new(session.bytes.as_slice())).map_err(zip_error)?;
     let entry = archive.by_name(path).map_err(zip_error)?;
+    let mut reader = BufReader::new(entry);
     StreamingFilterGridReader::read(
-        BufReader::new(entry),
+        &mut reader,
         columns,
         rows,
         chunk_rows,

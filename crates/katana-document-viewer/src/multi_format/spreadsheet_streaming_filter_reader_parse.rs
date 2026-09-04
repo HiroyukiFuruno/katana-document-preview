@@ -1,4 +1,4 @@
-use super::StreamingFilterGridReader;
+use super::{FilterGridVisitor, StreamingFilterGridReader};
 use crate::multi_format::SpreadsheetCoordinate;
 use crate::multi_format::spreadsheet_engine::SpreadsheetEngineError;
 use crate::multi_format::spreadsheet_streaming_cell_types::{
@@ -10,27 +10,21 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 use std::io::BufRead;
 
-impl<'a, Visitor> StreamingFilterGridReader<'a, Visitor>
-where
-    Visitor: FnMut(
-        std::ops::Range<usize>,
-        Vec<crate::multi_format::SpreadsheetCellArtifact>,
-    ) -> Result<(), SpreadsheetEngineError>,
-{
+impl<'a, 'visitor> StreamingFilterGridReader<'a, 'visitor> {
     pub(super) fn read(
-        input: impl BufRead,
+        input: &mut dyn BufRead,
         columns: &'a [usize],
         rows: std::ops::Range<usize>,
         chunk_rows: usize,
         shared_strings: &'a [String],
-        visitor: Visitor,
+        visitor: &'visitor mut FilterGridVisitor<'visitor>,
     ) -> Result<(), SpreadsheetEngineError> {
         let mut state = Self::new(columns, rows, chunk_rows, shared_strings, visitor);
         let mut reader = Reader::from_reader(input);
         let mut buffer = Vec::new();
         loop {
             match reader.read_event_into(&mut buffer) {
-                Ok(Event::Start(event)) => state.start(&reader, &event)?,
+                Ok(Event::Start(event)) => state.start(&event)?,
                 Ok(Event::Text(text)) => state.text(text.as_ref().as_bytes())?,
                 Ok(Event::End(event)) => state.end(event.local_name().as_ref().as_bytes()),
                 Ok(Event::Eof) => return state.finish(),
@@ -41,13 +35,9 @@ where
         }
     }
 
-    fn start(
-        &mut self,
-        reader: &Reader<impl BufRead>,
-        event: &BytesStart<'_>,
-    ) -> Result<(), SpreadsheetEngineError> {
+    fn start(&mut self, event: &BytesStart<'_>) -> Result<(), SpreadsheetEngineError> {
         match event.local_name().as_ref() {
-            "row" => self.start_row(reader, event)?,
+            "row" => self.start_row(event)?,
             "c" => self.current = self.requested_cell(event)?,
             "f" if self.current.is_some() => self.capture = Capture::Formula,
             "v" if self.current.is_some() => self.capture = Capture::Value,
@@ -57,12 +47,8 @@ where
         Ok(())
     }
 
-    fn start_row(
-        &mut self,
-        reader: &Reader<impl BufRead>,
-        event: &BytesStart<'_>,
-    ) -> Result<(), SpreadsheetEngineError> {
-        let row = filter_row(reader, event)?.unwrap_or(self.current_row);
+    fn start_row(&mut self, event: &BytesStart<'_>) -> Result<(), SpreadsheetEngineError> {
+        let row = filter_row(event)?.unwrap_or(self.current_row);
         self.current_row = row.saturating_add(1);
         self.flush_before(row)
     }
@@ -143,20 +129,24 @@ fn filter_coordinate(reference: &str) -> Option<SpreadsheetCoordinate> {
     ))
 }
 
-fn filter_row(
-    _reader: &Reader<impl BufRead>,
-    event: &BytesStart<'_>,
-) -> Result<Option<usize>, SpreadsheetEngineError> {
+fn filter_row(event: &BytesStart<'_>) -> Result<Option<usize>, SpreadsheetEngineError> {
+    let mut one_based_row = None;
     for attribute in event.attributes() {
         let attribute = attribute.map_err(import_error)?;
         if attribute.key.local_name().as_ref() == "r" {
-            let row = attribute
-                .normalized_value(XmlVersion::Implicit1_0)
-                .map_err(import_error)?
-                .parse::<usize>()
-                .map_err(import_error)?;
-            return Ok(row.checked_sub(1));
+            one_based_row = Some(
+                attribute
+                    .normalized_value(XmlVersion::Implicit1_0)
+                    .map_err(import_error)?
+                    .parse::<usize>()
+                    .map_err(import_error)?,
+            );
+            break;
         }
     }
-    Ok(None)
+    Ok(one_based_row.and_then(|row| row.checked_sub(1)))
 }
+
+#[cfg(test)]
+#[path = "spreadsheet_streaming_filter_reader_parse_tests.rs"]
+mod tests;
