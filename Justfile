@@ -19,6 +19,7 @@ KAL := env_var_or_default("KAL", KAL_ROOT + "/bin/kal")
 STORYBOOK_TARGET_DIR := env_var_or_default("STORYBOOK_TARGET_DIR", REPO_ROOT + "/target")
 STORYBOOK_FRAMES := env_var_or_default("STORYBOOK_FRAMES", "0")
 KDV_FMT_PACKAGES := "--package kdv-linter --package katana-document-viewer --package kdv-storybook"
+# Release gates consume the exact crates.io artifact; legacy local KUC recipes remain opt-in.
 KUC_ROOT := env_var_or_default("KUC_ROOT", replace(REPO_ROOT, "/katana-document-viewer", "/katana-ui-core"))
 
 export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings")
@@ -570,6 +571,7 @@ release-contract-check:
     python3 scripts/release/verify-registry-consumer-link.py --self-test
     python3 scripts/feasibility/verify-multi-format-scorecard.py --require-approved
     {{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked -- --test-threads=1
+    {{RTK_CMD}}bash scripts/storybook-kuc-smoke.sh
 
 # Verify package metadata and dry-run the crates.io publish target.
 release-verify: release-contract-check check coverage

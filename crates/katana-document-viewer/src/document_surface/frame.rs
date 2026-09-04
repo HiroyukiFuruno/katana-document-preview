@@ -1,8 +1,6 @@
-use super::{DocumentGridCellBorders, DocumentGridSurfaceFrame, DocumentSurfaceError};
-use crate::{SpreadsheetCellBorderArtifact, SpreadsheetCoordinate};
+use super::{DocumentGridSurfaceFrame, DocumentSurfaceError};
 use katana_ui_core::render_model::{UiImageSurfaceProps, UiNode, UiNodeKind};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocumentSurfaceKind {
@@ -109,23 +107,6 @@ impl DocumentSurfaceFrame {
             item_labels,
             outline_items,
         };
-        self
-    }
-
-    pub(crate) fn with_grid_cell_borders(
-        mut self,
-        borders: &HashMap<SpreadsheetCoordinate, SpreadsheetCellBorderArtifact>,
-    ) -> Self {
-        let DocumentSurfaceContent::Grid(grid) = &mut self.content else {
-            return self;
-        };
-        for cell in &mut grid.cells {
-            let coordinate =
-                SpreadsheetCoordinate::new(cell.coordinate.row, cell.coordinate.column);
-            if let Some(border) = borders.get(&coordinate) {
-                cell.appearance.borders = DocumentGridCellBorders::from(border);
-            }
-        }
         self
     }
 }

@@ -53,12 +53,16 @@ fn storybook_score_visual_uses_katana_export_png_reference()
 
     assert!(
         report.score >= VISUAL_SCORE_THRESHOLD,
-        "storybook visual_score is {}/{}; average={} content={} dimension={} reference={}x{} candidate={}x{}",
+        "storybook visual_score is {}/{}; average={} content={} dimension={} row={} ref_to_candidate_row={} candidate_to_reference_row={} loss_bands={:?} reference={}x{} candidate={}x{}",
         report.score,
         VISUAL_SCORE_THRESHOLD,
         report.average_score,
         report.content_score,
         report.dimension_score,
+        report.row_score,
+        report.reference_to_candidate_row_score,
+        report.candidate_to_reference_row_score,
+        report.reference_row_loss_bands,
         reference.width,
         reference.height,
         candidate.width,

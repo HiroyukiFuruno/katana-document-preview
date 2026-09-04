@@ -1,7 +1,7 @@
 use super::{
     SpreadsheetGridSurface,
     appearance_tests::assert_materialized_appearance,
-    mapping::{font_size, ratio_basis_points, track_size},
+    mapping::{font_size, track_size},
     test_support::{sample_cell, sample_sheet},
 };
 use crate::{
@@ -145,8 +145,5 @@ fn empty_sheet_and_numeric_edge_cases_have_bounded_neutral_defaults() -> TestRes
     assert_eq!(0, font_size(f32::INFINITY));
     assert_eq!(0, font_size(0.0));
     assert_eq!(u16::MAX, font_size(f32::MAX));
-    assert_eq!(0, ratio_basis_points(f64::NAN));
-    assert_eq!(0, ratio_basis_points(-0.5));
-    assert_eq!(10_000, ratio_basis_points(1.5));
     Ok(())
 }

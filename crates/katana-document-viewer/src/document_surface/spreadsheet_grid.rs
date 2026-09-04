@@ -5,10 +5,7 @@ use super::{
     DocumentGridCommand, DocumentGridNavigation, DocumentSurfaceError, DocumentSurfaceFrame,
     DocumentViewport,
 };
-use crate::{
-    SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact, SpreadsheetCoordinate,
-    SpreadsheetSheetArtifact,
-};
+use crate::{SpreadsheetCellArtifact, SpreadsheetCoordinate, SpreadsheetSheetArtifact};
 use katana_ui_core::molecule::{
     GenericGrid, GridAction, GridCoordinate, GridEvent, GridNavigationIntent, GridViewport,
 };
@@ -16,7 +13,6 @@ use katana_ui_core::render_model::UiGridValidationError;
 use mapping::{
     cell_content, cell_span, row_track_provider, spreadsheet_coordinate, track_provider,
 };
-use std::collections::HashMap;
 
 const DEFAULT_ROW_SIZE: u32 = 20;
 const DEFAULT_COLUMN_SIZE: u32 = 80;
@@ -33,7 +29,6 @@ impl From<UiGridValidationError> for DocumentSurfaceError {
 pub struct SpreadsheetGridSurface {
     sheet_index: usize,
     grid: GenericGrid,
-    cell_borders: HashMap<SpreadsheetCoordinate, SpreadsheetCellBorderArtifact>,
 }
 
 impl SpreadsheetGridSurface {
@@ -64,7 +59,6 @@ impl SpreadsheetGridSurface {
         Ok(Self {
             sheet_index: sheet.index,
             grid,
-            cell_borders: HashMap::new(),
         })
     }
 
@@ -86,15 +80,10 @@ impl SpreadsheetGridSurface {
         &mut self,
         cells: Vec<SpreadsheetCellArtifact>,
     ) -> Result<(), DocumentSurfaceError> {
-        let cell_borders = cells
-            .iter()
-            .map(|cell| (cell.coordinate, cell.style.borders.clone()))
-            .collect();
         self.grid = self
             .grid
             .clone()
             .with_visible_cells(cells.into_iter().map(cell_content).collect())?;
-        self.cell_borders = cell_borders;
         Ok(())
     }
 
@@ -106,8 +95,7 @@ impl SpreadsheetGridSurface {
     }
 
     pub fn frame(&self) -> Result<DocumentSurfaceFrame, DocumentSurfaceError> {
-        Ok(DocumentSurfaceFrame::from_node(self.grid.clone().into())?
-            .with_grid_cell_borders(&self.cell_borders))
+        DocumentSurfaceFrame::from_node(self.grid.clone().into())
     }
 }
 
@@ -187,6 +175,9 @@ mod command_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_filter_tests.rs"]
 mod filter_tests;
+#[cfg(test)]
+#[path = "spreadsheet_grid_mapping_tests.rs"]
+mod mapping_tests;
 #[cfg(test)]
 #[path = "spreadsheet_grid_pointer_tests.rs"]
 mod pointer_tests;

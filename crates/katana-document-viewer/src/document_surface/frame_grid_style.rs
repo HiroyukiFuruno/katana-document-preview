@@ -1,41 +1,12 @@
+#[path = "frame_grid_borders.rs"]
+mod borders;
+
+pub use borders::{DocumentGridBorderSide, DocumentGridCellBorders};
+
 use katana_ui_core::render_model::{
     UiGridCellAppearance, UiGridDataBar, UiGridHorizontalAlignment, UiGridIcon, UiGridRating,
     UiGridVerticalAlignment,
 };
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct DocumentGridCellBorders {
-    pub left: Option<DocumentGridBorderSide>,
-    pub right: Option<DocumentGridBorderSide>,
-    pub top: Option<DocumentGridBorderSide>,
-    pub bottom: Option<DocumentGridBorderSide>,
-}
-
-impl From<&crate::SpreadsheetCellBorderArtifact> for DocumentGridCellBorders {
-    fn from(value: &crate::SpreadsheetCellBorderArtifact) -> Self {
-        Self {
-            left: value.left.as_ref().map(DocumentGridBorderSide::from),
-            right: value.right.as_ref().map(DocumentGridBorderSide::from),
-            top: value.top.as_ref().map(DocumentGridBorderSide::from),
-            bottom: value.bottom.as_ref().map(DocumentGridBorderSide::from),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DocumentGridBorderSide {
-    pub style: String,
-    pub color: Option<String>,
-}
-
-impl From<&crate::SpreadsheetBorderSideArtifact> for DocumentGridBorderSide {
-    fn from(value: &crate::SpreadsheetBorderSideArtifact) -> Self {
-        Self {
-            style: value.style.clone(),
-            color: value.color.clone(),
-        }
-    }
-}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DocumentGridCellAppearance {
@@ -73,7 +44,7 @@ impl From<&UiGridCellAppearance> for DocumentGridCellAppearance {
             data_bar: value.data_bar.as_ref().map(DocumentGridDataBar::from),
             icon: value.icon.as_ref().map(DocumentGridIcon::from),
             rating: value.rating.as_ref().map(DocumentGridRating::from),
-            borders: DocumentGridCellBorders::default(),
+            borders: DocumentGridCellBorders::from(&value.borders),
         }
     }
 }

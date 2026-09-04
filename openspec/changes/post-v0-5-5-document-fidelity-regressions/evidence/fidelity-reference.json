@@ -18,8 +18,8 @@
     "dpi": 72
   },
   "candidate_projection": {
-    "custom_cell_border_rendering": false,
-    "reason": "KDV v0.5.6 preserves per-cell border metadata in its public frame, but katana-ui-core 0.3.0 has no custom cell-border rendering field."
+    "custom_cell_border_rendering": true,
+    "reason": "KDV v0.5.6 maps per-cell border metadata into the public katana-ui-core 0.3.5 per-side border API and raster host."
   },
   "fixtures": {
     "docx": {
@@ -59,7 +59,7 @@
       "max_fill_difference_count": 0,
       "max_border_metadata_missing_count": 0,
       "max_border_difference_count": 0,
-      "max_border_visual_missing_count": 24,
+      "max_border_visual_missing_count": 0,
       "max_merged_cell_missing_count": 0,
       "max_pagination_missing_page_surface_count": 2,
       "max_row_track_mean_absolute_delta": 0.004,

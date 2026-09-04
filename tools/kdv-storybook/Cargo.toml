@@ -10,7 +10,6 @@ authors.workspace = true
 [dependencies]
 katana-document-viewer = { path = "../../crates/katana-document-viewer" }
 katana-ui-core.workspace = true
-katana-ui-core-storybook.workspace = true
 image.workspace = true
 minifb.workspace = true
 

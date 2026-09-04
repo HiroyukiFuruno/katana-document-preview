@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-30T04:31:45.641614+00:00",
+  "generated_at": "2026-09-03T23:00:35.024844+00:00",
   "reference_config": {
     "path": "openspec/changes/post-v0-5-5-document-fidelity-regressions/evidence/fidelity-reference.json",
-    "sha256": "4da9263c62a552e1db7fa540aefa2549241f5fb5eba3ded2adfc06747c0561fc"
+    "sha256": "23748332dd5511e08dbd7637004c7379533ff763408bb3834150a1c74cadffb6"
   },
   "source_renderer": {
     "command": "soffice",
@@ -19,7 +19,7 @@
       "path": "assets/fixtures/multi-format/representative.docx",
       "sha256": "ce8ec76f77935e63824331f783bbb73f086333c6b331dda5a6d01c1e5f69d0dc",
       "source_artifact": {
-        "pdf_sha256": "8e467a57882f6f514ca54a9a227427580db32effaed9ad6dd44a038a5c6eb42e",
+        "pdf_sha256": "545818d0906758d1cb1675928b21cea93ad4d4a825a9bf54cc73518883d75045",
         "pages": [
           {
             "name": "page-1.png",
@@ -101,7 +101,7 @@
       "path": "assets/fixtures/multi-format/representative.xlsx",
       "sha256": "82d645dd146f50b0f0ab0fc59448dad2a400d74e7210920950df89574d434f4e",
       "source_artifact": {
-        "pdf_sha256": "d75408e33db96b02a90da915f545a7bc874fe6786fd5406ab5fc1dcafaffa9fd",
+        "pdf_sha256": "14a27ef68d47601d6fc357a5c44f740e8181f7ce67273f3e1f9a24091496ebc3",
         "pages": [
           {
             "name": "page-1.png",
@@ -132,8 +132,8 @@
         "candidate_page_count": null,
         "pagination_missing_page_surface_count": 2,
         "candidate_api_exposes_borders": true,
-        "candidate_ui_renders_custom_cell_borders": false,
-        "border_visual_missing_count": 24,
+        "candidate_ui_renders_custom_cell_borders": true,
+        "border_visual_missing_count": 0,
         "missing_element_count": 0,
         "sheets": [
           {

@@ -1,9 +1,8 @@
 use super::{
-    DocumentGridSurfaceFrame, DocumentPageSurfaceFrame, DocumentSurfaceContent,
-    DocumentSurfaceFrame, DocumentSurfaceKind, PdfOutlineItem,
+    DocumentGridSurfaceFrame, DocumentSurfaceContent, DocumentSurfaceFrame, DocumentSurfaceKind,
+    PdfOutlineItem,
 };
-use crate::{DocumentGridViewport, SpreadsheetCellBorderArtifact, SpreadsheetCoordinate};
-use std::collections::HashMap;
+use crate::DocumentGridViewport;
 
 #[test]
 fn grid_frame_reports_grid_kind_at_runtime() {
@@ -35,27 +34,4 @@ fn grid_frame_reports_grid_kind_at_runtime() {
     );
     assert_eq!(["Sheet 1"], frame.item_labels());
     assert_eq!("Section", frame.outline_items()[0].title);
-}
-
-#[test]
-fn grid_borders_leave_page_surface_unchanged() {
-    let frame = DocumentSurfaceFrame {
-        content: DocumentSurfaceContent::Page(DocumentPageSurfaceFrame {
-            fingerprint: "page".to_owned(),
-            width: 1,
-            height: 1,
-            display_width_milli: 1,
-            display_height_milli: 1,
-            content_scale: 1,
-            accessibility_label: "page".to_owned(),
-            rgba: vec![0, 0, 0, 0],
-        }),
-        navigation: super::DocumentNavigationMetadata::default(),
-    };
-    let borders = HashMap::from([(
-        SpreadsheetCoordinate::new(0, 0),
-        SpreadsheetCellBorderArtifact::default(),
-    )]);
-
-    assert_eq!(frame.clone(), frame.with_grid_cell_borders(&borders));
 }

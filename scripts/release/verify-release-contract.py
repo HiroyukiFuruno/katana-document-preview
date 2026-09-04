@@ -55,8 +55,8 @@ LINUX_SANDBOX_DEPENDENCIES = {
     "seccompiler": "0.5.0",
     "skarn-sandbox": "1.0.1",
 }
-KUC_VERSION = "0.3.3"
-KUC_STORYBOOK_TAG = "v0.3.0"
+KUC_VERSION = "0.3.5"
+KUC_DECLARED_VERSION = f"={KUC_VERSION}"
 MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/artifact.rs",
     "crates/katana-document-viewer/src/multi_format/capability.rs",
@@ -161,7 +161,11 @@ def krr_lock_version_is_allowed(version: object) -> bool:
     if match is None:
         return False
     parsed = tuple(int(match.group(name)) for name in ("major", "minor", "patch"))
-    return parsed == KRR_MIN_VERSION
+    return (
+        parsed[0] == KRR_MIN_VERSION[0]
+        and parsed[1] == KRR_MIN_VERSION[1]
+        and parsed[2] >= KRR_MIN_VERSION[2]
+    )
 
 
 def lockfile_errors(lockfile: str) -> list[str]:
@@ -223,30 +227,30 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
             errors.append(f"Cargo.toml must pin {name} to ={version}.")
 
     kuc = dependencies.get("katana-ui-core")
-    kuc_storybook = dependencies.get("katana-ui-core-storybook")
-    expected_git = "https://github.com/HiroyukiFuruno/katana-ui-core.git"
-    for name, declared in (
-        ("katana-ui-core", kuc),
-        ("katana-ui-core-storybook", kuc_storybook),
+    if (
+        not isinstance(kuc, dict)
+        or dependency_version(kuc) != KUC_DECLARED_VERSION
+        or "raster-host" not in kuc.get("features", [])
     ):
-        if (
-            not isinstance(declared, dict)
-            or declared.get("git") != expected_git
-            or declared.get("tag") != KUC_STORYBOOK_TAG
-        ):
-            errors.append(
-                f"development-only {name} must resolve from private KUC Storybook tag "
-                f"{KUC_STORYBOOK_TAG}."
-            )
+        errors.append(
+            "workspace katana-ui-core must use the exact registry KUC "
+            f"{KUC_DECLARED_VERSION} raster-host API."
+        )
+    if "katana-ui-core-storybook" in dependencies:
+        errors.append(
+            "workspace must resolve KUC through one katana-ui-core registry dependency, "
+            "not a second Storybook alias."
+        )
 
     core_manifest = toml_loads(
         (root / "crates/katana-document-viewer/Cargo.toml").read_text(encoding="utf-8")
     )
     core_dependencies = core_manifest.get("dependencies", {})
     core_kuc = core_dependencies.get("katana-ui-core")
-    if dependency_version(core_kuc) != KUC_VERSION:
+    if dependency_version(core_kuc) != KUC_DECLARED_VERSION:
         errors.append(
-            f"KDV document surface must depend on crates.io katana-ui-core {KUC_VERSION}."
+            "KDV document surface must depend on the exact crates.io "
+            f"katana-ui-core {KUC_DECLARED_VERSION}."
         )
     elif isinstance(core_kuc, dict) and any(key in core_kuc for key in ("path", "git", "optional")):
         errors.append("KDV document surface KUC dependency must be required and registry-only.")
@@ -268,7 +272,6 @@ def multi_format_lockfile_errors(lockfile: str) -> list[str]:
     for name, version in {
         **selected_packages,
         **LINUX_SANDBOX_DEPENDENCIES,
-        "katana-ui-core": KUC_VERSION,
     }.items():
         registry_matches = [
             package
@@ -281,6 +284,26 @@ def multi_format_lockfile_errors(lockfile: str) -> list[str]:
         ]
         if not registry_matches:
             errors.append(f"Cargo.lock must contain crates.io {name} {version} with checksum.")
+    kuc_packages = [
+        package for package in packages if package.get("name") == "katana-ui-core"
+    ]
+    if len(kuc_packages) != 1:
+        errors.append("Cargo.lock must contain exactly one katana-ui-core package.")
+    else:
+        kuc = kuc_packages[0]
+        if (
+            kuc.get("version") != KUC_VERSION
+            or kuc.get("source") != REGISTRY_SOURCE
+            or not isinstance(kuc.get("checksum"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", kuc["checksum"])
+        ):
+            errors.append(
+                f"Cargo.lock must contain crates.io katana-ui-core {KUC_VERSION} with checksum."
+            )
+    if any(package.get("name") == "katana-ui-core-storybook" for package in packages):
+        errors.append(
+            "Cargo.lock must not contain a separate katana-ui-core-storybook package."
+        )
     forbidden = sorted(
         {
             package.get("name")
@@ -604,8 +627,7 @@ def self_test() -> None:
                 'libc = "=0.2.189"',
                 'seccompiler = "=0.5.0"',
                 'skarn-sandbox = "=1.0.1"',
-                f'katana-ui-core = {{ git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "{KUC_STORYBOOK_TAG}" }}',
-                f'katana-ui-core-storybook = {{ git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "{KUC_STORYBOOK_TAG}" }}',
+                f'katana-ui-core = {{ version = "{KUC_DECLARED_VERSION}", features = ["raster-host"] }}',
             )
         )
         (root / "Cargo.toml").write_text(
@@ -614,7 +636,7 @@ def self_test() -> None:
         )
         (root / "crates/katana-document-viewer/Cargo.toml").write_text(
             '[package]\nname = "test"\nversion = "0.0.0"\n'
-            f'[dependencies]\nkatana-ui-core = "{KUC_VERSION}"\n',
+            f'[dependencies]\nkatana-ui-core = "{KUC_DECLARED_VERSION}"\n',
             encoding="utf-8",
         )
         assert not multi_format_manifest_errors(root, "v0.5.2")
@@ -641,7 +663,8 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
     assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.18"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.20"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.20"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.99"'))
     assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)

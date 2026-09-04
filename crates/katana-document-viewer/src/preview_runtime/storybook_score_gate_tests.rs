@@ -461,26 +461,12 @@ fn release_scripts_do_not_depend_on_obsolete_preview_egui_package()
 }
 
 #[test]
-fn document_surface_boundary_resolves_cargo_dependency_when_sibling_repo_is_missing()
+fn document_surface_boundary_requires_the_registry_kuc_artifact()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
     let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
 
-    assert_contains_all(
-        "document-surface-boundary-check.sh",
-        &script,
-        &[
-            "resolve_cargo_package_root",
-            "metadata --locked --format-version 1",
-            "kuc_core_source_root",
-            "kuc_storybook_source_root",
-            "katana-ui-core-storybook",
-        ],
-    );
-    assert!(
-        !script.contains("KUC_ROOT is missing"),
-        "KUC boundary check must use cargo dependency source when the sibling KUC repo is absent"
-    );
+    assert_registry_kuc_artifact_contract(&script);
 
     Ok(())
 }
@@ -491,14 +477,50 @@ fn document_surface_boundary_checks_kuc_optional_backends_from_the_resolved_grap
     let root = workspace_root()?;
     let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
 
+    assert_kuc_optional_backend_contract(&script)?;
+
+    Ok(())
+}
+
+fn assert_registry_kuc_artifact_contract(script: &str) {
     assert_contains_all(
         "document-surface-boundary-check.sh",
-        &script,
+        script,
         &[
-            "resolve_cargo_package_tree katana-ui-core registry+",
+            "resolve_cargo_package_root",
+            "metadata --locked --format-version 1",
+            "kuc_core_source_root",
+            "registry+",
+            "0.3.5",
+            "KUC_ROOT overrides are forbidden",
+        ],
+    );
+    assert!(
+        !script.contains("KUC_ROOT is missing"),
+        "KUC boundary check must use cargo dependency source when the sibling KUC repo is absent"
+    );
+    assert!(
+        !script.contains("kuc_storybook_source_root")
+            && !script.contains("katana-ui-core-storybook --locked"),
+        "KUC boundary check must not depend on the obsolete Git Storybook package"
+    );
+    assert!(
+        script.contains("git|path") && script.contains("KUC_ROOT overrides are forbidden"),
+        "KUC boundary check must fail closed for Git/path and local-root overrides"
+    );
+}
+
+fn assert_kuc_optional_backend_contract(script: &str) -> Result<(), Box<dyn std::error::Error>> {
+    assert_contains_all(
+        "document-surface-boundary-check.sh",
+        script,
+        &[
+            "resolve_cargo_package_tree katana-ui-core registry+ 0.3.5",
             "kuc_tree=",
             "check_kuc_core_semantic_boundary \"katana-ui-core\"",
             "check_embedded_kuc_source_boundary",
+            "raster-host",
+            "pub mod raster_host;",
         ],
     );
     let semantic_boundary_start = script
@@ -511,6 +533,30 @@ fn document_surface_boundary_checks_kuc_optional_backends_from_the_resolved_grap
     assert!(
         !semantic_boundary.contains("$source_pattern"),
         "registry KUC optional backends must be checked from the resolved dependency graph, not dormant source modules"
+    );
+    Ok(())
+}
+
+#[test]
+fn storybook_kuc_smoke_uses_the_registry_resolved_storybook_consumer()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
+    let script = std::fs::read_to_string(root.join("scripts/storybook-kuc-smoke.sh"))?;
+
+    assert_contains_all(
+        "storybook-kuc-smoke.sh",
+        &script,
+        &[
+            "test -p kdv-storybook --locked document_viewer",
+            "test -p katana-document-viewer --locked --lib document_surface",
+            "test -p katana-document-viewer --locked asset_loader",
+            "test -p katana-document-viewer --locked direct_",
+        ],
+    );
+    assert!(
+        !script.contains("../katana-ui-core")
+            && !script.contains("katana-ui-core-storybook --locked"),
+        "storybook smoke must exercise the registry-resolved KDV consumer, not a sibling KUC checkout"
     );
 
     Ok(())
@@ -1017,8 +1063,8 @@ const RELEASE_DOD_REQUIRED_SNIPPETS: &[&str] = &[
     "Cargo.toml",
     "Cargo.lock",
     "KUC_CARGO_GIT_URL",
-    "KUC_CARGO_TAG",
-    "KUC_CARGO_LOCK_SOURCE",
+    "KUC_REGISTRY_VERSION",
+    "KUC_REGISTRY_SOURCE",
     "def kuc_cargo_dependency_errors",
     "def required_acceptance_source_root_file_paths",
     "root.rglob(\"*.rs\")",
@@ -1064,7 +1110,7 @@ const RELEASE_DOD_REQUIRED_SNIPPETS: &[&str] = &[
     "ls-files",
     "tools/kdv-storybook/src/document_viewer/media_control_icons.rs",
     "kuc cargo dependency:",
-    "KUC Cargo dependency scanner must reject stale Cargo.toml tag",
+    "KUC Cargo dependency scanner must reject stale Cargo.toml version",
     "KUC Cargo dependency scanner must reject sibling source include",
     "datetime.fromisoformat",
     "just storybook-release-acceptance-artifacts",
@@ -1162,7 +1208,8 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
             "node_factory_media_fixture.rs",
             "builder_media_height.rs",
             "builder_media_asset_height.rs",
-            "KUC_CARGO_LOCK_SOURCE",
+            "KUC_REGISTRY_SOURCE",
+            "KUC_REGISTRY_VERSION",
             "def kuc_cargo_dependency_errors",
         ],
     );
@@ -1171,10 +1218,11 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
     assert_contains_all(
         "KUC Cargo dependency is pinned through Cargo.toml",
         &cargo_toml,
-        &[
-            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
-            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
-        ],
+        &["katana-ui-core = { version = \"=0.3.5\", features = [\"raster-host\"] }"],
+    );
+    assert!(
+        !cargo_toml.contains("katana-ui-core-storybook"),
+        "KDV Storybook must share the one registry-resolved KUC dependency"
     );
 
     let cargo_lock = std::fs::read_to_string(root.join("Cargo.lock"))?;
@@ -1183,8 +1231,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         &cargo_lock,
         &[
             "name = \"katana-ui-core\"",
-            "name = \"katana-ui-core-storybook\"",
-            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382\"",
+            "source = \"registry+https://github.com/rust-lang/crates.io-index\"",
         ],
     );
 

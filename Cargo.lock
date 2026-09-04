@@ -2518,7 +2518,7 @@ dependencies = [
  "ironcalc",
  "katana-markdown-model",
  "katana-render-runtime",
- "katana-ui-core 0.3.3",
+ "katana-ui-core",
  "libc",
  "office2pdf-katana",
  "process_control",
@@ -2535,7 +2535,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tiny-skia 0.12.0",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
  "tracing",
  "v8",
  "xmltree",
@@ -2588,39 +2588,19 @@ dependencies = [
 
 [[package]]
 name = "katana-ui-core"
-version = "0.3.0"
-source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382"
-dependencies = [
- "serde",
- "serde_json",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "katana-ui-core"
-version = "0.3.3"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "716a03bf278a4a2096e10616f963396666f78f486b611f884549bd90b65d8799"
-dependencies = [
- "serde",
- "serde_json",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "katana-ui-core-storybook"
-version = "0.3.0"
-source = "git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382"
+checksum = "163f927e8ce47c3aa763f88662dcd8a81de3dba22d7c19438779606249201c25"
 dependencies = [
  "cosmic-text",
  "image",
- "katana-ui-core 0.3.0",
- "minifb",
- "resvg 0.47.0",
+ "resvg 0.48.1",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "tiny-skia 0.12.0",
  "unicode-segmentation",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2631,7 +2611,7 @@ dependencies = [
  "proc-macro2",
  "syn 3.0.4",
  "thiserror 2.0.20",
- "toml 1.1.4+spec-1.1.0",
+ "toml 1.1.5+spec-1.1.0",
 ]
 
 [[package]]
@@ -2641,8 +2621,7 @@ dependencies = [
  "image",
  "katana-document-viewer",
  "katana-markdown-model",
- "katana-ui-core 0.3.0",
- "katana-ui-core-storybook",
+ "katana-ui-core",
  "minifb",
 ]
 
@@ -4045,23 +4024,6 @@ dependencies = [
 
 [[package]]
 name = "resvg"
-version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9be183ad6a216aa96f33e4c8033b0988b8b3ea6fd2359d19af5bac4643fd8e81"
-dependencies = [
- "gif 0.14.2",
- "image-webp",
- "log",
- "pico-args",
- "rgb",
- "svgtypes 0.16.1",
- "tiny-skia 0.12.0",
- "usvg 0.47.0",
- "zune-jpeg 0.5.15",
-]
-
-[[package]]
-name = "resvg"
 version = "0.48.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67e3803f97b999e80cbf7c6ecdd07a8102204d92e1633cf48783720c521196bd"
@@ -5103,9 +5065,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.1.4+spec-1.1.0"
+version = "1.1.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aace63f4bbcdfc2c965b059de67119c89c4017a70d633be6c104910f67056f5"
+checksum = "12c0ba9680044b4ce98d391a62094047eada0d64860b80166c39f4a6b5640785"
 dependencies = [
  "indexmap",
  "serde_core",
@@ -5784,34 +5746,6 @@ dependencies = [
  "strict-num",
  "svgtypes 0.15.3",
  "tiny-skia-path 0.11.4",
- "unicode-bidi",
- "unicode-script",
- "unicode-vo",
- "xmlwriter",
-]
-
-[[package]]
-name = "usvg"
-version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d46cf96c5f498d36b7a9693bc6a7075c0bb9303189d61b2249b0dc3d309c07de"
-dependencies = [
- "base64 0.22.1",
- "data-url",
- "flate2",
- "fontdb 0.23.0",
- "imagesize 0.14.0",
- "kurbo 0.13.1",
- "log",
- "pico-args",
- "roxmltree 0.21.1",
- "rustybuzz",
- "simplecss",
- "siphasher",
- "strict-num",
- "svgtypes 0.16.1",
- "tiny-skia-path 0.12.0",
- "ttf-parser",
  "unicode-bidi",
  "unicode-script",
  "unicode-vo",

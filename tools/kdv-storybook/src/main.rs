@@ -1,3 +1,7 @@
+// 公開KUCのraster hostを唯一のStorybook描画境界として再公開する。
+extern crate self as katana_ui_core_storybook;
+pub use katana_ui_core::raster_host::*;
+
 mod args;
 mod canvas;
 mod catalog;
