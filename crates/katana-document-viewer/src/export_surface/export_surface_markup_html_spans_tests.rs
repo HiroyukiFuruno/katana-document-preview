@@ -132,6 +132,23 @@ fn html_spans_preserve_br_boundaries() {
 }
 
 #[test]
+fn html_spans_preserve_boundaries_between_adjacent_blocks() {
+    let spans =
+        SurfaceHtmlMarkup::html_spans("<p><strong>one</strong></p><p><strong>two</strong></p>");
+
+    assert_eq!(
+        "one two",
+        spans
+            .iter()
+            .map(|span| span.text.as_str())
+            .collect::<String>()
+    );
+    assert!(spans[0].style.bold);
+    assert_eq!(SurfaceTextStyle::default(), spans[1].style);
+    assert!(spans[2].style.bold);
+}
+
+#[test]
 fn html_attribute_values_handle_non_elements_boolean_and_unquoted_forms() {
     assert_eq!(None, super::attributes::attribute_value("</a>", "href"));
     assert_eq!(

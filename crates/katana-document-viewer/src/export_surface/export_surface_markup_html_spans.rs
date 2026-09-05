@@ -4,47 +4,95 @@ use super::html_tag_end;
 use super::spans_output::{
     HtmlSpanContext, push_line_break, push_text, trim_final_boundary_whitespace,
 };
-use crate::export_surface_span::SurfaceTextSpan;
+use crate::export_surface_span::{SurfaceTextSpan, SurfaceTextStyle};
+use crate::html_style::HtmlStyle;
 
 pub(super) fn html_spans(fragment: &str) -> Vec<SurfaceTextSpan> {
-    let mut spans = Vec::new();
-    let mut contexts = vec![HtmlSpanContext::root()];
-    let mut cursor = 0;
-    while let Some(relative_start) = fragment[cursor..].find('<') {
-        let start = cursor + relative_start;
-        push_text(&mut spans, &contexts, &fragment[cursor..start]);
-        let tag_source = &fragment[start..];
-        let Some(end) = html_tag_end(tag_source) else {
-            push_text(&mut spans, &contexts, tag_source);
-            trim_final_boundary_whitespace(&mut spans);
-            return spans;
-        };
-        let tag = &tag_source[..=end];
-        if let Some(parsed) = HtmlTag::parse(tag) {
-            apply_html_tag(&mut spans, &mut contexts, tag, parsed);
-        }
-        cursor = start + end + 1;
-    }
-    push_text(&mut spans, &contexts, &fragment[cursor..]);
-    trim_final_boundary_whitespace(&mut spans);
-    spans
+    let mut builder = HtmlSpanBuilder::new();
+    builder.consume(fragment);
+    builder.into_spans()
 }
 
-fn apply_html_tag(
-    spans: &mut Vec<SurfaceTextSpan>,
-    contexts: &mut Vec<HtmlSpanContext>,
-    tag: &str,
-    parsed: HtmlTag,
-) {
-    if parsed.closing {
-        close_context(contexts, &parsed.name);
-        return;
+struct HtmlSpanBuilder {
+    spans: Vec<SurfaceTextSpan>,
+    contexts: Vec<HtmlSpanContext>,
+    block_boundary_pending: bool,
+}
+
+impl HtmlSpanBuilder {
+    fn new() -> Self {
+        Self {
+            spans: Vec::new(),
+            contexts: vec![HtmlSpanContext::root()],
+            block_boundary_pending: false,
+        }
     }
-    if parsed.name == "br" {
-        push_line_break(spans, contexts);
-        return;
+
+    fn consume(&mut self, fragment: &str) {
+        let mut cursor = 0;
+        while let Some(relative_start) = fragment[cursor..].find('<') {
+            let start = cursor + relative_start;
+            self.push_fragment(&fragment[cursor..start]);
+            let tag_source = &fragment[start..];
+            let Some(end) = html_tag_end(tag_source) else {
+                self.push_fragment(tag_source);
+                return;
+            };
+            let tag = &tag_source[..=end];
+            if let Some(parsed) = HtmlTag::parse(tag) {
+                self.apply_tag(tag, parsed);
+            }
+            cursor = start + end + 1;
+        }
+        self.push_fragment(&fragment[cursor..]);
     }
-    open_context(contexts, tag, parsed);
+
+    fn push_fragment(&mut self, fragment: &str) {
+        if self.block_boundary_pending && !fragment.is_empty() {
+            if !fragment.chars().next().is_some_and(char::is_whitespace) {
+                self.spans
+                    .push(SurfaceTextSpan::styled(" ", SurfaceTextStyle::default()));
+            }
+            self.block_boundary_pending = false;
+        }
+        push_text(&mut self.spans, &self.contexts, fragment);
+    }
+
+    fn apply_tag(&mut self, tag: &str, parsed: HtmlTag) {
+        if parsed.closing {
+            close_context(&mut self.contexts, &parsed.name);
+            self.queue_block_boundary(&parsed.name);
+            return;
+        }
+        if parsed.name == "br" {
+            push_line_break(&mut self.spans, &self.contexts);
+            self.block_boundary_pending = false;
+            return;
+        }
+        self.queue_block_boundary(&parsed.name);
+        open_context(&mut self.contexts, tag, parsed);
+    }
+
+    fn queue_block_boundary(&mut self, name: &str) {
+        if HtmlStyle::is_block_element(name)
+            && !self.spans.is_empty()
+            && !spans_end_with_whitespace(&self.spans)
+        {
+            self.block_boundary_pending = true;
+        }
+    }
+
+    fn into_spans(mut self) -> Vec<SurfaceTextSpan> {
+        trim_final_boundary_whitespace(&mut self.spans);
+        self.spans
+    }
+}
+
+fn spans_end_with_whitespace(spans: &[SurfaceTextSpan]) -> bool {
+    spans
+        .last()
+        .and_then(|span| span.text.chars().next_back())
+        .is_some_and(char::is_whitespace)
 }
 
 fn open_context(contexts: &mut Vec<HtmlSpanContext>, tag: &str, parsed: HtmlTag) {

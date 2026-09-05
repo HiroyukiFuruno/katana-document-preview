@@ -1,4 +1,61 @@
-use super::HtmlStyleProperties;
+use super::{HtmlStyle, HtmlStyleProperties};
+
+const BLOCK_ELEMENT_NAMES: &[&str] = &[
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "caption",
+    "colgroup",
+    "dd",
+    "details",
+    "dialog",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "li",
+    "main",
+    "menu",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "search",
+    "section",
+    "summary",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+];
+
+#[test]
+fn recognizes_every_supported_html_block_element() {
+    assert!(
+        BLOCK_ELEMENT_NAMES
+            .iter()
+            .all(|name| HtmlStyle::is_block_element(name))
+    );
+    assert!(!HtmlStyle::is_block_element("span"));
+}
 
 #[test]
 fn parses_tag_styles_and_all_supported_declaration_effects() {

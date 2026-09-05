@@ -25,6 +25,18 @@ fn image_source_encodes_a_direct_local_image_reference() -> Result<(), PreviewEr
     Ok(())
 }
 
+#[test]
+fn image_source_resolves_a_relative_direct_image_reference_from_the_document_directory()
+-> Result<(), PreviewError> {
+    let prepared = normalize(&source("assets/photo.png", "/tmp/kdv-preview/document.png"))?;
+
+    assert_eq!(
+        "![document.png](file:///tmp/kdv-preview/assets/photo.png)",
+        prepared.content
+    );
+    Ok(())
+}
+
 fn normalize(source: &MarkdownSource) -> Result<PreparedPreviewSource, PreviewError> {
     PreviewSourceNormalizer::normalize(source)
 }

@@ -23,6 +23,57 @@ pub(super) fn contains_opening_tag(fragment: &str, tag: &str) -> bool {
     false
 }
 
+const BLOCK_ELEMENT_NAMES: &[&str] = &[
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "caption",
+    "colgroup",
+    "dd",
+    "details",
+    "dialog",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "li",
+    "main",
+    "menu",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "search",
+    "section",
+    "summary",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+];
+
+pub(super) fn is_block_element(name: &str) -> bool {
+    BLOCK_ELEMENT_NAMES.contains(&name)
+}
+
 fn tag_boundary(remaining: &str) -> bool {
     remaining.chars().next().is_none_or(|character| {
         character == '>' || character == '/' || character.is_ascii_whitespace()

@@ -13,6 +13,14 @@ pub(crate) struct HtmlStyleProperties {
     pub(crate) strikethrough_override: Option<bool>,
 }
 
+pub(crate) struct HtmlStyle;
+
+impl HtmlStyle {
+    pub(crate) fn is_block_element(name: &str) -> bool {
+        tags::is_block_element(name)
+    }
+}
+
 impl HtmlStyleProperties {
     pub(crate) fn from_fragment(fragment: &str) -> Self {
         let mut properties = Self::from_tag_names(fragment);

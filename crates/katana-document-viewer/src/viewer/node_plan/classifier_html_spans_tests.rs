@@ -6,6 +6,9 @@ use katana_markdown_model::{HtmlBlockRole, InlineHtmlNode, KmmNodeKind};
 #[path = "classifier_html_spans_void_tests.rs"]
 mod void_tests;
 
+#[path = "classifier_html_spans_block_boundary_tests.rs"]
+mod block_boundary_tests;
+
 #[test]
 fn html_block_spans_falls_back_to_plain_text_without_links() {
     let spans = node_spans_from_html("<p>Hello</p>");
