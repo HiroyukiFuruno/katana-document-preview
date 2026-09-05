@@ -53,6 +53,9 @@ REQUIRED_STAGES = {
 
 WINDOWS_SPREADSHEET_SPAWN = "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn.rs"
 WINDOWS_SPREADSHEET_PROCESS = "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs"
+WINDOWS_SPREADSHEET_STDERR = (
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows_stderr.rs"
+)
 WINDOWS_OFFICE_PROCESS = "crates/katana-document-viewer/src/multi_format/office_worker_process_windows.rs"
 
 
@@ -93,11 +96,30 @@ def windows_contract_errors(root: Path) -> list[str]:
             "stdio: StdioConfig::Pipe",
             "child.stderr.take()",
             "spawn_stderr_reader(stderr, debug_enabled)",
+        )
+        if any(marker not in source for marker in required):
+            errors.append("Windows spreadsheet DEBUG trace does not preserve worker stderr spawn")
+    else:
+        errors.append("Windows spreadsheet stderr spawn source is missing")
+    spreadsheet_stderr = root / WINDOWS_SPREADSHEET_STDERR
+    if spreadsheet_stderr.is_file():
+        source = spreadsheet_stderr.read_text(encoding="utf-8")
+        required = (
+            "forward_debug_stderr(&mut source)",
+            "forward_stderr_chunks(source, |chunk| {",
             "std::io::stderr().lock()",
             "std::io::sink()",
         )
         if any(marker not in source for marker in required):
             errors.append("Windows spreadsheet DEBUG trace does not drain and forward worker stderr")
+        long_lived_lock = (
+            "let mut parent_stderr = std::io::stderr().lock();\n"
+            "        forward_stderr(&mut source, &mut parent_stderr);"
+        )
+        if long_lived_lock in source:
+            errors.append("Windows spreadsheet DEBUG stderr relay retains the parent lock until EOF")
+    else:
+        errors.append("Windows spreadsheet stderr relay source is missing")
     office = root / WINDOWS_OFFICE_PROCESS
     if office.is_file():
         source = office.read_text(encoding="utf-8")
@@ -130,7 +152,12 @@ def self_test() -> None:
             "env: Some(worker_environment_with_trace(workspace, debug_enabled)),\n"
             "stdio: StdioConfig::Pipe\n"
             "child.stderr.take()\n"
-            "spawn_stderr_reader(stderr, debug_enabled)\n"
+            "spawn_stderr_reader(stderr, debug_enabled)",
+            encoding="utf-8",
+        )
+        (root / WINDOWS_SPREADSHEET_STDERR).write_text(
+            "forward_debug_stderr(&mut source)\n"
+            "forward_stderr_chunks(source, |chunk| {\n"
             "std::io::stderr().lock()\n"
             "std::io::sink()",
             encoding="utf-8",
@@ -144,6 +171,18 @@ def self_test() -> None:
             encoding="utf-8",
         )
         assert stage_errors(root) == []
+        (root / WINDOWS_SPREADSHEET_STDERR).write_text(
+            "forward_debug_stderr(&mut source)\n"
+            "forward_stderr_chunks(source, |chunk| {\n"
+            "std::io::stderr().lock()\n"
+            "std::io::sink()\n"
+            "let mut parent_stderr = std::io::stderr().lock();\n"
+            "        forward_stderr(&mut source, &mut parent_stderr);",
+            encoding="utf-8",
+        )
+        assert any(
+            "retains the parent lock until EOF" in error for error in stage_errors(root)
+        )
         missing_path = root / next(iter(REQUIRED_STAGES))
         missing_path.write_text("", encoding="utf-8")
         assert stage_errors(root)

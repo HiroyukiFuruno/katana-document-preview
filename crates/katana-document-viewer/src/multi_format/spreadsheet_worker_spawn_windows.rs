@@ -4,6 +4,7 @@ use super::spreadsheet_worker_protocol::SPREADSHEET_MODE;
 use super::spreadsheet_worker_spawn::{
     SpawnedSpreadsheetProcess, cpu_seconds, stdin_unavailable, stdout_unavailable,
 };
+use super::spreadsheet_worker_spawn_windows_stderr::{spawn_stderr_reader, stderr_unavailable};
 use super::windows_command_line::WindowsCommandLine;
 use super::windows_worker_executable::stage_windows_worker;
 use super::windows_worker_profile::{app_container_profile, launch_error, worker_environment};
@@ -120,30 +121,6 @@ fn worker_environment_with_trace(
     environment
 }
 
-fn spawn_stderr_reader(stderr: std::fs::File, debug_enabled: bool) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || drain_stderr(stderr, debug_enabled))
-}
-
-fn stderr_unavailable() -> OfficeWorkerError {
-    OfficeWorkerError::protocol("spreadsheet worker stderr is unavailable".to_owned())
-}
-
-fn drain_stderr(stderr: std::fs::File, debug_enabled: bool) {
-    let mut source = std::io::BufReader::new(stderr);
-    if debug_enabled {
-        let mut parent_stderr = std::io::stderr().lock();
-        forward_stderr(&mut source, &mut parent_stderr);
-    } else {
-        let mut sink = std::io::sink();
-        forward_stderr(&mut source, &mut sink);
-    }
-}
-
-fn forward_stderr(source: &mut impl std::io::Read, target: &mut impl std::io::Write) {
-    // stderr は診断専用なので、転送失敗で worker protocol を壊さない。
-    let _ = std::io::copy(source, target);
-}
-
 fn spreadsheet_command_line(
     workspace: &Path,
     staged_executable: &Path,
@@ -160,31 +137,4 @@ fn spreadsheet_command_line(
         limits.max_logical_cells.to_string(),
         limits.max_materialized_cells.to_string(),
     ])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{forward_stderr, stderr_unavailable};
-    use crate::multi_format::OfficeWorkerError;
-
-    #[test]
-    fn stderr_forwarding_preserves_trace_lines() {
-        let mut source = &b"spreadsheet.runtime_init elapsed_ms=4\n"[..];
-        let mut output = Vec::new();
-
-        forward_stderr(&mut source, &mut output);
-
-        assert_eq!(
-            b"spreadsheet.runtime_init elapsed_ms=4\n",
-            output.as_slice()
-        );
-    }
-
-    #[test]
-    fn unavailable_stderr_is_a_typed_protocol_error() {
-        assert!(matches!(
-            stderr_unavailable(),
-            OfficeWorkerError::Protocol { .. }
-        ));
-    }
 }

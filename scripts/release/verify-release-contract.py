@@ -72,6 +72,7 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_entrypoint.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows_stderr.rs",
     "crates/katana-document-viewer/src/multi_format/windows_worker_executable.rs",
     "crates/katana-document-viewer/src/document_surface/mod.rs",
     "crates/katana-document-viewer/src/document_surface/frame.rs",

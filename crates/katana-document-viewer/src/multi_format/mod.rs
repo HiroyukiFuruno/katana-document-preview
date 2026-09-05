@@ -77,6 +77,8 @@ mod spreadsheet_worker_spawn;
 #[cfg(windows)]
 mod spreadsheet_worker_spawn_windows;
 #[cfg(any(windows, test))]
+mod spreadsheet_worker_spawn_windows_stderr;
+#[cfg(any(windows, test))]
 mod windows_command_line;
 #[cfg(any(windows, test))]
 mod windows_worker_executable;

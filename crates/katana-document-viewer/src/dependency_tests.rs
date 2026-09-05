@@ -86,11 +86,14 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     let office = fs::read_to_string(format!("{source_root}/office_worker_process_windows.rs"))?;
     let spreadsheet =
         fs::read_to_string(format!("{source_root}/spreadsheet_worker_spawn_windows.rs"))?;
+    let spreadsheet_stderr = fs::read_to_string(format!(
+        "{source_root}/spreadsheet_worker_spawn_windows_stderr.rs"
+    ))?;
     let workspace = fs::read_to_string(format!("{source_root}/office_worker_workspace.rs"))?;
     let profile = fs::read_to_string(format!("{source_root}/windows_worker_profile.rs"))?;
 
     assert_windows_worker_launch_contract(&staging, &office, &spreadsheet, &workspace, &profile);
-    assert_windows_spreadsheet_stdio_contract(&spreadsheet);
+    assert_windows_spreadsheet_stdio_contract(&spreadsheet, &spreadsheet_stderr);
     Ok(())
 }
 
@@ -117,19 +120,34 @@ fn assert_windows_worker_launch_contract(
     assert!(!spreadsheet.contains("std::process::Command"));
 }
 
-fn assert_windows_spreadsheet_stdio_contract(spreadsheet: &str) {
+fn assert_windows_spreadsheet_stdio_contract(spreadsheet: &str, stderr: &str) {
     for marker in [
         "stdio: StdioConfig::Pipe",
         "child.stderr.take()",
         "spawn_stderr_reader(stderr, debug_enabled)",
+    ] {
+        assert!(
+            spreadsheet.contains(marker),
+            "Windows spreadsheet worker must preserve stderr spawn contract: {marker}"
+        );
+    }
+    for marker in [
+        "forward_debug_stderr(&mut source)",
+        "forward_stderr_chunks(source, |chunk| {",
         "std::io::stderr().lock()",
         "std::io::sink()",
     ] {
         assert!(
-            spreadsheet.contains(marker),
+            stderr.contains(marker),
             "Windows spreadsheet worker must preserve stderr drain contract: {marker}"
         );
     }
+    assert!(
+        !stderr.contains(
+            "let mut parent_stderr = std::io::stderr().lock();\n        forward_stderr(&mut source, &mut parent_stderr);"
+        ),
+        "Windows DEBUG stderr relay must not retain the parent stderr lock until worker EOF"
+    );
 }
 
 fn assert_windows_worker_profile_contract(profile: &str) {
