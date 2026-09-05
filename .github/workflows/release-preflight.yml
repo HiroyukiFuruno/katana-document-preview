@@ -89,3 +89,11 @@ jobs:
         run: |
           xvfb-run -a just storybook-release-acceptance-artifacts
           xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check
+
+      - name: Upload Storybook preview-crop diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-preview-crop-diagnostics
+          path: target/acceptance/preview-crop-reference
+          if-no-files-found: warn

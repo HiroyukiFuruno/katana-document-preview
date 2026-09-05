@@ -12,6 +12,8 @@ pub(crate) struct SpawnedSpreadsheetProcess {
     pub(crate) process_id: u32,
     pub(crate) input: Box<dyn Write + Send>,
     pub(crate) output: Box<dyn Read + Send>,
+    #[cfg(windows)]
+    pub(crate) stderr_reader: Option<std::thread::JoinHandle<()>>,
     pub(crate) owner: SpreadsheetProcessOwner,
     #[cfg(all(coverage, not(windows)))]
     pub(crate) coverage_profile: Option<super::coverage_profile::ChildCoverageProfile>,

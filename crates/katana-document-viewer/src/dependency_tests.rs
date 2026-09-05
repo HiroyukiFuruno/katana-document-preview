@@ -89,11 +89,23 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     let workspace = fs::read_to_string(format!("{source_root}/office_worker_workspace.rs"))?;
     let profile = fs::read_to_string(format!("{source_root}/windows_worker_profile.rs"))?;
 
+    assert_windows_worker_launch_contract(&staging, &office, &spreadsheet, &workspace, &profile);
+    assert_windows_spreadsheet_stdio_contract(&spreadsheet);
+    Ok(())
+}
+
+fn assert_windows_worker_launch_contract(
+    staging: &str,
+    office: &str,
+    spreadsheet: &str,
+    workspace: &str,
+    profile: &str,
+) {
     assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
     assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
     assert!(workspace.contains("windows_worker_profile::workspace_root(config)?"));
     assert!(workspace.contains("tempdir_in(root)"));
-    assert_windows_worker_profile_contract(&profile);
+    assert_windows_worker_profile_contract(profile);
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));
@@ -103,7 +115,21 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     }
     assert!(!office.contains("std::process::Command"));
     assert!(!spreadsheet.contains("std::process::Command"));
-    Ok(())
+}
+
+fn assert_windows_spreadsheet_stdio_contract(spreadsheet: &str) {
+    for marker in [
+        "stdio: StdioConfig::Pipe",
+        "child.stderr.take()",
+        "spawn_stderr_reader(stderr, debug_enabled)",
+        "std::io::stderr().lock()",
+        "std::io::sink()",
+    ] {
+        assert!(
+            spreadsheet.contains(marker),
+            "Windows spreadsheet worker must preserve stderr drain contract: {marker}"
+        );
+    }
 }
 
 fn assert_windows_worker_profile_contract(profile: &str) {

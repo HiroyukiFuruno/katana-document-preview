@@ -52,6 +52,7 @@ REQUIRED_STAGES = {
 }
 
 WINDOWS_SPREADSHEET_SPAWN = "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn.rs"
+WINDOWS_SPREADSHEET_PROCESS = "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs"
 WINDOWS_OFFICE_PROCESS = "crates/katana-document-viewer/src/multi_format/office_worker_process_windows.rs"
 
 
@@ -75,7 +76,7 @@ def windows_contract_errors(root: Path) -> list[str]:
     spreadsheet = root / WINDOWS_SPREADSHEET_SPAWN
     if spreadsheet.is_file():
         source = spreadsheet.read_text(encoding="utf-8")
-        windows_start = source.find("#[cfg(windows)]")
+        windows_start = source.find("#[cfg(windows)]\n    pub(crate) fn spawn")
         non_windows_start = source.find("#[cfg(not(windows))]", windows_start)
         stage = 'DebugTrace::start("spreadsheet.worker_spawn")'
         stage_index = source.find(stage, windows_start)
@@ -83,6 +84,20 @@ def windows_contract_errors(root: Path) -> list[str]:
             non_windows_start != -1 and stage_index >= non_windows_start
         ):
             errors.append("Windows spreadsheet spawn does not emit spreadsheet.worker_spawn")
+    spreadsheet_process = root / WINDOWS_SPREADSHEET_PROCESS
+    if spreadsheet_process.is_file():
+        source = spreadsheet_process.read_text(encoding="utf-8")
+        required = (
+            "let debug_enabled = super::debug_trace::DebugTrace::enabled();",
+            "env: Some(worker_environment_with_trace(workspace, debug_enabled)),",
+            "stdio: StdioConfig::Pipe",
+            "child.stderr.take()",
+            "spawn_stderr_reader(stderr, debug_enabled)",
+            "std::io::stderr().lock()",
+            "std::io::sink()",
+        )
+        if any(marker not in source for marker in required):
+            errors.append("Windows spreadsheet DEBUG trace does not drain and forward worker stderr")
     office = root / WINDOWS_OFFICE_PROCESS
     if office.is_file():
         source = office.read_text(encoding="utf-8")
@@ -106,8 +121,18 @@ def self_test() -> None:
             path.write_text("\n".join(stages), encoding="utf-8")
         (root / WINDOWS_SPREADSHEET_SPAWN).write_text(
             "#[cfg(windows)]\n"
-            "fn spawn() { let _spawn = DebugTrace::start(\"spreadsheet.worker_spawn\"); }\n"
+            "    pub(crate) fn spawn() { let _spawn = DebugTrace::start(\"spreadsheet.worker_spawn\"); }\n"
             "#[cfg(not(windows))]",
+            encoding="utf-8",
+        )
+        (root / WINDOWS_SPREADSHEET_PROCESS).write_text(
+            "let debug_enabled = super::debug_trace::DebugTrace::enabled();\n"
+            "env: Some(worker_environment_with_trace(workspace, debug_enabled)),\n"
+            "stdio: StdioConfig::Pipe\n"
+            "child.stderr.take()\n"
+            "spawn_stderr_reader(stderr, debug_enabled)\n"
+            "std::io::stderr().lock()\n"
+            "std::io::sink()",
             encoding="utf-8",
         )
         (root / WINDOWS_OFFICE_PROCESS).write_text(

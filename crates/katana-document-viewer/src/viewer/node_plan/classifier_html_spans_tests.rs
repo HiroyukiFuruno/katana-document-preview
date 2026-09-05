@@ -3,6 +3,9 @@ use super::test_support::node;
 use crate::ViewerTextSpan;
 use katana_markdown_model::{HtmlBlockRole, InlineHtmlNode, KmmNodeKind};
 
+#[path = "classifier_html_spans_void_tests.rs"]
+mod void_tests;
+
 #[test]
 fn html_block_spans_falls_back_to_plain_text_without_links() {
     let spans = node_spans_from_html("<p>Hello</p>");
@@ -159,7 +162,7 @@ fn inline_html_spans_without_link_target_keeps_plain_text() {
     assert_eq!("plain", spans[0].text);
 }
 
-fn node_spans_from_html(raw: &str) -> Vec<ViewerTextSpan> {
+pub(super) fn node_spans_from_html(raw: &str) -> Vec<ViewerTextSpan> {
     node_spans_from_html_role(raw, crate::ViewerHtmlRole::Generic)
 }
 

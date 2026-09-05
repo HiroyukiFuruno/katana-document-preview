@@ -18,14 +18,18 @@ pub(super) fn spawn(
 ) -> Result<SpawnedSpreadsheetProcess, OfficeWorkerError> {
     let staged_executable = stage_windows_worker(workspace, config)?;
     let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
-    let options = windows_options(workspace, &staged_executable, config);
+    let debug_enabled = super::debug_trace::DebugTrace::enabled();
+    let options = windows_options(workspace, &staged_executable, config, debug_enabled);
     let mut child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
         .map_err(|error| launch_error(config, &staged_executable, error))?;
+    let stderr = child.stderr.take().ok_or_else(stderr_unavailable)?;
+    let stderr_reader = spawn_stderr_reader(stderr, debug_enabled);
     let input = child.stdin.take().ok_or_else(stdin_unavailable)?;
     let output = child.stdout.take().ok_or_else(stdout_unavailable)?;
     Ok(SpawnedSpreadsheetProcess {
         input: Box::new(input),
         output: Box::new(output),
+        stderr_reader: Some(stderr_reader),
         owner: SpreadsheetProcessOwner { child: Some(child) },
     })
 }
@@ -83,6 +87,7 @@ fn windows_options(
     workspace: &Path,
     staged_executable: &Path,
     config: &OfficeWorkerConfig,
+    debug_enabled: bool,
 ) -> rappct::LaunchOptions {
     use rappct::{JobLimits, StdioConfig};
     rappct::LaunchOptions {
@@ -93,7 +98,7 @@ fn windows_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(worker_environment_with_trace(workspace)),
+        env: Some(worker_environment_with_trace(workspace, debug_enabled)),
         stdio: StdioConfig::Pipe,
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
@@ -106,12 +111,37 @@ fn windows_options(
 
 fn worker_environment_with_trace(
     workspace: &Path,
+    debug_enabled: bool,
 ) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     let mut environment = worker_environment(workspace);
-    if super::debug_trace::DebugTrace::enabled() {
+    if debug_enabled {
         super::debug_trace::DebugTrace::configure_worker_environment(&mut environment);
     }
     environment
+}
+
+fn spawn_stderr_reader(stderr: std::fs::File, debug_enabled: bool) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || drain_stderr(stderr, debug_enabled))
+}
+
+fn stderr_unavailable() -> OfficeWorkerError {
+    OfficeWorkerError::protocol("spreadsheet worker stderr is unavailable".to_owned())
+}
+
+fn drain_stderr(stderr: std::fs::File, debug_enabled: bool) {
+    let mut source = std::io::BufReader::new(stderr);
+    if debug_enabled {
+        let mut parent_stderr = std::io::stderr().lock();
+        forward_stderr(&mut source, &mut parent_stderr);
+    } else {
+        let mut sink = std::io::sink();
+        forward_stderr(&mut source, &mut sink);
+    }
+}
+
+fn forward_stderr(source: &mut impl std::io::Read, target: &mut impl std::io::Write) {
+    // stderr は診断専用なので、転送失敗で worker protocol を壊さない。
+    let _ = std::io::copy(source, target);
 }
 
 fn spreadsheet_command_line(
@@ -130,4 +160,31 @@ fn spreadsheet_command_line(
         limits.max_logical_cells.to_string(),
         limits.max_materialized_cells.to_string(),
     ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{forward_stderr, stderr_unavailable};
+    use crate::multi_format::OfficeWorkerError;
+
+    #[test]
+    fn stderr_forwarding_preserves_trace_lines() {
+        let mut source = &b"spreadsheet.runtime_init elapsed_ms=4\n"[..];
+        let mut output = Vec::new();
+
+        forward_stderr(&mut source, &mut output);
+
+        assert_eq!(
+            b"spreadsheet.runtime_init elapsed_ms=4\n",
+            output.as_slice()
+        );
+    }
+
+    #[test]
+    fn unavailable_stderr_is_a_typed_protocol_error() {
+        assert!(matches!(
+            stderr_unavailable(),
+            OfficeWorkerError::Protocol { .. }
+        ));
+    }
 }

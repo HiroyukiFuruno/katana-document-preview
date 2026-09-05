@@ -56,6 +56,7 @@ impl ViewerNodeClassifier {
             html_tag::HtmlTag::Opening { name, .. } if name == "img" => {
                 Self::push_html_text(&TextParser::html_fragment_text(tag), contexts.last(), spans)
             }
+            html_tag::HtmlTag::Opening { name, .. } if html_tag::is_void_element(&name) => {}
             html_tag::HtmlTag::Opening { name, self_closing } => {
                 Self::push_html_context(tag, name, self_closing, contexts);
             }

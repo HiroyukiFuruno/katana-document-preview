@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn debug_worker_stdio_is_inherited() {
-        assert_eq!(StdioConfig::Inherit, worker_stdio_config(true));
-        assert_eq!(StdioConfig::Null, worker_stdio_config(false));
+        assert!(matches!(worker_stdio_config(true), StdioConfig::Inherit));
+        assert!(matches!(worker_stdio_config(false), StdioConfig::Null));
     }
 }

@@ -52,12 +52,16 @@ test:
 # Backward-compatible test entrypoint
 unit-test: test
 
+# cargo llvm-cov は専用targetを使うため、cache復元後に同じ場所のV8 link artifactを再生成する。
+coverage-v8-refresh:
+    {{CARGO}} clean -p v8 --target-dir target/llvm-cov-target
+
 # Run coverage as a required full-check gate
-coverage:
+coverage: coverage-v8-refresh
     DEBUG=true {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --summary-only --show-missing-lines --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Show missing coverage lines without relaxing the coverage gate
-coverage-missing:
+coverage-missing: coverage-v8-refresh
     DEBUG=true {{CARGO}} llvm-cov {{COVERAGE_TARGET_PACKAGES}} --all-targets --all-features --locked --ignore-filename-regex '{{COVERAGE_IGNORE_FILENAME_REGEX}}' --show-missing-lines --fail-under-functions 100 --fail-under-lines {{COVERAGE_MIN_LINES}} --fail-uncovered-functions 0 --fail-uncovered-lines {{COVERAGE_MAX_UNCOVERED_LINES}}
 
 # Run the local quality gate

@@ -4,6 +4,26 @@ pub(super) enum HtmlTag {
     Other,
 }
 
+pub(super) fn is_void_element(name: &str) -> bool {
+    matches!(
+        name,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
+}
+
 pub(super) fn next_start(raw: &str, cursor: usize) -> Option<usize> {
     raw[cursor..].find('<').map(|index| cursor + index)
 }

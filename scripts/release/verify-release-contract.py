@@ -453,6 +453,10 @@ def justfile_errors(justfile: str) -> list[str]:
         "{{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked",
         "release-verify: release-contract-check check coverage",
         'COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer"',
+        "coverage-v8-refresh:",
+        "{{CARGO}} clean -p v8 --target-dir target/llvm-cov-target",
+        "coverage: coverage-v8-refresh",
+        "coverage-missing: coverage-v8-refresh",
         "document-surface-boundary-check:",
         "scripts/document-surface-boundary-check.sh",
         "v8-runtime-check:",
@@ -539,6 +543,22 @@ def release_workflow_errors(preflight: str, release: str) -> list[str]:
             errors.append(
                 f"{label} must refresh static and live Storybook acceptance artifacts "
                 f"before the KDV {required_recipe} recipe."
+            )
+        diagnostic_position = workflow.find(
+            "name: Upload Storybook preview-crop diagnostics on failure"
+        )
+        diagnostic = workflow[diagnostic_position:] if diagnostic_position >= 0 else ""
+        diagnostic_required = (
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
+        )
+        if diagnostic_position <= recipe_position or any(
+            marker not in diagnostic for marker in diagnostic_required
+        ):
+            errors.append(
+                f"{label} must upload preview-crop diagnostics after a failed release gate."
             )
     return errors
 
@@ -715,12 +735,22 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
         (
             "xvfb-run -a just storybook-release-acceptance-artifacts",
             'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check',
+            "name: Upload Storybook preview-crop diagnostics on failure",
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
         )
     )
     release_workflow = "\n".join(
         (
             "xvfb-run -a just storybook-release-acceptance-artifacts",
             'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-verify',
+            "name: Upload Storybook preview-crop diagnostics on failure",
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
         )
     )
     assert not release_workflow_errors(release_preflight, release_workflow)

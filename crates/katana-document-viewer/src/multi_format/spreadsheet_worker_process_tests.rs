@@ -24,6 +24,8 @@ fn process(
         input: Box::new(Vec::<u8>::new()),
         responses,
         reader: None,
+        #[cfg(windows)]
+        stderr_reader: None,
         owner: SpreadsheetProcessOwner { child: None },
         #[cfg(target_os = "macos")]
         memory_monitor: None,

@@ -14,11 +14,17 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 const GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
+type SpreadsheetResponseChannel = (
+    Receiver<Result<SpreadsheetWorkerResponse, String>>,
+    JoinHandle<()>,
+);
 
 pub(crate) struct SpreadsheetWorkerProcess {
     input: Box<dyn Write + Send>,
     responses: Receiver<Result<SpreadsheetWorkerResponse, String>>,
     reader: Option<JoinHandle<()>>,
+    #[cfg(windows)]
+    stderr_reader: Option<JoinHandle<()>>,
     owner: SpreadsheetProcessOwner,
     #[cfg(target_os = "macos")]
     memory_monitor: Option<MacOsMemoryMonitor>,
@@ -39,16 +45,15 @@ impl SpreadsheetWorkerProcess {
     ) -> Result<Self, OfficeWorkerError> {
         let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.spawn");
         let (workspace, spawned) = prepare_worker_process(source, config)?;
-        let responses = SpreadsheetResponseReader::spawn(spawned.output);
+        let (responses, reader) = spawn_response_reader(spawned.output);
         #[cfg(target_os = "macos")]
-        let memory_monitor = Some(MacOsMemoryMonitor::start(
-            spawned.process_id,
-            config.max_memory_bytes,
-        ));
+        let memory_monitor = Some(start_memory_monitor(spawned.process_id, config));
         Ok(Self {
             input: spawned.input,
-            responses: responses.receiver,
-            reader: Some(responses.worker),
+            responses,
+            reader: Some(reader),
+            #[cfg(windows)]
+            stderr_reader: spawned.stderr_reader,
             owner: spawned.owner,
             #[cfg(target_os = "macos")]
             memory_monitor,
@@ -139,6 +144,16 @@ fn encode_request(request: &SpreadsheetWorkerRequest) -> Result<Vec<u8>, OfficeW
     Ok(bytes)
 }
 
+fn spawn_response_reader(output: Box<dyn std::io::Read + Send>) -> SpreadsheetResponseChannel {
+    let reader = SpreadsheetResponseReader::spawn(output);
+    (reader.receiver, reader.worker)
+}
+
+#[cfg(target_os = "macos")]
+fn start_memory_monitor(process_id: u32, config: &OfficeWorkerConfig) -> MacOsMemoryMonitor {
+    MacOsMemoryMonitor::start(process_id, config.max_memory_bytes)
+}
+
 impl Drop for SpreadsheetWorkerProcess {
     fn drop(&mut self) {
         let _trace_scope = self
@@ -154,6 +169,10 @@ impl Drop for SpreadsheetWorkerProcess {
         #[cfg(target_os = "macos")]
         if let Some(monitor) = self.memory_monitor.take() {
             let _ = monitor.finish();
+        }
+        #[cfg(windows)]
+        if let Some(stderr_reader) = self.stderr_reader.take() {
+            let _ = stderr_reader.join();
         }
         if let Some(reader) = self.reader.take() {
             let _ = reader.join();
