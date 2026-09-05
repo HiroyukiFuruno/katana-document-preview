@@ -100,6 +100,29 @@ mod tests {
     }
 
     #[test]
+    fn debug_stderr_forwarding_reports_a_still_locked_sink() -> std::io::Result<()> {
+        let lock = Arc::new(Mutex::new(()));
+        let mut source = LockCheckingReader::new(
+            vec![b"spreadsheet.runtime_init\n", b"spreadsheet.frame\n"],
+            Arc::clone(&lock),
+        );
+        let guard = lock
+            .lock()
+            .map_err(|_| std::io::Error::other("stderr sink lock poisoned"))?;
+        let result = forward_stderr_chunks(&mut source, |_| Ok(()));
+        drop(guard);
+
+        assert!(matches!(
+            result,
+            Err(ref error)
+                if error.kind() == std::io::ErrorKind::Other
+                    && error.to_string()
+                        == "stderr sink lock must be released before the next read"
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn unavailable_stderr_is_a_typed_protocol_error() {
         assert!(matches!(
             stderr_unavailable(),
