@@ -1,6 +1,34 @@
 # Dependency maintenance
 
-## 2026-09-04 completion evidence before the public release gates
+## 2026-09-05 KUC v0.3.6 public adoption and dependency refresh
+
+- KUC `v0.3.6` has a remote tag, a published GitHub Release, and a crates.io
+  artifact. A fresh isolated consumer pinned to `katana-ui-core = "=0.3.6"`
+  built both normally and with `--locked`; its lockfile resolves the registry
+  source with the published checksum and contains no path/git override.
+- KDV now pins `katana-ui-core = "=0.3.6"` in both the workspace and document
+  surface manifests. The release-contract and document-surface boundary
+  verifiers require this exact registry artifact and reject the previous
+  `0.3.5` pin, Git/path overrides, and a second Storybook alias.
+- `just update` refreshed compatible non-KUC lockfile entries: `cc` `1.4.5`,
+  `find-msvc-tools` `0.1.12`, `js-sys`/`wasm-bindgen` `0.3.105`/`0.2.128`,
+  `syn` `3.0.5`, `tinyvec` `1.13.2`, and `zstd-sys`
+  `2.1.0+zstd.1.5.7`.
+- The registry-resolved KUC Storybook smoke passed `143/30/54/121` tests.
+  The locked graph resolves one `v8 152.2.0` shared by KDV and public KRR
+  `0.4.19`; `cargo tree -d`, inverse-tree inspection, and the V8 singleton
+  linker verifier were run without a duplicate V8 root.
+- The KUC `0.3.5` fidelity capture remains historical evidence of the public
+  per-side border API. KDV `0.5.6` must refresh the independent KatanA
+  reference only after its own published registry artifact is adopted; this
+  is not substituted by the local KDV check.
+
+This evidence does not assert that the Draft PR review, three-OS CI, GitHub
+Release, crates.io KDV artifact, fresh public KDV consumer, or KatanA
+acceptance is complete. Those remain explicitly open in `tasks.md` (5.3,
+5.4, 5.5, and 6.7).
+
+## 2026-09-04 historical pre-v0.3.6 local preflight
 
 The KUC publication boundary and the KDV local release preflight are complete.
 This evidence does not assert that the Draft PR review, three-OS CI, GitHub
@@ -23,6 +51,23 @@ complete. Those remain explicitly open in `tasks.md` (5.3, 5.4, 5.5, and 6.7).
 - このローカルpreflightは公開・下流採用の証明ではない。three-OS CI、Draft PRの
   fresh-head review、GitHub Release、crates.io artifact、公開registryのみを使うconsumer、
   KatanAのpackaged acceptanceはそれぞれ別の必須gateとして残る。
+
+## 2026-09-05 v0.5.6 release-check再実行
+
+- 実行日時: `2026-09-05T11:50:37+0900`。実行元は`release/v0.5.6`の候補作業ツリーで、
+  Retina図表スクロール境界の回帰を追加した未commit差分である。
+- 実行コマンド: `rtk proxy just VERSION=v0.5.6 release-check`。
+- 結果: exit `0`。release contract、`just check`、boundary、scorecard、
+  data-descriptor DOCX worker、Office profiling、V8 singleton、subagent harnessを通過した。
+- strict coverage: functions `3532/3532`、lines `29064/29064`（各`100%`）、
+  uncovered functions/lines `0`。
+- 隔離 package buildは`868 files`、`14.9MiB`（圧縮後`7.3MiB`）を検証し、
+  `cargo publish --dry-run`は成功した。`assert-crates-not-published.sh v0.5.6`は未公開を確認した。
+- 容量不足で中断した先行runは、cleanかつ`origin/master`統合済みだった役割済みKUC
+  worktreeと再生成可能なKDV build outputを安全に整理してから再実行した環境要因であり、
+  source差分・閾値・検証範囲は変更していない。このローカルpreflightは公開・下流採用の
+  証明ではない。three-OS CI、Draft PRのfresh-head review、GitHub Release、crates.io artifact、
+  公開registryのみを使うconsumer、KatanAのpackaged acceptanceはそれぞれ別の必須gateとして残る。
 
 ### Historical failed attempt
 

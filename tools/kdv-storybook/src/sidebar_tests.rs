@@ -177,6 +177,7 @@ fn sidebar_state_shows_mode_and_human_slide_index() {
         surface: None,
         content_height: 1200.0,
         scroll_redraw_sensitive_rects: Vec::new(),
+        scroll_redraw_diagram_boundary_rects: Vec::new(),
         slideshow_current_page: 1,
         slideshow_max_page: 4,
         diagram_viewports: Default::default(),

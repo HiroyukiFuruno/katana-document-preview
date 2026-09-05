@@ -50,6 +50,44 @@ fn viewer_row_height_does_not_expand_diagram_image_container() {
 }
 
 #[test]
+fn viewer_row_height_expands_to_unclipped_diagram_media_frame() {
+    let factory =
+        KucNodeFactory::new(&[], DIAGRAM_MEDIA_MAX_WIDTH).interaction(ViewerInteractionConfig {
+            hover_highlight_enabled: false,
+            selection_enabled: false,
+            image_controls_enabled: false,
+            diagram_controls_enabled: false,
+            code_controls_enabled: false,
+        });
+    let mut node = diagram_node();
+    node.rect = ViewerRect {
+        x: 0.0,
+        y: 0.0,
+        width: 860.0,
+        height: 412.0,
+    };
+    let surface = ViewerImageSurface {
+        fingerprint: "katana-flowchart-native".to_string(),
+        width: 640,
+        height: 890,
+        display_width: 320.0,
+        display_height: 445.0,
+        content_scale: 200,
+        rgba: [0, 0, 0, OPAQUE_ALPHA].repeat(640 * 890),
+    };
+
+    let media = factory.image_surface_node(&node, &ArtifactId("artifact".to_string()), surface);
+    let media = factory.media_with_controls(&node, media);
+    let row = factory.node_with_viewer_height(media, &node);
+
+    assert_eq!(
+        UiDimension::Px(445),
+        row.props().common.height,
+        "a native-size diagram media frame must not overlap the following viewer row"
+    );
+}
+
+#[test]
 fn diagram_media_row_wrapper_uses_full_katana_row_width_even_without_extra_height() {
     let factory = KucNodeFactory::new(&[], KATANA_VIEWER_ROW_MAX_WIDTH).interaction(
         ViewerInteractionConfig {

@@ -167,6 +167,7 @@ mod tests {
             surface: None,
             content_height: 0.0,
             scroll_redraw_sensitive_rects: Vec::new(),
+            scroll_redraw_diagram_boundary_rects: Vec::new(),
             slideshow_current_page: 0,
             slideshow_max_page: 0,
             diagram_viewports: Default::default(),

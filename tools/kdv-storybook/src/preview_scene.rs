@@ -37,6 +37,7 @@ pub struct PreviewScene {
     pub surface: Option<PreviewSurfaceImage>,
     pub content_height: f32,
     pub scroll_redraw_sensitive_rects: Vec<ViewerRect>,
+    pub scroll_redraw_diagram_boundary_rects: Vec<ViewerRect>,
     pub slideshow_current_page: usize,
     pub slideshow_max_page: usize,
     pub diagram_viewports: BTreeMap<String, DiagramViewportState>,
@@ -69,6 +70,20 @@ impl PreviewScene {
         self.scroll_redraw_sensitive_rects
             .iter()
             .any(|rect| rect.y < bottom && rect.y + rect.height > top)
+    }
+
+    pub(crate) fn scroll_redraw_band_y_for_downward_scroll(
+        &self,
+        current_scroll_y: f32,
+        viewport_height: usize,
+        default_band_y: usize,
+    ) -> usize {
+        scroll_redraw_band_y_for_diagram_boundaries(
+            &self.scroll_redraw_diagram_boundary_rects,
+            current_scroll_y,
+            viewport_height,
+            default_band_y,
+        )
     }
 }
 
@@ -193,6 +208,50 @@ pub fn scroll_redraw_sensitive_rects(plan: &ViewerNodePlan) -> Vec<ViewerRect> {
         })
         .map(|node| node.rect)
         .collect()
+}
+
+pub(crate) fn scroll_redraw_diagram_boundary_rects(
+    plan: &ViewerNodePlan,
+    targets: &[ViewerTarget],
+) -> Vec<ViewerRect> {
+    plan.nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| matches!(node.kind, ViewerNodeKind::Diagram { .. }))
+        .filter_map(|(index, _)| {
+            let diagram = targets.get(index)?.rect;
+            let boundary = targets[..index]
+                .iter()
+                .rev()
+                .find(|target| target.rect.height > 0.0 && target.rect.y <= diagram.y)
+                .map_or(diagram, |target| target.rect);
+            Some(ViewerRect {
+                x: diagram.x,
+                y: boundary.y,
+                width: diagram.width,
+                height: (diagram.y + diagram.height - boundary.y).max(diagram.height),
+            })
+        })
+        .collect()
+}
+
+fn scroll_redraw_band_y_for_diagram_boundaries(
+    boundaries: &[ViewerRect],
+    current_scroll_y: f32,
+    viewport_height: usize,
+    default_band_y: usize,
+) -> usize {
+    let current_scroll_y = current_scroll_y.round().max(0.0);
+    let band_top = current_scroll_y + default_band_y as f32;
+    let band_bottom = current_scroll_y + viewport_height as f32;
+    boundaries
+        .iter()
+        .filter(|rect| rect.y < band_bottom && rect.y + rect.height > band_top)
+        .filter_map(|rect| {
+            let local_y = rect.y - current_scroll_y;
+            (local_y >= 0.0 && local_y.is_finite()).then_some(local_y.floor() as usize)
+        })
+        .fold(default_band_y, usize::min)
 }
 
 fn rendered_node_hits(
@@ -349,4 +408,48 @@ pub fn viewer_internal_anchor_lookup(
         }
     }
     lookup
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scroll_redraw_band_y_for_diagram_boundaries;
+    use katana_document_viewer::ViewerRect;
+
+    #[test]
+    fn diagram_boundary_extends_redraw_band_at_boundary_offsets() {
+        let current_scroll_y = 8_343.0;
+        let viewport_height = 600;
+        let default_band_y = 520;
+        for offset in [-1.0, 0.0, 1.0] {
+            let boundary = ViewerRect {
+                x: 0.0,
+                y: current_scroll_y + default_band_y as f32 - 58.0 + offset,
+                width: 240.0,
+                height: 178.0,
+            };
+            assert_eq!(
+                (default_band_y as f32 - 58.0 + offset).floor() as usize,
+                scroll_redraw_band_y_for_diagram_boundaries(
+                    &[boundary],
+                    current_scroll_y,
+                    viewport_height,
+                    default_band_y,
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn diagram_boundary_outside_redraw_band_keeps_default_start() {
+        let boundary = ViewerRect {
+            x: 0.0,
+            y: 8_343.0 + 640.0,
+            width: 240.0,
+            height: 120.0,
+        };
+        assert_eq!(
+            520,
+            scroll_redraw_band_y_for_diagram_boundaries(&[boundary], 8_343.0, 600, 520)
+        );
+    }
 }

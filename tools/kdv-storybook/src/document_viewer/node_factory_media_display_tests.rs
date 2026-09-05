@@ -37,9 +37,9 @@ fn diagram_artifact_surface_keeps_katana_display_size_with_retina_raster_density
     let displayed_width = image_node.props().image_surface.display_width_milli as f32 / 1000.0;
     let effective_scale = image_node.props().image_surface.width as f32 / displayed_width;
 
-    assert_eq!(37.08, displayed_width);
+    assert_eq!(40.0, displayed_width);
     assert_eq!(
-        18.54,
+        20.0,
         image_node.props().image_surface.display_height_milli as f32 / 1000.0
     );
     assert!(

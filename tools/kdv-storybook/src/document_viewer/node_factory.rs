@@ -248,7 +248,15 @@ impl<'a> KucNodeFactory<'a> {
         {
             return ui_node.props().common.height.clone();
         }
-        Self::viewer_height(node)
+        let viewer_height = Self::viewer_height(node);
+        if matches!(node.kind, ViewerNodeKind::Diagram { .. })
+            && matches!(ui_node.props().visual_role, UiVisualRole::MediaFrame)
+            && let (UiDimension::Px(viewer), UiDimension::Px(media)) =
+                (&viewer_height, &ui_node.props().common.height)
+        {
+            return UiDimension::Px((*viewer).max(*media));
+        }
+        viewer_height
     }
 
     fn media_row_wrapper(

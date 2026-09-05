@@ -2,7 +2,7 @@ use crate::artifact::ArtifactFormat;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 0.927;
+pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 1.0;
 pub const VIEWER_DIAGRAM_DISPLAY_MAX_WIDTH: u32 = 1264;
 
 #[path = "image_surface_cache.rs"]

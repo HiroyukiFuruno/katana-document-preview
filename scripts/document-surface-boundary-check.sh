@@ -255,8 +255,8 @@ for package in "${packages[@]}"; do
   fi
 done
 
-if ! grep -q '^katana-ui-core = "=0[.]3[.]5"$' "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV document surface must use exact registry KUC 0.3.5" >&2
+if ! grep -q '^katana-ui-core = "=0[.]3[.]6"$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV document surface must use exact registry KUC 0.3.6" >&2
   exit 1
 fi
 
@@ -270,9 +270,9 @@ if [[ -e "$repo_root/crates/katana-document-viewer-kuc" ]] || grep -q '"crates/k
   exit 1
 fi
 
-if ! grep -Eq '^katana-ui-core = \{ version = "=0[.]3[.]5",.*raster-host' "$kuc_workspace_manifest" || \
+if ! grep -Eq '^katana-ui-core = \{ version = "=0[.]3[.]6",.*raster-host' "$kuc_workspace_manifest" || \
    grep -Eq '^katana-ui-core-storybook[[:space:]]*=' "$kuc_workspace_manifest"; then
-  echo "document-surface-boundary-check: KDV workspace must use one exact registry KUC v0.3.5 raster-host dependency" >&2
+  echo "document-surface-boundary-check: KDV workspace must use one exact registry KUC v0.3.6 raster-host dependency" >&2
   exit 1
 fi
 
@@ -296,21 +296,21 @@ if grep -R -n -E 'struct[[:space:]]+Grid(Cell|Layout|Viewport|Selection|HitTest)
   exit 1
 fi
 
-kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core registry+ 0.3.5)"
+kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core registry+ 0.3.6)"
 
 if [[ ! -f "$kuc_core_source_root/Cargo.toml" ]]; then
-  echo "document-surface-boundary-check: registry katana-ui-core v0.3.5 source is unavailable" >&2
+  echo "document-surface-boundary-check: registry katana-ui-core v0.3.6 source is unavailable" >&2
   exit 1
 fi
 
 kuc_manifest="$kuc_core_source_root/Cargo.toml"
 if ! grep -q '^raster-host[[:space:]]*=' "$kuc_manifest" || \
    ! grep -q '^pub mod raster_host;' "$kuc_core_source_root/src/lib.rs"; then
-  echo "document-surface-boundary-check: KUC v0.3.5 must expose the public raster-host API" >&2
+  echo "document-surface-boundary-check: KUC v0.3.6 must expose the public raster-host API" >&2
   exit 1
 fi
 
-kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+ 0.3.5)"
+kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+ 0.3.6)"
 # KUC の任意 backend は未有効化でもソースに存在するため、解決済み依存グラフで判定する。
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
   echo "document-surface-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2

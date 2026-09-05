@@ -11,9 +11,9 @@ const RED_PIXEL_RGBA: [u8; 4] = [u8::MAX, 0, 0, u8::MAX];
 #[test]
 fn diagram_display_scale_keeps_katana_intrinsic_viewer_size() {
     assert_eq!(
-        0.927,
+        1.0,
         super::VIEWER_DIAGRAM_DISPLAY_SCALE,
-        "diagram display size uses the fixed KatanA reference scale while avoiding a hard 640px cap"
+        "diagram display size preserves the KatanA intrinsic size while avoiding a hard 640px cap"
     );
 }
 
@@ -97,8 +97,8 @@ fn diagram_svg_artifact_keeps_katana_display_size_with_retina_raster_density()
     let surface = ViewerImageSurfaceFactory::from_diagram_artifact(&artifact, 200)?;
     let effective_scale = surface.width as f32 / surface.display_width;
 
-    assert_near(37.08, surface.display_width);
-    assert_near(18.54, surface.display_height);
+    assert_near(40.0, surface.display_width);
+    assert_near(20.0, surface.display_height);
     assert!(surface.content_scale >= 200);
     assert!(
         effective_scale >= 2.0,
@@ -143,8 +143,8 @@ fn diagram_svg_artifact_keeps_fixed_display_scale_when_scaled_width_fits_preview
 
     assert_eq!(400, surface.width);
     assert_eq!(160, surface.height);
-    assert_near(185.4, surface.display_width);
-    assert_near(74.16, surface.display_height);
+    assert_near(190.0, surface.display_width);
+    assert_near(76.0, surface.display_height);
     Ok(())
 }
 
@@ -160,7 +160,7 @@ fn fullscreen_diagram_svg_artifact_keeps_katana_logical_size_with_retina_surface
     let normal = ViewerImageSurfaceFactory::from_diagram_artifact(&artifact, 190)?;
     let fullscreen = ViewerImageSurfaceFactory::from_fullscreen_diagram_artifact(&artifact, 190)?;
 
-    assert_near(185.4, normal.display_width);
+    assert_near(190.0, normal.display_width);
     assert_near(200.0, fullscreen.display_width);
     assert_near(80.0, fullscreen.display_height);
     assert!(

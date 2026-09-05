@@ -492,7 +492,7 @@ fn assert_registry_kuc_artifact_contract(script: &str) {
             "metadata --locked --format-version 1",
             "kuc_core_source_root",
             "registry+",
-            "0.3.5",
+            "0.3.6",
             "KUC_ROOT overrides are forbidden",
         ],
     );
@@ -516,7 +516,7 @@ fn assert_kuc_optional_backend_contract(script: &str) -> Result<(), Box<dyn std:
         "document-surface-boundary-check.sh",
         script,
         &[
-            "resolve_cargo_package_tree katana-ui-core registry+ 0.3.5",
+            "resolve_cargo_package_tree katana-ui-core registry+ 0.3.6",
             "kuc_tree=",
             "check_kuc_core_semantic_boundary \"katana-ui-core\"",
             "check_embedded_kuc_source_boundary",
@@ -1233,7 +1233,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
     assert_contains_all(
         "KUC Cargo dependency is pinned through Cargo.toml",
         &cargo_toml,
-        &["katana-ui-core = { version = \"=0.3.5\", features = [\"raster-host\"] }"],
+        &["katana-ui-core = { version = \"=0.3.6\", features = [\"raster-host\"] }"],
     );
     assert!(
         !cargo_toml.contains("katana-ui-core-storybook"),
@@ -1257,7 +1257,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         "KDV diagram keeps fixed KatanA display scale",
         &image_surface,
         &[
-            "pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 0.927",
+            "pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 1.0",
             "pub const VIEWER_DIAGRAM_DISPLAY_MAX_WIDTH: u32 = 1264",
         ],
     );

@@ -167,6 +167,30 @@ fn sequence_diagram_presented_scroll_matches_full_redraw_at_retina_scale()
 }
 
 #[test]
+fn sequence_diagram_scroll_uses_presented_band_redraw_without_full_fallback()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut storybook = sample_window_with_fast_diagram_engine();
+    storybook.update_scene_for_tests(FRAME_WIDTH, FRAME_HEIGHT)?;
+    storybook.wait_loaded_asset_scene_for_tests(FRAME_WIDTH, FRAME_HEIGHT)?;
+    let start_scroll = sequence_diagram_start_scroll(&storybook, FRAME_HEIGHT)?;
+    storybook.scroll_y_for_tests(start_scroll);
+    storybook.render_cached_scroll_canvas_scaled_for_tests(FRAME_WIDTH, FRAME_HEIGHT, 2.0)?;
+
+    let phases = storybook.render_wheel_scroll_cached_frame_phase_times_for_tests(
+        -1.0,
+        FRAME_WIDTH,
+        FRAME_HEIGHT,
+        2.0,
+    )?;
+
+    assert!(
+        !phases.full_preview_redraw_fallback,
+        "Sequence Diagram scroll must preserve presented-band redraw: {phases:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn table_hover_after_presented_scroll_matches_full_redraw() -> Result<(), Box<dyn std::error::Error>>
 {
     let mut storybook = sample_window();

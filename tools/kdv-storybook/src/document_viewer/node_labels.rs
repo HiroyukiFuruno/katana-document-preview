@@ -73,6 +73,7 @@ impl KucNodeLabels {
                 role: ViewerHtmlRole::Accordion,
             } => "html-accordion-preview",
             ViewerNodeKind::Html { .. } => "html-block-preview",
+            ViewerNodeKind::Paragraph => "paragraph",
             ViewerNodeKind::Table => "table",
             ViewerNodeKind::List => "list",
             ViewerNodeKind::Alert { .. } => "alert",
@@ -103,6 +104,8 @@ impl KucNodeLabels {
                 role: ViewerHtmlRole::Accordion,
             } => "html-accordion",
             ViewerNodeKind::Html { .. } => "html-block",
+            // export の既存 wrap 契約は維持し、KatanA preview だけ body 幅補正を避ける。
+            ViewerNodeKind::Paragraph => "body",
             _ => Self::text_role(kind),
         }
     }
