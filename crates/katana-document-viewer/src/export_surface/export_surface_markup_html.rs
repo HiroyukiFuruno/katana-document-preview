@@ -8,6 +8,8 @@ pub(super) mod attributes;
 mod badge;
 #[path = "export_surface_markup_html_spans.rs"]
 mod spans;
+#[path = "export_surface_markup_html_spans_output.rs"]
+mod spans_output;
 
 use attributes::attribute_value;
 

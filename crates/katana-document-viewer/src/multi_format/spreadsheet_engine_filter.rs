@@ -29,12 +29,8 @@ impl SpreadsheetEngineSession {
                 filter.filtered_out_rows = filtered_out_rows.clone();
             }
             // OOXML の row.hidden はフィルタ由来と手動非表示を区別しないため、
-            // 現在の条件で除外された行だけをフィルタ層へ移す。
-            for row in filtered_out_rows {
-                if let Some(track) = sheet.row_tracks.get_mut(row) {
-                    track.hidden = false;
-                }
-            }
+            // source が指定した非表示は常に authored layer として保持する。
+            // 現在の条件による可視性は auto_filter layer で別途表現する。
         }
         self.active_filters = active;
         Ok(())

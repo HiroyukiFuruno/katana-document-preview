@@ -39,10 +39,18 @@ fn clear_persisted_filter_preserves_authored_hidden_rows() -> TestResult {
         "persisted-filter-with-authored-hidden.xlsx",
         SpreadsheetViewerLimits::strict(),
     )?;
+    let filter = engine.sheets()[0]
+        .auto_filter
+        .as_ref()
+        .ok_or("auto filter is missing")?;
+    assert_eq!(vec![4, 5, 6], filter.filtered_out_rows);
+    assert!(engine.sheets()[0].row_tracks[3].hidden);
+    assert!(engine.sheets()[0].row_tracks[4].hidden);
 
     let cleared = engine.clear_filter(0, None)?;
-    assert_eq!(6, cleared.visible_row_count);
+    assert_eq!(5, cleared.visible_row_count);
     assert!(engine.sheets()[0].row_tracks[3].hidden);
+    assert!(engine.sheets()[0].row_tracks[4].hidden);
     Ok(())
 }
 

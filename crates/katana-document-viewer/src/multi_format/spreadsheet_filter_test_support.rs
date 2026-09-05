@@ -16,12 +16,12 @@ pub(super) fn representative_with_auto_filter_and_blank() -> TestResult<Vec<u8>>
 }
 
 pub(super) fn representative_with_persisted_auto_filter() -> TestResult<Vec<u8>> {
-    representative_with_persisted_hidden_rows(&[5, 6, 7])
+    representative_with_auto_filter()
 }
 
 pub(super) fn representative_with_persisted_auto_filter_and_authored_hidden() -> TestResult<Vec<u8>>
 {
-    representative_with_persisted_hidden_rows(&[4, 5, 6, 7])
+    representative_with_persisted_hidden_rows(&[4, 5])
 }
 
 fn representative_with_persisted_hidden_rows(rows: &[usize]) -> TestResult<Vec<u8>> {

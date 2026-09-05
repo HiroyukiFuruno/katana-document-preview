@@ -62,7 +62,7 @@ fn html_attribute_value_at(tag: &str, name_end: usize) -> Option<String> {
     let end = value
         .find(|character: char| character.is_whitespace() || character == '>')
         .unwrap_or(value.len());
-    Some(value[..end].trim_matches('/').to_string())
+    Some(value[..end].to_string())
 }
 
 #[cfg(test)]

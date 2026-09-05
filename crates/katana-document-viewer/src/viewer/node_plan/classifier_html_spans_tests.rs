@@ -69,12 +69,16 @@ fn inline_html_spans_parses_quoted_link_target() {
 }
 
 #[test]
-fn inline_html_spans_parses_unquoted_link_target() {
+fn inline_html_spans_preserves_unquoted_link_targets() {
     let spans = inline_node_spans("<a href=/raw/path>raw</a>");
 
     assert_eq!("raw", spans[0].text);
-    assert_eq!("raw/path", spans[0].link_target);
+    assert_eq!("/raw/path", spans[0].link_target);
     assert!(spans[0].style.underline);
+
+    let protocol_relative = inline_node_spans("<a href=//cdn.example/x>cdn</a>");
+    assert_eq!("cdn", protocol_relative[0].text);
+    assert_eq!("//cdn.example/x", protocol_relative[0].link_target);
 }
 
 #[test]

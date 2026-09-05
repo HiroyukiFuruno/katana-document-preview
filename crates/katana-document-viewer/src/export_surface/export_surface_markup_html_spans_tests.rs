@@ -100,6 +100,38 @@ fn html_spans_keep_gt_inside_single_quoted_attributes() {
 }
 
 #[test]
+fn html_spans_preserve_br_boundaries() {
+    let spans = SurfaceHtmlMarkup::html_spans("<p>first<br>second</p>");
+    assert_eq!(
+        "first\nsecond",
+        spans
+            .iter()
+            .map(|span| span.text.as_str())
+            .collect::<String>()
+    );
+
+    let self_closing = SurfaceHtmlMarkup::html_spans("<p>first<br/>second</p>");
+    assert_eq!(
+        "first\nsecond",
+        self_closing
+            .iter()
+            .map(|span| span.text.as_str())
+            .collect::<String>()
+    );
+
+    let linked = SurfaceHtmlMarkup::html_spans("<a href='/docs'>first<br>second</a>");
+    assert_eq!(
+        "first\nsecond",
+        linked
+            .iter()
+            .map(|span| span.text.as_str())
+            .collect::<String>()
+    );
+    assert_eq!(Some("/docs"), linked[1].link_target.as_deref());
+    assert!(linked[1].style.underline);
+}
+
+#[test]
 fn html_attribute_values_handle_non_elements_boolean_and_unquoted_forms() {
     assert_eq!(None, super::attributes::attribute_value("</a>", "href"));
     assert_eq!(
