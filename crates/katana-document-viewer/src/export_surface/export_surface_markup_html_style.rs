@@ -40,6 +40,9 @@ fn apply_boolean_overrides(
     if let Some(bold) = properties.bold_override {
         style.bold = bold;
     }
+    if let Some(italic) = properties.italic_override {
+        style.italic = italic;
+    }
     if let Some(underline) = properties.underline_override {
         style.underline = underline;
     }

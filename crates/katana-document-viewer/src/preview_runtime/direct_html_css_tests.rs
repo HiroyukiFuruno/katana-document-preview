@@ -83,6 +83,23 @@ fn applies_matching_rules_in_css_specificity_order() {
 }
 
 #[test]
+fn matches_class_and_id_values_case_sensitively_but_tag_names_case_insensitively() {
+    let css = DirectHtmlCss::parse(
+        ".Note { color: red; } #Hero { font-weight: bold; } DIV { text-align: center; }",
+    );
+
+    let mismatch = css.apply_to_line(r#"<div class="note" id="hero">Visible</div>"#);
+    assert!(mismatch.contains("text-align: center"));
+    assert!(!mismatch.contains("color: red"));
+    assert!(!mismatch.contains("font-weight: bold"));
+
+    let exact = css.apply_to_line(r#"<div class="Note" id="Hero">Visible</div>"#);
+    assert!(exact.contains("text-align: center"));
+    assert!(exact.contains("color: red"));
+    assert!(exact.contains("font-weight: bold"));
+}
+
+#[test]
 fn ignores_data_attributes_when_matching_and_merging_css_rules() {
     let css = DirectHtmlCss::parse(
         ".note { color: red; } #hero { font-weight: bold; } p { color: blue; }",

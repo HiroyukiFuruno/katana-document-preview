@@ -110,17 +110,19 @@ fn tag_name_prefixes_do_not_create_unrelated_text_decoration() {
 #[test]
 fn css_boolean_declarations_use_the_last_supported_value() {
     let properties = HtmlStyleProperties::from_fragment(
-        r#"<span style="font-weight: bold; font-weight: normal; text-decoration: underline; text-decoration: none">x</span>"#,
+        r#"<span style="font-weight: bold; font-weight: normal; font-style: italic; font-style: normal; text-decoration: underline; text-decoration: none">x</span>"#,
     );
 
     assert_eq!(Some(false), properties.bold_override);
+    assert_eq!(Some(false), properties.italic_override);
     assert_eq!(Some(false), properties.underline_override);
     assert_eq!(Some(false), properties.strikethrough_override);
 
     let properties = HtmlStyleProperties::from_fragment(
-        r#"<span style="font-weight: normal; font-weight: bold; text-decoration: none; text-decoration: underline line-through">x</span>"#,
+        r#"<span style="font-weight: normal; font-weight: bold; font-style: normal; font-style: italic; text-decoration: none; text-decoration: underline line-through">x</span>"#,
     );
     assert_eq!(Some(true), properties.bold_override);
+    assert_eq!(Some(true), properties.italic_override);
     assert_eq!(Some(true), properties.underline_override);
     assert_eq!(Some(true), properties.strikethrough_override);
 }

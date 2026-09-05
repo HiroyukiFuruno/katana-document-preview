@@ -1,7 +1,7 @@
 use super::{SpreadsheetEngineError, SpreadsheetEngineSession};
 use crate::multi_format::spreadsheet_filter_test_support::{
-    representative_with_auto_filter, representative_with_persisted_auto_filter,
-    representative_with_persisted_auto_filter_and_authored_hidden,
+    representative_with_auto_filter, representative_with_persisted_auto_filter_and_authored_hidden,
+    representative_with_persisted_auto_filter_and_saved_filter_hidden_rows,
 };
 use crate::multi_format::{SpreadsheetFilterCriterion, SpreadsheetViewerLimits};
 
@@ -10,7 +10,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[test]
 fn opening_persisted_auto_filter_keeps_criteria_and_clear_restores_filtered_rows() -> TestResult {
     let mut engine = SpreadsheetEngineSession::open(
-        representative_with_persisted_auto_filter()?,
+        representative_with_persisted_auto_filter_and_saved_filter_hidden_rows()?,
         "persisted-filter.xlsx",
         SpreadsheetViewerLimits::strict(),
     )?;
@@ -45,12 +45,12 @@ fn clear_persisted_filter_preserves_authored_hidden_rows() -> TestResult {
         .ok_or("auto filter is missing")?;
     assert_eq!(vec![4, 5, 6], filter.filtered_out_rows);
     assert!(engine.sheets()[0].row_tracks[3].hidden);
-    assert!(engine.sheets()[0].row_tracks[4].hidden);
+    assert!(!engine.sheets()[0].row_tracks[4].hidden);
 
     let cleared = engine.clear_filter(0, None)?;
-    assert_eq!(5, cleared.visible_row_count);
+    assert_eq!(6, cleared.visible_row_count);
     assert!(engine.sheets()[0].row_tracks[3].hidden);
-    assert!(engine.sheets()[0].row_tracks[4].hidden);
+    assert!(!engine.sheets()[0].row_tracks[4].hidden);
     Ok(())
 }
 

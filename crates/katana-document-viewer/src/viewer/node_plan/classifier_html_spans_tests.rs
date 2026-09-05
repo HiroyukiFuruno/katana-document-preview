@@ -127,6 +127,14 @@ fn inline_html_spans_supports_style_markers() {
 }
 
 #[test]
+fn inline_html_spans_allow_font_style_normal_to_clear_inherited_italics() {
+    let spans = inline_node_spans(r#"<em><span style="font-style: normal">plain</span></em>"#);
+
+    assert_eq!(1, spans.len());
+    assert!(!spans[0].style.italic);
+}
+
+#[test]
 fn html_block_spans_applies_inline_css_style() {
     let spans = node_spans_from_html(r#"<p style="color: #ff0000; font-weight: bold">Red</p>"#);
 

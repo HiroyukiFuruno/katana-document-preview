@@ -124,3 +124,7 @@ impl PreviewSourceNormalizer {
 #[cfg(test)]
 #[path = "source_normalizer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "source_normalizer_image_tests.rs"]
+mod image_tests;

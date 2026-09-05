@@ -26,7 +26,7 @@ impl PreviewSourceNormalizer {
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("image");
-        format!("![{alt}]({image_uri})")
+        format!("![{}]({image_uri})", Self::escape_markdown_alt(alt))
     }
 
     fn image_uri(trimmed: &str, source_name: &str) -> String {
@@ -34,7 +34,7 @@ impl PreviewSourceNormalizer {
             return Self::file_uri(source_name);
         }
         if Self::is_image_reference(trimmed) {
-            return trimmed.to_string();
+            return Self::file_uri(trimmed);
         }
         Self::file_uri(source_name)
     }
@@ -44,19 +44,24 @@ impl PreviewSourceNormalizer {
             return source_name.to_string();
         }
         let normalized = Self::normalized_text(source_name);
-        if normalized.starts_with("file://") {
-            return normalized;
+        let (raw, preserve_uri_suffix) = Self::local_file_uri_path(normalized);
+        Self::encode_file_uri(&raw, preserve_uri_suffix)
+    }
+
+    fn local_file_uri_path(normalized: String) -> (String, bool) {
+        if let Some(raw) = normalized.strip_prefix("file://") {
+            return (raw.to_string(), true);
         }
-        if normalized.starts_with("//") {
-            return format!("file:{normalized}");
+        if let Some(raw) = normalized.strip_prefix("//") {
+            return (raw.to_string(), false);
         }
         if normalized.starts_with('/') {
-            return format!("file://{normalized}");
+            return (normalized, false);
         }
         if Self::starts_with_windows_drive(&normalized) {
-            return format!("file:///{normalized}");
+            return (format!("/{normalized}"), false);
         }
-        format!("file://{normalized}")
+        (normalized, false)
     }
 
     fn is_image_reference(value: &str) -> bool {
@@ -89,7 +94,85 @@ impl PreviewSourceNormalizer {
     }
 
     fn strip_query_fragment(value: &str) -> &str {
-        value.split(['?', '#']).next().unwrap_or(value)
+        let Some(index) = value.find(['?', '#']) else {
+            return value;
+        };
+        let prefix = &value[..index];
+        if Path::new(prefix).extension().is_some() {
+            prefix
+        } else {
+            value
+        }
+    }
+
+    fn escape_markdown_alt(value: &str) -> String {
+        value
+            .replace('\\', "\\\\")
+            .replace('[', "\\[")
+            .replace(']', "\\]")
+    }
+
+    fn encode_file_uri(raw: &str, preserve_uri_suffix: bool) -> String {
+        let (raw, suffix) = if preserve_uri_suffix {
+            match raw.find(['?', '#']) {
+                Some(index) => (&raw[..index], &raw[index..]),
+                None => (raw, ""),
+            }
+        } else {
+            (raw, "")
+        };
+        let (authority, path) = if raw.starts_with('/') || !raw.contains('/') {
+            ("", raw)
+        } else {
+            let split = raw.find('/').unwrap_or(raw.len());
+            raw.split_at(split)
+        };
+        format!("file://{authority}{}{suffix}", Self::encode_uri_path(path))
+    }
+
+    fn encode_uri_path(value: &str) -> String {
+        let mut encoded = String::with_capacity(value.len());
+        let mut remaining = value.as_bytes();
+        while !remaining.is_empty() {
+            let consumed = Self::encode_uri_fragment(&mut encoded, remaining);
+            remaining = &remaining[consumed..];
+        }
+        encoded
+    }
+
+    fn encode_uri_fragment(encoded: &mut String, bytes: &[u8]) -> usize {
+        if Self::has_percent_encoding(bytes) {
+            encoded.push('%');
+            encoded.push(bytes[1] as char);
+            encoded.push(bytes[2] as char);
+            return 3;
+        }
+        let byte = bytes[0];
+        if Self::is_uri_path_byte(byte) {
+            encoded.push(byte as char);
+        } else {
+            Self::push_percent_encoded(encoded, byte);
+        }
+        1
+    }
+
+    fn has_percent_encoding(bytes: &[u8]) -> bool {
+        bytes.len() >= 3
+            && bytes[0] == b'%'
+            && bytes[1].is_ascii_hexdigit()
+            && bytes[2].is_ascii_hexdigit()
+    }
+
+    fn is_uri_path_byte(byte: u8) -> bool {
+        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'/' | b':')
+    }
+
+    fn push_percent_encoded(encoded: &mut String, byte: u8) {
+        const HEX: &[u8; 16] = b"0123456789ABCDEF";
+
+        encoded.push('%');
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
     }
 
     fn normalized_text(value: &str) -> String {

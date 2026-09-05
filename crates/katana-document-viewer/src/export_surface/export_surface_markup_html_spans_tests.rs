@@ -155,11 +155,12 @@ fn html_attribute_values_handle_non_elements_boolean_and_unquoted_forms() {
 #[test]
 fn html_spans_apply_inline_css_false_values_over_inherited_styles() {
     let spans = SurfaceHtmlMarkup::html_spans(
-        r#"<strong><del><span style="font-weight: normal; text-decoration: none">plain</span></del></strong>"#,
+        r#"<strong><em><del><span style="font-weight: normal; font-style: normal; text-decoration: none">plain</span></del></em></strong>"#,
     );
 
     assert_eq!(1, spans.len());
     assert!(!spans[0].style.bold);
+    assert!(!spans[0].style.italic);
     assert!(!spans[0].style.underline);
     assert!(!spans[0].style.strikethrough);
 }

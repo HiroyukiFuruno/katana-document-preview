@@ -62,23 +62,22 @@ struct CssRule {
 
 impl CssRule {
     fn matches(&self, tag: &str, tag_name: &str) -> bool {
-        if self.selector == "body" {
+        if self.selector.eq_ignore_ascii_case("body") {
             return true;
         }
         if let Some(class) = self.selector.strip_prefix('.') {
             return DirectHtmlCssAttrs::class_list(tag)
                 .iter()
-                .any(|candidate| candidate.eq_ignore_ascii_case(class));
+                .any(|candidate| candidate == class);
         }
         if let Some(id) = self.selector.strip_prefix('#') {
-            return DirectHtmlCssAttrs::attribute_value(tag, "id")
-                .is_some_and(|value| value.eq_ignore_ascii_case(id));
+            return DirectHtmlCssAttrs::attribute_value(tag, "id").is_some_and(|value| value == id);
         }
         self.selector.eq_ignore_ascii_case(tag_name)
     }
 
     fn specificity(&self) -> u8 {
-        if self.selector == "body" {
+        if self.selector.eq_ignore_ascii_case("body") {
             0
         } else if self.selector.starts_with('#') {
             100
@@ -103,7 +102,7 @@ fn parse_rules(css: &str) -> Vec<CssRule> {
         let declarations = parse_declarations(body);
         if !declarations.is_empty() {
             rules.push(CssRule {
-                selector: selector.to_ascii_lowercase(),
+                selector: selector.to_string(),
                 declarations,
             });
         }

@@ -28,9 +28,7 @@ impl SpreadsheetEngineSession {
             if let Some(filter) = &mut sheet.auto_filter {
                 filter.filtered_out_rows = filtered_out_rows.clone();
             }
-            // OOXML の row.hidden はフィルタ由来と手動非表示を区別しないため、
-            // source が指定した非表示は常に authored layer として保持する。
-            // 現在の条件による可視性は auto_filter layer で別途表現する。
+            move_persisted_filter_hidden_rows_to_filter_layer(sheet, &filtered_out_rows);
         }
         self.active_filters = active;
         Ok(())
@@ -102,6 +100,24 @@ impl SpreadsheetEngineSession {
             visitor(start..end, self.materialize(sheet_index, &coordinates)?)?;
         }
         Ok(())
+    }
+}
+
+fn move_persisted_filter_hidden_rows_to_filter_layer(
+    sheet: &mut crate::multi_format::SpreadsheetSheetArtifact,
+    filtered_out_rows: &[usize],
+) {
+    // SpreadsheetML は手動非表示と保存済み AutoFilter に共通の row.hidden を使う。
+    // 再生可能な保存条件で除外される行は filter layer を正とし、Clear が保存時の
+    // visibility を残さず全行を復元できるようにする。条件外の source 非表示は
+    // authored layer に残る。両者が重なる場合はファイル上で起源を区別できないため、
+    // 保存済み filter の再生結果を採用する。
+    for row in filtered_out_rows {
+        if let Some(track) = sheet.row_tracks.get_mut(*row)
+            && track.hidden
+        {
+            track.hidden = false;
+        }
     }
 }
 

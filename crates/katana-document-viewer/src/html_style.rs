@@ -8,6 +8,7 @@ pub(crate) struct HtmlStyleProperties {
     pub(crate) inline_code: bool,
     pub(crate) color_rgba: Option<[u8; 4]>,
     pub(crate) bold_override: Option<bool>,
+    pub(crate) italic_override: Option<bool>,
     pub(crate) underline_override: Option<bool>,
     pub(crate) strikethrough_override: Option<bool>,
 }
@@ -35,6 +36,7 @@ impl HtmlStyleProperties {
             inline_code: tags::contains_opening_tag(&lower, "code"),
             color_rgba: None,
             bold_override: None,
+            italic_override: None,
             underline_override: None,
             strikethrough_override: None,
         }
@@ -57,7 +59,11 @@ impl HtmlStyleProperties {
             "font-weight" if font_weight_is_valid(&value) => {
                 self.bold_override = Some(font_weight_is_bold(&value));
             }
-            "font-style" if value == "italic" => self.italic = true,
+            "font-style" if value == "italic" => {
+                self.italic = true;
+                self.italic_override = Some(true);
+            }
+            "font-style" if value == "normal" => self.italic_override = Some(false),
             "text-decoration" => {
                 self.underline_override = Some(value.contains("underline"));
                 self.strikethrough_override = Some(value.contains("line-through"));
