@@ -51,6 +51,9 @@ REQUIRED_STAGES = {
     ),
 }
 
+WINDOWS_SPREADSHEET_SPAWN = "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn.rs"
+WINDOWS_OFFICE_PROCESS = "crates/katana-document-viewer/src/multi_format/office_worker_process_windows.rs"
+
 
 def stage_errors(root: Path) -> list[str]:
     errors: list[str] = []
@@ -63,6 +66,34 @@ def stage_errors(root: Path) -> list[str]:
         for stage in stages:
             if stage not in source:
                 errors.append(f"profiling stage is missing: {stage} ({relative})")
+    errors.extend(windows_contract_errors(root))
+    return errors
+
+
+def windows_contract_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    spreadsheet = root / WINDOWS_SPREADSHEET_SPAWN
+    if spreadsheet.is_file():
+        source = spreadsheet.read_text(encoding="utf-8")
+        windows_start = source.find("#[cfg(windows)]")
+        non_windows_start = source.find("#[cfg(not(windows))]", windows_start)
+        stage = 'DebugTrace::start("spreadsheet.worker_spawn")'
+        stage_index = source.find(stage, windows_start)
+        if windows_start == -1 or stage_index == -1 or (
+            non_windows_start != -1 and stage_index >= non_windows_start
+        ):
+            errors.append("Windows spreadsheet spawn does not emit spreadsheet.worker_spawn")
+    office = root / WINDOWS_OFFICE_PROCESS
+    if office.is_file():
+        source = office.read_text(encoding="utf-8")
+        required = (
+            "let debug_enabled = crate::multi_format::debug_trace::DebugTrace::enabled();",
+            "stdio: worker_stdio_config(debug_enabled),",
+            "rappct::StdioConfig::Inherit",
+            "rappct::StdioConfig::Null",
+        )
+        if any(marker not in source for marker in required):
+            errors.append("Windows Office DEBUG trace does not preserve worker stderr")
     return errors
 
 
@@ -73,6 +104,20 @@ def self_test() -> None:
             path = root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("\n".join(stages), encoding="utf-8")
+        (root / WINDOWS_SPREADSHEET_SPAWN).write_text(
+            "#[cfg(windows)]\n"
+            "fn spawn() { let _spawn = DebugTrace::start(\"spreadsheet.worker_spawn\"); }\n"
+            "#[cfg(not(windows))]",
+            encoding="utf-8",
+        )
+        (root / WINDOWS_OFFICE_PROCESS).write_text(
+            "office.worker_spawn\n"
+            "let debug_enabled = crate::multi_format::debug_trace::DebugTrace::enabled();\n"
+            "stdio: worker_stdio_config(debug_enabled),\n"
+            "rappct::StdioConfig::Inherit\n"
+            "rappct::StdioConfig::Null",
+            encoding="utf-8",
+        )
         assert stage_errors(root) == []
         missing_path = root / next(iter(REQUIRED_STAGES))
         missing_path.write_text("", encoding="utf-8")

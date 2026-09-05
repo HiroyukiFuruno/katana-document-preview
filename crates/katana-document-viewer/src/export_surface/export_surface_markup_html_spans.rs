@@ -1,5 +1,6 @@
 use super::super::export_surface_markup_html_style::SurfaceHtmlStyle;
-use super::{SurfaceHtmlMarkup, html_tag_end, quoted_attribute_value};
+use super::attributes::attribute_value;
+use super::{SurfaceHtmlMarkup, html_tag_end};
 use crate::export_surface_span::{SurfaceTextSpan, SurfaceTextStyle};
 use crate::export_surface_text::SurfaceTextParser;
 
@@ -109,7 +110,8 @@ fn open_context(contexts: &mut Vec<HtmlSpanContext>, tag: &str, parsed: HtmlTag)
     let mut link_target = parent.link_target.clone();
     if parsed.name == "a" {
         style = style.link();
-        link_target = Some(quoted_attribute_value(tag, "href").unwrap_or_else(missing_link_target));
+        let empty_link_target = String::new();
+        link_target = Some(attribute_value(tag, "href").unwrap_or(empty_link_target));
     }
     style = SurfaceHtmlStyle::apply(tag, style);
     if !parsed.self_closing && !is_void_tag(&parsed.name) {
@@ -145,10 +147,6 @@ fn is_void_tag(name: &str) -> bool {
             | "track"
             | "wbr"
     )
-}
-
-fn missing_link_target() -> String {
-    String::new()
 }
 
 struct HtmlTag {

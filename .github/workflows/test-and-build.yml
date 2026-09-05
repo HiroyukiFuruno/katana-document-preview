@@ -71,6 +71,9 @@ jobs:
           shared-key: ci-${{ matrix.os }}-stable-default-nobin
           cache-bin: false
 
+      - name: Refresh V8 link artifact after cache restore
+        run: cargo clean -p v8
+
       - name: Install cargo-llvm-cov
         if: matrix.os == 'ubuntu-latest'
         uses: taiki-e/install-action@cargo-llvm-cov

@@ -78,7 +78,8 @@ fn build_options(
     format: OfficeDocumentFormat,
     config: &OfficeWorkerConfig,
 ) -> rappct::LaunchOptions {
-    use rappct::{JobLimits, StdioConfig};
+    use rappct::JobLimits;
+    let debug_enabled = crate::multi_format::debug_trace::DebugTrace::enabled();
     rappct::LaunchOptions {
         exe: staged_executable.to_path_buf(),
         cmdline: Some(worker_command_line(
@@ -88,8 +89,8 @@ fn build_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(worker_environment_with_trace(workspace)),
-        stdio: StdioConfig::Null,
+        env: Some(worker_environment_with_trace(workspace, debug_enabled)),
+        stdio: worker_stdio_config(debug_enabled),
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
             cpu_rate_percent: None,
@@ -99,11 +100,20 @@ fn build_options(
     }
 }
 
+fn worker_stdio_config(debug_enabled: bool) -> rappct::StdioConfig {
+    if debug_enabled {
+        rappct::StdioConfig::Inherit
+    } else {
+        rappct::StdioConfig::Null
+    }
+}
+
 fn worker_environment_with_trace(
     workspace: &Path,
+    debug_enabled: bool,
 ) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     let mut environment = worker_environment(workspace);
-    if crate::multi_format::debug_trace::DebugTrace::enabled() {
+    if debug_enabled {
         crate::multi_format::debug_trace::DebugTrace::configure_worker_environment(
             &mut environment,
         );
@@ -132,5 +142,17 @@ fn map_wait_error(config: &OfficeWorkerConfig, error: rappct::AcError) -> Office
         OfficeWorkerError::WorkerTimedOut
     } else {
         OfficeWorkerError::unavailable(config, error.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::worker_stdio_config;
+    use rappct::StdioConfig;
+
+    #[test]
+    fn debug_worker_stdio_is_inherited() {
+        assert_eq!(StdioConfig::Inherit, worker_stdio_config(true));
+        assert_eq!(StdioConfig::Null, worker_stdio_config(false));
     }
 }

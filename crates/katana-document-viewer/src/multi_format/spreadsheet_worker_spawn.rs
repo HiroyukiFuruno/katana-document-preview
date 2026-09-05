@@ -56,6 +56,7 @@ impl SpreadsheetWorkerSpawn {
         config: &OfficeWorkerConfig,
     ) -> Result<SpawnedSpreadsheetProcess, OfficeWorkerError> {
         let resolved = SpreadsheetWorkerExecutable::resolve(config);
+        let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.worker_spawn");
         super::spreadsheet_worker_spawn_windows::spawn(workspace, &resolved)
     }
 }

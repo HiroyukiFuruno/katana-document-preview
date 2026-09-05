@@ -2,10 +2,14 @@ use super::SurfaceBadge;
 use crate::export_surface_span::SurfaceTextSpan;
 use crate::export_surface_text::SurfaceTextParser;
 
+#[path = "export_surface_markup_html_attributes.rs"]
+pub(super) mod attributes;
 #[path = "export_surface_markup_badge.rs"]
 mod badge;
 #[path = "export_surface_markup_html_spans.rs"]
 mod spans;
+
+use attributes::attribute_value;
 
 pub(crate) struct SurfaceHtmlMarkup;
 
@@ -46,14 +50,13 @@ impl SurfaceHtmlMarkup {
             let Some(img_end) = html_tag_end(after_img) else {
                 break;
             };
-            let tag = &after_img[..img_end];
-            if let Some(src) = quoted_attribute_value(tag, "src") {
-                let alt = quoted_attribute_value(tag, "alt").unwrap_or_else(empty_attribute_value);
+            let tag = &after_img[..=img_end];
+            if let Some(src) = attribute_value(tag, "src") {
+                let alt = attribute_value(tag, "alt").unwrap_or_else(empty_attribute_value);
                 images.push(SurfaceHtmlImageRef {
                     src,
                     alt,
-                    width: quoted_attribute_value(tag, "width")
-                        .and_then(|value| value.parse().ok()),
+                    width: attribute_value(tag, "width").and_then(|value| value.parse().ok()),
                     link_target,
                 });
             }
@@ -110,27 +113,21 @@ mod tests;
 
 fn enclosing_link_target(prefix: &str) -> Option<String> {
     let link_start = prefix.rfind("<a")?;
-    quoted_attribute_value(&prefix[link_start..], "href")
+    attribute_value(&prefix[link_start..], "href")
 }
 
 fn html_tag_end(fragment: &str) -> Option<usize> {
-    let mut inside_quote = false;
+    let mut quote = None;
     for (index, character) in fragment.char_indices() {
-        match character {
-            '"' => inside_quote = !inside_quote,
-            '>' if !inside_quote => return Some(index),
-            _ => {}
+        match quote {
+            Some(delimiter) if character == delimiter => quote = None,
+            Some(_) => {}
+            None if character == '"' || character == '\'' => quote = Some(character),
+            None if character == '>' => return Some(index),
+            None => {}
         }
     }
     None
-}
-
-fn quoted_attribute_value(tag: &str, name: &str) -> Option<String> {
-    let pattern = format!("{name}=\"");
-    let start = tag.find(&pattern)? + pattern.len();
-    let rest = &tag[start..];
-    let end = rest.find('"')?;
-    Some(SurfaceTextParser::decode_basic_entities(&rest[..end]))
 }
 
 fn empty_attribute_value() -> String {

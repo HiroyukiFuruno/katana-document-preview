@@ -543,6 +543,26 @@ def release_workflow_errors(preflight: str, release: str) -> list[str]:
     return errors
 
 
+def v8_cache_refresh_errors(workflows: dict[str, str]) -> list[str]:
+    errors: list[str] = []
+    for label, workflow in workflows.items():
+        cache_position = workflow.find("uses: Swatinem/rust-cache@v2")
+        refresh_position = workflow.find(
+            "name: Refresh V8 link artifact after cache restore"
+        )
+        clean_position = workflow.find("run: cargo clean -p v8")
+        if (
+            cache_position == -1
+            or refresh_position == -1
+            or clean_position == -1
+            or not cache_position < refresh_position <= clean_position
+        ):
+            errors.append(
+                f"{label} must refresh V8 link artifacts after restoring the Rust cache."
+            )
+    return errors
+
+
 def validate(root: Path, target_version: str) -> list[str]:
     try:
         contract = release_contract(root, target_version)
@@ -570,6 +590,21 @@ def validate(root: Path, target_version: str) -> list[str]:
         release_workflow_errors(
             (root / ".github/workflows/release-preflight.yml").read_text(encoding="utf-8"),
             (root / ".github/workflows/release.yml").read_text(encoding="utf-8"),
+        )
+    )
+    errors.extend(
+        v8_cache_refresh_errors(
+            {
+                "CI workflow": (root / ".github/workflows/test-and-build.yml").read_text(
+                    encoding="utf-8"
+                ),
+                "release preflight": (
+                    root / ".github/workflows/release-preflight.yml"
+                ).read_text(encoding="utf-8"),
+                "release workflow": (root / ".github/workflows/release.yml").read_text(
+                    encoding="utf-8"
+                ),
+            }
         )
     )
     return errors
@@ -696,6 +731,21 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert release_workflow_errors(
         "\n".join(reversed(release_preflight.splitlines())), release_workflow
     )
+    v8_cache_workflow = "\n".join(
+        (
+            "uses: Swatinem/rust-cache@v2",
+            "name: Refresh V8 link artifact after cache restore",
+            "run: cargo clean -p v8",
+        )
+    )
+    assert not v8_cache_refresh_errors(
+        {
+            "CI workflow": v8_cache_workflow,
+            "release preflight": v8_cache_workflow,
+            "release workflow": v8_cache_workflow,
+        }
+    )
+    assert v8_cache_refresh_errors({"CI workflow": "uses: Swatinem/rust-cache@v2"})
     staged_publish = "\n".join(
         (
             "cargo publish -p katana-document-viewer --locked",
