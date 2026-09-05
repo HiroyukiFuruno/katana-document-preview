@@ -28,7 +28,7 @@ impl PreviewSourceNormalizer {
         let source_path = PathBuf::from(&source_name);
         let content = Self::normalize_newlines(&source.content);
         if Self::is_image_path(&source_path) {
-            return Ok(Self::image_source(&content, source_name, source_path));
+            return Self::image_source(&content, source_name, source_path);
         }
         if Self::is_drawio_path(&source_path) {
             return Ok(Self::drawio_source(&content, source_path));

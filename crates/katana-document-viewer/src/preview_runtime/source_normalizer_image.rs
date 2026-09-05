@@ -1,46 +1,25 @@
 use super::{PreparedPreviewSource, PreviewSourceNormalizer};
+use crate::preview_runtime::types::PreviewError;
 use std::path::{Path, PathBuf};
 
 #[path = "source_normalizer_image_reference.rs"]
 mod reference;
+
+#[path = "source_normalizer_image_markup.rs"]
+mod markup;
 
 impl PreviewSourceNormalizer {
     pub(super) fn image_source(
         content: &str,
         source_name: String,
         source_path: PathBuf,
-    ) -> PreparedPreviewSource {
-        PreparedPreviewSource {
-            content: Self::image_markdown(content, &source_name, &source_path),
+    ) -> Result<PreparedPreviewSource, PreviewError> {
+        Ok(PreparedPreviewSource {
+            content: Self::image_markdown(content, &source_name, &source_path)?,
             source_path,
             source_kind: crate::SourceKind::Image,
             document_kind: crate::DocumentKind::Image,
-        }
-    }
-
-    fn image_markdown(content: &str, source_name: &str, source_path: &Path) -> String {
-        let trimmed = content.trim();
-        if Self::is_markdown_image(trimmed) {
-            return trimmed.to_string();
-        }
-        let image_uri = Self::image_uri(trimmed, source_name, source_path);
-        let alt_source_name = Self::normalized_text(source_name);
-        let alt = Path::new(&alt_source_name)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("image");
-        format!("![{}]({image_uri})", Self::escape_markdown_alt(alt))
-    }
-
-    fn image_uri(trimmed: &str, source_name: &str, source_path: &Path) -> String {
-        if trimmed.is_empty() {
-            return Self::file_uri(source_name);
-        }
-        if Self::is_image_reference(trimmed) {
-            return Self::image_reference_uri(trimmed, source_path)
-                .unwrap_or_else(|| Self::file_uri(source_name));
-        }
-        Self::file_uri(source_name)
+        })
     }
 
     fn file_uri(source_name: &str) -> String {

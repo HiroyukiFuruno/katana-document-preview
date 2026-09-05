@@ -1,14 +1,19 @@
 use super::PreviewSourceNormalizer;
+use crate::preview_runtime::types::PreviewError;
+use std::io;
 use std::path::{Path, PathBuf};
 
 impl PreviewSourceNormalizer {
-    pub(super) fn image_reference_uri(reference: &str, source_path: &Path) -> Option<String> {
+    pub(super) fn image_reference_uri(
+        reference: &str,
+        source_path: &Path,
+    ) -> Result<String, PreviewError> {
         if !Self::is_relative_image_reference(reference) {
-            return Some(Self::file_uri(reference));
+            return Ok(Self::file_uri(reference));
         }
         let path = Self::image_reference_path(reference, source_path);
-        let absolute = Self::absolute_image_reference_path(path)?;
-        Some(Self::file_uri(&absolute.to_string_lossy()))
+        let absolute = Self::absolute_image_reference_path(path, std::env::current_dir())?;
+        Ok(Self::file_uri(&absolute.to_string_lossy()))
     }
 
     fn is_relative_image_reference(reference: &str) -> bool {
@@ -28,20 +33,28 @@ impl PreviewSourceNormalizer {
             .join(Self::normalized_text(reference))
     }
 
-    fn absolute_image_reference_path(path: PathBuf) -> Option<PathBuf> {
+    fn absolute_image_reference_path(
+        path: PathBuf,
+        current_directory: io::Result<PathBuf>,
+    ) -> Result<PathBuf, PreviewError> {
         if path.is_absolute() {
-            return Some(path);
+            return Ok(path);
         }
-        match std::env::current_dir() {
-            Ok(directory) => Some(directory.join(path)),
-            Err(_) => None,
-        }
+        let directory = current_directory.map_err(|error| {
+            PreviewError::Render(format!(
+                "relative image reference cannot be resolved: {error}"
+            ))
+        })?;
+        Ok(directory.join(path))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::PreviewSourceNormalizer;
+    use crate::preview_runtime::types::PreviewError;
+    use std::io;
+    use std::path::PathBuf;
 
     #[test]
     fn relative_image_reference_excludes_uris_and_absolute_paths() {
@@ -61,5 +74,22 @@ mod tests {
                 "{reference}"
             );
         }
+    }
+
+    #[test]
+    fn relative_image_reference_reports_current_directory_failure() {
+        let result = PreviewSourceNormalizer::absolute_image_reference_path(
+            PathBuf::from("assets/photo.png"),
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "working directory unavailable",
+            )),
+        );
+
+        assert!(matches!(
+            result,
+            Err(PreviewError::Render(message))
+                if message.contains("relative image reference cannot be resolved")
+        ));
     }
 }
