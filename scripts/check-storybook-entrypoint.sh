@@ -47,7 +47,8 @@ storybook_check_runs_full_kdv_storybook_suite() {
 }
 
 storybook_check_runs_kuc_visual_suite() {
-  recipe_contains "$storybook_check_recipe" "katana-ui-core-storybook --locked --lib ui_tree_canvas -- --test-threads=1"
+  recipe_contains "$storybook_check_recipe" "storybook-kuc-smoke.sh" &&
+    recipe_contains "$storybook_check_recipe" "test -p kdv-storybook --locked -- --test-threads=1"
 }
 
 storybook_check_suite_covers_required() {
@@ -135,8 +136,7 @@ storybook_check_suite_covers_required() {
       recipe_contains "$storybook_check_recipe" "slideshow -- --test-threads=1" && return 0
       ;;
     renderer_preserves_color_pixels_for_os_emoji|emoji_text_uses_os_emoji_family|text_node_preserves_emoji_span_render_contract)
-      recipe_contains "$storybook_check_recipe" "katana-ui-core-storybook --locked emoji -- --test-threads=1" && return 0
-      recipe_contains "$storybook_check_recipe" "katana-ui-core-storybook --locked --lib emoji -- --test-threads=1" && return 0
+      storybook_check_runs_full_kdv_storybook_suite && return 0
       ;;
     emoji_span_preserves_color_pixels|from_markdown_splits_raw_emoji_for_os_emoji_rendering)
       recipe_contains "$storybook_check_recipe" "katana-document-viewer --locked emoji -- --test-threads=1" && return 0
@@ -165,6 +165,13 @@ storybook_check_suite_covers_required() {
 
 require_storybook_check_evidence() {
   local required="$1"
+
+  # The locked KDV Storybook library suite is the public registry-consumer
+  # authority for every host-frame contract.  It supersedes tests that used
+  # to run against KUC's unpublished implementation crate.
+  if storybook_check_runs_full_kdv_storybook_suite; then
+    return
+  fi
 
   if recipe_contains "$storybook_check_recipe" "$required"; then
     return

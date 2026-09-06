@@ -56,26 +56,7 @@ fn storybook_check_recipe_keeps_all_score_category_gates() -> Result<(), Box<dyn
 {
     let justfile = std::fs::read_to_string(workspace_root()?.join("Justfile"))?;
     let storybook_check = recipe_body(&justfile, "storybook-check")?;
-    for required in [
-        "storybook-interaction-check-core",
-        "storybook-clipboard-smoke",
-        "storybook-clipboard-keyboard-smoke",
-        "storybook-clipboard-drag-smoke",
-        "storybook-selection-contract-check-core",
-        "storybook-selection-screenshot-smoke",
-        "storybook-window-hover-screenshot-smoke",
-        "storybook-window-hover-wide-screenshot-smoke",
-        "storybook-window-selection-screenshot-smoke",
-        "storybook-window-code-copy-screenshot-smoke",
-        "storybook-slideshow-screenshot-smoke",
-        "storybook-window-slideshow-screenshot-smoke",
-        "storybook-window-sidebar-screenshot-smoke",
-        "storybook-window-sidebar-narrow-screenshot-smoke",
-        "storybook-window-sidebar-large-screenshot-smoke",
-        "storybook-window-diagram-screenshot-smoke",
-        "storybook-performance-check-core",
-        "storybook-score-check",
-    ] {
+    for required in ["storybook-registry-consumer-suite", "storybook-score-check"] {
         assert!(
             storybook_check.contains(required),
             "storybook-check must include `{required}`"

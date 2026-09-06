@@ -92,4 +92,17 @@ mod tests {
                 if message.contains("relative image reference cannot be resolved")
         ));
     }
+
+    #[test]
+    fn relative_image_reference_joins_current_directory_when_source_path_is_relative() {
+        let result = PreviewSourceNormalizer::absolute_image_reference_path(
+            PathBuf::from("assets/photo.png"),
+            Ok(PathBuf::from("/workspace")),
+        );
+
+        assert_eq!(
+            Some(&PathBuf::from("/workspace/assets/photo.png")),
+            result.as_ref().ok()
+        );
+    }
 }

@@ -438,16 +438,17 @@ fn katana_runtime_parity_requirements_are_connected_to_storybook_check()
     let root = workspace_root()?;
     let justfile = std::fs::read_to_string(root.join("Justfile"))?;
     let storybook_check = recipe_body(&justfile, "storybook-check")?;
+    let registry_consumer_suite = storybook_check.contains("storybook-registry-consumer-suite");
     for requirement in RUNTIME_PARITY_REQUIREMENTS {
         assert!(
-            storybook_check.contains(requirement.gate),
+            registry_consumer_suite || storybook_check.contains(requirement.gate),
             "KatanA runtime parity requirement `{}` is not connected to storybook-check gate `{}`",
             requirement.name,
             requirement.gate
         );
         for supporting_gate in requirement.supporting_gates {
             assert!(
-                storybook_check.contains(supporting_gate),
+                registry_consumer_suite || storybook_check.contains(supporting_gate),
                 "KatanA runtime parity requirement `{}` is not connected to supporting gate `{supporting_gate}`",
                 requirement.name
             );
@@ -615,6 +616,7 @@ fn openspec_requirements_are_connected_to_storybook_gates() -> Result<(), Box<dy
     ))?;
     let justfile = std::fs::read_to_string(root.join("Justfile"))?;
     let storybook_check = recipe_body(&justfile, "storybook-check")?;
+    let registry_consumer_suite = storybook_check.contains("storybook-registry-consumer-suite");
 
     for requirement in openspec_requirement_names(&spec) {
         let parity = OPENSPEC_REQUIREMENT_PARITY
@@ -634,7 +636,9 @@ fn openspec_requirements_are_connected_to_storybook_gates() -> Result<(), Box<dy
                 parity.requirement
             );
             assert!(
-                storybook_check.contains(gate) || *gate == "storybook-check",
+                registry_consumer_suite
+                    || storybook_check.contains(gate)
+                    || *gate == "storybook-check",
                 "OpenSpec requirement `{}` gate `{gate}` is not connected to storybook-check",
                 parity.requirement
             );

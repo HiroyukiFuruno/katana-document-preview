@@ -154,6 +154,19 @@ mod tests {
     }
 
     #[test]
+    fn empty_html_context_does_not_accept_an_opening_tag() {
+        let mut parser = HtmlSpanParser {
+            spans: Vec::new(),
+            contexts: Vec::new(),
+            block_boundary_pending: false,
+        };
+
+        parser.push_context("<strong>", "strong".to_string(), false);
+
+        assert!(parser.contexts.is_empty());
+    }
+
+    #[test]
     fn self_closing_and_other_tags_do_not_change_the_active_html_context() {
         let spans = parse("before<custom/>after<!-- ignored comment -->tail");
         let text = spans.into_iter().map(|span| span.text).collect::<String>();

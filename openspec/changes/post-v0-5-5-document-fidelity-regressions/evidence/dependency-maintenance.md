@@ -127,6 +127,29 @@ These results complete the dependency-maintenance and border-projection
 subitems only. The release gate, public KDV artifact, and downstream KatanA
 acceptance still require their own later evidence.
 
+## 2026-09-06 KatanA candidate-registry reference refresh
+
+- KDV `0.5.6` was packaged from the clean release candidate and served as the
+  only KDV package from a disposable loopback sparse registry. The package
+  SHA-256 was `3196397aec631fc31524d70647c7fdc12479be16698f955a09deb48bdca07020`.
+- A disposable KatanA clone resolved KDV `0.5.6` from that registry, KRR
+  `0.4.19` and KUC `0.3.7` from crates.io, and exactly one V8 `152.2.0`; no
+  KDV path, git, or patch override was used.
+- Its real screenshot runner generated `sample-export.png` (1280x19067,
+  SHA-256 `88a3342dadc95e46fa1db5e5c942017670e399d8199eca63b57ff73622675a1c`),
+  `sample-full.png` (2560x4800,
+  `3ec7ab6e530ec68acce6655c881af858f6bd3a36a5437be52b2a0e5c970849de`), and
+  `sample-diagrams-full.png` (2560x4800,
+  `11cced597dacbe2e641fd850b49d6744721ec2e3dfd3e41fed175994d63f4321`).
+- The candidate's `sample_diagrams.md` frame did not draw the diagram bodies.
+  Its dark crop was normalised with the established physical crop
+  `2374x4450+64+202`, Box filtering, and 1280x2400 output only to diagnose
+  the result; the existing tracked references were restored immediately. The
+  objective KDV Storybook comparison was `3/95`, so neither the reference nor
+  the threshold was changed. The focused score, a corrected final release
+  gate, public registry consumer, and KatanA packaged acceptance remain
+  required.
+
 Checked on 2026-08-29 before the KDV patch release. The KRR update is tracked
 by <https://github.com/HiroyukiFuruno/katana-document-viewer/issues/44>.
 

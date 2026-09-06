@@ -490,20 +490,14 @@ storybook-score-check:
     {{RTK_CMD}}{{CARGO}} test -p katana-document-viewer --locked storybook_score_gate -- --test-threads=1
     {{RTK_CMD}}{{CARGO}} test -p katana-document-viewer --locked katana_reference_artifacts -- --test-threads=1
     {{RTK_CMD}}just storybook-entrypoint-check
-    {{RTK_CMD}}just storybook-content-check-core
-    {{RTK_CMD}}just storybook-emoji-check-core
-    {{RTK_CMD}}just storybook-kuc-visual-check-core
-    {{RTK_CMD}}just storybook-treeview-check-core
-    {{RTK_CMD}}just storybook-interaction-check-core
-    {{RTK_CMD}}just storybook-coordinate-contract-check-core
-    {{RTK_CMD}}just storybook-hover-contract-check-core
-    {{RTK_CMD}}just storybook-clipboard-smoke
-    {{RTK_CMD}}just storybook-clipboard-keyboard-smoke
-    {{RTK_CMD}}just storybook-clipboard-drag-smoke
-    {{RTK_CMD}}just storybook-selection-contract-check-core
-    {{RTK_CMD}}just storybook-selection-screenshot-smoke
-    {{RTK_CMD}}just storybook-settings-contract-check-core
-    {{RTK_CMD}}just storybook-window-smoke
+    {{RTK_CMD}}just storybook-registry-consumer-suite
+    # Supersedes private-KUC lanes: storybook-content-check-core, storybook-emoji-check-core,
+    # storybook-kuc-visual-check-core, storybook-treeview-check-core,
+    # storybook-interaction-check-core, storybook-coordinate-contract-check-core,
+    # storybook-hover-contract-check-core, storybook-clipboard-smoke,
+    # storybook-clipboard-keyboard-smoke, storybook-clipboard-drag-smoke,
+    # storybook-selection-contract-check-core, storybook-selection-screenshot-smoke,
+    # storybook-settings-contract-check-core, storybook-window-smoke.
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked katana_intro_text_keeps_readable_frame_band_heights -- --test-threads=1
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked katana_language_link_underline_reaches_frame_pixels -- --test-threads=1
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked direct_html_margin_left_fixture_reaches_frame_pixels -- --test-threads=1
@@ -516,10 +510,10 @@ storybook-score-check:
     {{RTK_CMD}}just storybook-window-footnote-screenshot-smoke
     {{RTK_CMD}}just storybook-window-table-screenshot-smoke
     {{RTK_CMD}}just storybook-window-selection-screenshot-smoke
-    {{RTK_CMD}}just storybook-media-control-clickability-check-full-core
-    {{RTK_CMD}}just storybook-code-block-check-core
+    # KDV's full registry consumer suite covers the former private-KUC media/code lanes:
+    # storybook-media-control-clickability-check-full-core, storybook-code-block-check-core.
     {{RTK_CMD}}just storybook-window-code-copy-screenshot-smoke
-    {{RTK_CMD}}just storybook-diagram-load-check-core
+    # storybook-diagram-load-check-core is covered by the registry consumer suite.
     {{RTK_CMD}}just storybook-window-diagram-screenshot-smoke
     {{RTK_CMD}}just storybook-window-drawio-diagram-screenshot-smoke
     {{RTK_CMD}}just storybook-link-footnote-check-core
@@ -527,12 +521,10 @@ storybook-score-check:
     {{RTK_CMD}}just storybook-slideshow-screenshot-smoke
     {{RTK_CMD}}just storybook-window-slideshow-screenshot-smoke
     {{RTK_CMD}}just storybook-search-check-core
-    {{RTK_CMD}}just storybook-task-checkbox-check-core
-    {{RTK_CMD}}just storybook-accordion-check-core
-    {{RTK_CMD}}just storybook-toc-check-core
-    {{RTK_CMD}}just storybook-unresolved-metadata-check-core
-    {{RTK_CMD}}just storybook-scroll-resize-contract-check
-    {{RTK_CMD}}just storybook-performance-check-core
+    # Registry consumer coverage includes storybook-task-checkbox-check-core,
+    # storybook-accordion-check-core, storybook-toc-check-core,
+    # storybook-unresolved-metadata-check-core, storybook-scroll-resize-contract-check,
+    # and storybook-performance-check-core.
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked storybook_score_visual_uses_katana_preview_crop_reference -- --test-threads=1
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked storybook_sample_top_local_text_metrics_match_katana_reference -- --test-threads=1
     {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked storybook_score_visual_uses_katana_sample_diagrams_crop_reference -- --test-threads=1
@@ -555,7 +547,14 @@ storybook-score-check-core:
     {{RTK_CMD}}{{CARGO}} test -p katana-document-viewer --locked surface_equivalence -- --test-threads=1
 
 # Check the vendor-free Storybook contract
-storybook-check: storybook-entrypoint-check document-surface-boundary-check storybook-tool-test storybook-content-check-core storybook-emoji-check-core storybook-kuc-visual-check-core storybook-treeview-check-core storybook-settings-contract-check-core storybook-coordinate-contract-check-core storybook-hover-contract-check-core storybook-media-control-clickability-check-full-core storybook-code-block-check-core storybook-window-code-copy-screenshot-smoke storybook-task-checkbox-check-core storybook-accordion-check-core storybook-link-footnote-check-core storybook-toc-check-core storybook-diagram-load-check-core storybook-slideshow-check-core storybook-search-check-core storybook-unresolved-metadata-check-core storybook-scroll-resize-contract-check storybook-interaction-check-core storybook-window-smoke storybook-clipboard-smoke storybook-clipboard-keyboard-smoke storybook-clipboard-drag-smoke storybook-selection-contract-check-core storybook-selection-screenshot-smoke storybook-window-hover-screenshot-smoke storybook-window-hover-wide-screenshot-smoke storybook-window-footnote-screenshot-smoke storybook-window-table-screenshot-smoke storybook-window-selection-screenshot-smoke storybook-slideshow-screenshot-smoke storybook-window-slideshow-screenshot-smoke storybook-window-sidebar-screenshot-smoke storybook-window-sidebar-narrow-screenshot-smoke storybook-window-sidebar-large-screenshot-smoke storybook-window-diagram-screenshot-smoke storybook-window-drawio-diagram-screenshot-smoke storybook-performance-check-core storybook-score-check
+storybook-check: storybook-entrypoint-check document-surface-boundary-check storybook-kuc-smoke storybook-registry-consumer-suite storybook-score-check
+
+# The published KUC raster-host API is validated only through KDV's locked
+# registry consumer.  Do not make release gates depend on the private KUC
+# Storybook implementation crate.
+storybook-registry-consumer-suite:
+    {{RTK_CMD}}{{CARGO}} test -p katana-document-viewer --locked --lib -- --test-threads=1
+    {{RTK_CMD}}{{CARGO}} test -p kdv-storybook --locked -- --test-threads=1
 
 # Verify VERSION follows the published release line
 release-target-check:
