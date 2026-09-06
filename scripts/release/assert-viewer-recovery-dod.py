@@ -68,7 +68,7 @@ KUC_INTERACTION_TARGET_STALE_CARGO_LOCK_SOURCE = (
     f"?tag={KUC_INTERACTION_TARGET_STALE_CARGO_TAG}"
     f"#{KUC_INTERACTION_TARGET_STALE_CARGO_REV}"
 )
-KUC_REGISTRY_VERSION = "0.3.6"
+KUC_REGISTRY_VERSION = "0.3.7"
 KUC_REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 KUC_CARGO_DEPENDENCY_NAMES = ("katana-ui-core",)
 KUC_CARGO_FORBIDDEN_SIBLING_MARKERS = (
@@ -1538,12 +1538,12 @@ def self_test() -> int:
             "document_viewer harness scanner must reject stale KUC document_viewer command"
         )
     valid_kuc_cargo_toml = (
-        'katana-ui-core = { version = "=0.3.6", features = ["raster-host"] }'
+        'katana-ui-core = { version = "=0.3.7", features = ["raster-host"] }'
     )
     valid_kuc_cargo_lock = (
         "[[package]]\n"
         'name = "katana-ui-core"\n'
-        'version = "0.3.6"\n'
+        'version = "0.3.7"\n'
         'source = "registry+https://github.com/rust-lang/crates.io-index"'
     )
     if kuc_cargo_dependency_errors(
@@ -1551,23 +1551,23 @@ def self_test() -> int:
         valid_kuc_cargo_lock,
         "mod document_viewer;\nmod test_assert;\n",
     ):
-        failures.append("KUC Cargo dependency scanner must allow exact registry v0.3.6 deps")
+        failures.append("KUC Cargo dependency scanner must allow exact registry v0.3.7 deps")
     if not kuc_cargo_dependency_errors(
-        valid_kuc_cargo_toml.replace('version = "=0.3.6"', 'version = "=0.3.5"'),
+        valid_kuc_cargo_toml.replace('version = "=0.3.7"', 'version = "=0.3.6"'),
         valid_kuc_cargo_lock,
         "mod document_viewer;\n",
     ):
         failures.append("KUC Cargo dependency scanner must reject stale Cargo.toml version")
     if not kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml,
-        valid_kuc_cargo_lock.replace('version = "0.3.6"', 'version = "0.3.5"'),
+        valid_kuc_cargo_lock.replace('version = "0.3.7"', 'version = "0.3.6"'),
         "mod document_viewer;\n",
     ):
         failures.append("KUC Cargo dependency scanner must reject stale Cargo.lock version")
     if not kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml.replace(
-            'version = "=0.3.6", features',
-            'git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", version = "=0.3.6", features',
+            'version = "=0.3.7", features',
+            'git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", version = "=0.3.7", features',
         ),
         valid_kuc_cargo_lock,
         "mod document_viewer;\n",
@@ -1575,7 +1575,7 @@ def self_test() -> int:
         failures.append("KUC Cargo dependency scanner must reject a KUC git override")
     if not kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml
-        + '\nkatana-ui-core-storybook = { package = "katana-ui-core", version = "=0.3.6", features = ["raster-host"] }',
+        + '\nkatana-ui-core-storybook = { package = "katana-ui-core", version = "=0.3.7", features = ["raster-host"] }',
         valid_kuc_cargo_lock,
         "mod document_viewer;\n",
     ):

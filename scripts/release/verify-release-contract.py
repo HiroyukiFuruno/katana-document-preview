@@ -55,7 +55,7 @@ LINUX_SANDBOX_DEPENDENCIES = {
     "seccompiler": "0.5.0",
     "skarn-sandbox": "1.0.1",
 }
-KUC_VERSION = "0.3.6"
+KUC_VERSION = "0.3.7"
 KUC_DECLARED_VERSION = f"={KUC_VERSION}"
 MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/artifact.rs",

@@ -1,5 +1,25 @@
 # Dependency maintenance
 
+## 2026-09-06 KUC v0.3.7 public adoption
+
+- KUC `v0.3.7` is publicly available as tag
+  `df8df4251584ab59aa33d778ea8863172514e402`, GitHub Release, and crates.io
+  package. `cargo info katana-ui-core@0.3.7` downloaded the registry artifact
+  and reported its `raster-host` feature.
+- KDV now uses exact registry `katana-ui-core = "=0.3.7"` in the workspace
+  and document-surface manifests. `cargo update -p katana-ui-core --precise
+  0.3.7` recorded the crates.io source and checksum
+  `9e8dfdba6ce3480c373dea39db73edd53215e651f6fa4637be4d455530fb7b3e`;
+  no path or git override was introduced.
+- The following final-source contract checks passed: release contract,
+  document-surface boundary, release DoD self-test, V8 runtime singleton
+  (`152.2.0`), dependency tests (4), Storybook score-gate contract tests
+  (24), format, AST lint, and strict workspace clippy.
+- This is dependency-maintenance evidence only. The KatanA-generated
+  candidate reference, final strict release gate, three-OS PR checks, KDV
+  publication, fresh public KDV consumer, and KatanA packaged acceptance
+  remain distinct required gates.
+
 ## 2026-09-05 KUC v0.3.6 public adoption and dependency refresh
 
 - KUC `v0.3.6` has a remote tag, a published GitHub Release, and a crates.io
