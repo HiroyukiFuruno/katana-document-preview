@@ -29,6 +29,7 @@ KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで�
 7. `close`と`Drop`の両方がworker shutdown、temporary workspace、frame/cacheを解放する。二重closeは成功する冪等操作とする。
 8. KDV direct `v8 =152.2.0`とKRR 0.4.19のV8を単一registry packageへ解決する。local `cargo tree -d`と公開KDV APIを参照するconsumer linkに加え、publish後はpath/gitなしのtemporary registry consumerをfresh resolveして同じ条件を再確認する。
 9. DOCX/XLSX fidelityのsource rendererはLibreOffice 26.8.0.3、72 dpi、`representative.docx`/`representative.xlsx`のSHA-256、DOCX 842x596/XLSX 596x842 viewportに固定する。KDV runtimeへLibreOffice等を追加するのではなく、比較harnessのsourceとしてのみ扱う。XLSX border metadataはworker artifactから公開frameまでKDVが保持し、KUCのcustom border描画が公開された時だけthin projectionを接続する。
+10. 公式`office2pdf 0.6.8`はPowerPoint段落間隔とCJK font fallbackに加え、malformed PPTX raster omissionとPPTX header-rowspan preservationをrelease tagへ含め、crates.ioにunyankedで公開された。KDVはdependency keyを`office2pdf`のまま維持し、`office2pdf-katana 0.6.10`のpackage aliasを廃止して公式`office2pdf =0.6.8`へ戻す。release contractはpackage名、exact version、registry source、checksumを検査し、path/git fallbackを拒否する。
 
 ## Risks / Trade-offs
 
@@ -39,13 +40,15 @@ KDV 0.5.5はXLSXを別processのIronCalc/streaming engineとKUC GenericGridで�
 - [Risk] KDV/KRRが異なるV8を解決するとconsumer binaryが二重静的runtimeをlinkする → version、lockfile、duplicate tree、local link、registry linkを別々に必須化する。
 - [Risk] source renderer未合意のままfidelity scoreを採用すると比較対象が恣意的になる → LibreOffice 26.8.0.3 / 72 dpi / fixture hash / viewport / artifact hashをfidelity recordへ固定し、変更時は再計測を必須にする。
 - [Risk] KUC 0.3.3はcellごとのcustom border描画を持たず、KDVだけで視覚差分を隠すとowner boundaryを越える → KDVはmetadataを保持してscoreへ露出し、visual gapはKUC公開版のthin projection待ちとして数値化する。
+- [Risk] 公式`office2pdf 0.6.8`はmaintenance forkより広い上流差分を含むため、package置換だけでは表示互換を証明できない → 既存のPPTX段落/CJK、実文書、strict coverage、3 OS、release contractを最新HEADで再実行し、gateを下げない。
 
 ## Migration Plan
 
 1. 追加型とworker protocolを後方互換なvariant/fieldとして導入する。
-2. KDVの生成fixture・実Office corpus・full gateを通し、patch versionを公開する。
-3. KatanAをexact registry versionへ更新し、KatanA側はframe metadataとcommand/eventをeguiへ投影する。
-4. 問題時はKatanA dependencyを直前の公開KDVへ戻せる。文書ファイルの移行はない。
+2. 公式`office2pdf 0.6.8`のexact registry dependency、lockfile checksum、supply-chain closureを固定する。
+3. KDVの生成fixture・実Office corpus・full gateを通し、patch versionを公開する。
+4. KatanAをexact registry versionへ更新し、KatanA側はframe metadataとcommand/eventをeguiへ投影する。
+5. 問題時はKatanA dependencyを直前の公開KDVへ戻せる。文書ファイルの移行はない。
 
 ## Open Questions
 

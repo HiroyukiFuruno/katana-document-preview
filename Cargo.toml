@@ -36,7 +36,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "gif", 
 ironcalc = "=0.8.3"
 libc = "=0.2.189"
 minifb = "0.28"
-office2pdf = { package = "office2pdf-katana", version = "=0.6.10" }
+office2pdf = { package = "office2pdf", version = "=0.6.8" }
 process_control = "5.2"
 resvg = "0.48"
 skarn-sandbox = "=1.0.1"

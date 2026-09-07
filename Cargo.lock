@@ -2520,7 +2520,7 @@ dependencies = [
  "katana-render-runtime",
  "katana-ui-core",
  "libc",
- "office2pdf-katana",
+ "office2pdf",
  "process_control",
  "quick-xml 0.42.0",
  "rappct",
@@ -3150,10 +3150,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "office2pdf-katana"
-version = "0.6.10"
+name = "office2pdf"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aade06d4894f58a10a4937a74df65e59da6f5e1071609fe0073bb9089028efcb"
+checksum = "c32d2b1b14f0ff13eb83d0a9a1c909287af13a0a7aee0581bc82a00ecbbead3b"
 dependencies = [
  "comemo",
  "docx-rs",

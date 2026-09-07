@@ -35,6 +35,7 @@ def main() -> None:
     result = subprocess.run(
         [
             "rtk",
+            "proxy",
             "cargo",
             "metadata",
             "--format-version",

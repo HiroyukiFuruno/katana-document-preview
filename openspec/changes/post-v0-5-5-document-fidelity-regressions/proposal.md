@@ -10,6 +10,7 @@ KatanA v0.22.41でOffice文書を実利用した結果、XLSXのAutoFilter欠落
 - PPTX/XLSXのcold/warm差をspawn、runtime init、package parse、conversion、frame publicationまでstage別に計測し、同一sourceの不要な再変換を防止する。
 - page/grid/artifact cacheとworker lifecycleを上限付きにし、close/drop後にprocess・frame・cacheを解放する。
 - KDVとKRRのV8を単一のregistry版へ解決し、local graph、公開API consumer link、公開後のfresh registry consumerで二重linkを拒否する。
+- `office2pdf-katana 0.6.10`で維持していたOffice修正が公式`office2pdf 0.6.8`へ公開されたことをtag、crates.io artifact、checksum、回帰test sourceで検証し、exact registry dependencyを公式packageへ戻す。
 - DOCX/XLSXの客観fidelityは、合意済みsource rendererのversion、viewport、fixture hash、element/geometry scoreを固定してから比較する。
 - 実Office corpusと生成fixtureを用いた回帰・性能・資源解放gateを追加する。
 
@@ -30,6 +31,6 @@ KatanA v0.22.41でOffice文書を実利用した結果、XLSXのAutoFilter欠落
 
 ## Impact
 
-- KDVのspreadsheet artifact、worker protocol、document session、neutral grid frame、Office preflight、paged conversion cache、release consumer検証を変更する。
+- KDVのspreadsheet artifact、worker protocol、document session、neutral grid frame、Office preflight、paged conversion cache、Office engineのexact registry dependency、release consumer検証を変更する。
 - 公開APIには追加の型・command・event・metadataが加わるが、既存variantと既存hostの挙動は維持する。
 - KatanAは公開されたKDV版へ更新し、egui表示と入力だけを担当する。

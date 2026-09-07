@@ -164,7 +164,9 @@ change is appropriate for those rows.
   lockfile contains the crates.io source and checksum.
 - `epaint_default_fonts` was updated from 0.35.0 to 0.36.1. All 424 focused
   export-surface tests passed after the font dependency change.
-- `office2pdf-katana` remains the latest published exact version, `=0.6.10`.
+- **Historical (superseded on 2026-09-07):** `office2pdf-katana` remained the
+  latest published exact maintenance version, `=0.6.10`, until the required
+  fixes became available in official `office2pdf 0.6.8`.
 - The remaining direct dependency requirements are current compatible releases.
 - The shared direct `v8` requirement was updated from 150.0.0 to 152.2.0 to
   match public KRR 0.4.19. The resolved graph MUST contain one V8 version so
@@ -193,3 +195,41 @@ change is appropriate for those rows.
 - **Historical (superseded on 2026-09-04):** KUC 0.3.3にはセル四辺ごとの
   style/color border型・描画APIがなかった。KUC 0.3.5の公開APIでthin projectionと
   fidelity計測が完了し、現行recordは`border_visual_missing_count=0`である。
+
+## 2026-09-07 official office2pdf 0.6.8 migration
+
+- Upstream Issue `developer0hye/office2pdf#959` remains closed with five
+  comments and was unchanged at `2026-08-13T06:23:22Z`.
+- GitHub Release `v0.6.8` was published at `2026-09-04T10:27:29Z` from tag
+  commit `e01828a5f07b52bebf4574859efaca4554b134d9` with six platform archives.
+- GitHub compare APIs prove the release tag contains the required PowerPoint
+  paragraph-spacing commit `c528eef467aaf9ca4873acf5c8bedb07b7ae5596`,
+  script-aware CJK fallback commit
+  `d75298d466f9c28e80906c29b997819512662106`, malformed PPTX raster omission
+  commit `af1fe430d539598cfb268388783edf62d4d5afed`, and PPTX header-rowspan
+  preservation commit `24922064de93d6bfce513f6b0f2452bf27e386d1`.
+- crates.io published unyanked `office2pdf 0.6.8` at
+  `2026-09-04T10:30:21.405017Z`. The downloaded crate archive SHA-256 matches
+  registry checksum `c32d2b1b14f0ff13eb83d0a9a1c909287af13a0a7aee0581bc82a00ecbbead3b`,
+  and `.cargo_vcs_info.json` identifies the same release commit.
+- The published crate source contains
+  `test_malformed_png_is_omitted_with_warning` and
+  `test_repeating_header_expands_to_cover_rowspan`. KDV therefore replaces
+  the maintenance package alias with exact registry `office2pdf =0.6.8` and
+  keeps the existing isolated worker, bundled font, and owner-layer boundary.
+- `scripts/feasibility/audit-cargo-metadata.py` now invokes metadata through
+  `rtk proxy`; this avoids RTK output truncation while keeping the full JSON
+  captured inside the audit process. The selected runtime dependency closure
+  was regenerated from the updated lockfile with zero missing licenses.
+
+Reproducible evidence commands:
+
+```text
+rtk gh api repos/developer0hye/office2pdf/releases/latest
+rtk gh api repos/developer0hye/office2pdf/compare/<required-commit>...v0.6.8
+rtk proxy python3 scripts/feasibility/audit-cargo-metadata.py Cargo.toml openspec/changes/v0-5-0-multi-format-viewer/evidence/selected-runtime-supply-chain.json office2pdf ironcalc
+rtk proxy python3 scripts/release/verify-release-contract.py --self-test
+```
+
+The latest-head local release gate, three-OS CI, public KDV artifact, registry
+consumer, and KatanA adoption remain separate release DoD items.
