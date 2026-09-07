@@ -30,10 +30,19 @@ fn image_source_resolves_a_relative_direct_image_reference_from_the_document_dir
 -> Result<(), PreviewError> {
     let prepared = normalize(&source("assets/photo.png", "/tmp/kdv-preview/document.png"))?;
 
-    assert_eq!(
-        "![document.png](file:///tmp/kdv-preview/assets/photo.png)",
-        prepared.content
+    #[cfg(windows)]
+    let expected = format!(
+        "![document.png](file:///{}/tmp/kdv-preview/assets/photo.png)",
+        std::env::current_dir()
+            .map_err(|error| PreviewError::Render(error.to_string()))?
+            .to_string_lossy()
+            .chars()
+            .take(2)
+            .collect::<String>()
     );
+    #[cfg(not(windows))]
+    let expected = "![document.png](file:///tmp/kdv-preview/assets/photo.png)".to_string();
+    assert_eq!(expected, prepared.content);
     Ok(())
 }
 
