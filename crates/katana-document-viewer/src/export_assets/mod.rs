@@ -81,6 +81,11 @@ impl ExportAssetResolver {
             .split(['?', '#'])
             .next()
             .unwrap_or(src);
+        #[cfg(windows)]
+        let path = path
+            .strip_prefix('/')
+            .filter(|value| Self::starts_with_windows_drive(value))
+            .unwrap_or(path);
         let path = Path::new(path);
         if path.is_absolute() {
             return Some(path.to_path_buf());
@@ -110,6 +115,15 @@ impl ExportAssetResolver {
             return format!("file://{path}");
         }
         format!("file:///{path}")
+    }
+
+    #[cfg(windows)]
+    fn starts_with_windows_drive(value: &str) -> bool {
+        let bytes = value.as_bytes();
+        bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && matches!(bytes[2], b'/' | b'\\')
     }
 }
 
