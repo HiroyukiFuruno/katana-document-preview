@@ -56,26 +56,7 @@ fn storybook_check_recipe_keeps_all_score_category_gates() -> Result<(), Box<dyn
 {
     let justfile = std::fs::read_to_string(workspace_root()?.join("Justfile"))?;
     let storybook_check = recipe_body(&justfile, "storybook-check")?;
-    for required in [
-        "storybook-interaction-check-core",
-        "storybook-clipboard-smoke",
-        "storybook-clipboard-keyboard-smoke",
-        "storybook-clipboard-drag-smoke",
-        "storybook-selection-contract-check-core",
-        "storybook-selection-screenshot-smoke",
-        "storybook-window-hover-screenshot-smoke",
-        "storybook-window-hover-wide-screenshot-smoke",
-        "storybook-window-selection-screenshot-smoke",
-        "storybook-window-code-copy-screenshot-smoke",
-        "storybook-slideshow-screenshot-smoke",
-        "storybook-window-slideshow-screenshot-smoke",
-        "storybook-window-sidebar-screenshot-smoke",
-        "storybook-window-sidebar-narrow-screenshot-smoke",
-        "storybook-window-sidebar-large-screenshot-smoke",
-        "storybook-window-diagram-screenshot-smoke",
-        "storybook-performance-check-core",
-        "storybook-score-check",
-    ] {
+    for required in ["storybook-registry-consumer-suite", "storybook-score-check"] {
         assert!(
             storybook_check.contains(required),
             "storybook-check must include `{required}`"
@@ -243,24 +224,25 @@ fn assert_legacy_storybook_acceptance_contract(
 }
 
 #[test]
-fn ci_workflows_pin_plantuml_graphviz_runtime_for_katana_reference_scores()
+fn ci_workflows_pin_linux_font_and_graphviz_runtime_for_katana_reference_scores()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
     let ci = std::fs::read_to_string(root.join(".github/workflows/test-and-build.yml"))?;
     let preflight = std::fs::read_to_string(root.join(".github/workflows/release-preflight.yml"))?;
     let release = std::fs::read_to_string(root.join(".github/workflows/release.yml"))?;
+    assert_linux_emoji_install_contract(&root, &ci, &preflight, &release)?;
 
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "CI PlantUML runtime",
         &ci,
         CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS,
     );
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "release preflight PlantUML runtime",
         &preflight,
         PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS,
     );
-    assert_contains_all(
+    assert_linux_runtime_requirements(
         "Release workflow acceptance runtime",
         &release,
         RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS,
@@ -461,25 +443,102 @@ fn release_scripts_do_not_depend_on_obsolete_preview_egui_package()
 }
 
 #[test]
-fn document_surface_boundary_resolves_cargo_dependency_when_sibling_repo_is_missing()
+fn document_surface_boundary_requires_the_registry_kuc_artifact()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = workspace_root()?;
     let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
 
+    assert_registry_kuc_artifact_contract(&script);
+
+    Ok(())
+}
+
+#[test]
+fn document_surface_boundary_checks_kuc_optional_backends_from_the_resolved_graph()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
+    let script = std::fs::read_to_string(root.join("scripts/document-surface-boundary-check.sh"))?;
+
+    assert_kuc_optional_backend_contract(&script)?;
+
+    Ok(())
+}
+
+fn assert_registry_kuc_artifact_contract(script: &str) {
     assert_contains_all(
         "document-surface-boundary-check.sh",
-        &script,
+        script,
         &[
             "resolve_cargo_package_root",
             "metadata --locked --format-version 1",
             "kuc_core_source_root",
-            "kuc_storybook_source_root",
-            "katana-ui-core-storybook",
+            "registry+",
+            "0.3.7",
+            "KUC_ROOT overrides are forbidden",
         ],
     );
     assert!(
         !script.contains("KUC_ROOT is missing"),
         "KUC boundary check must use cargo dependency source when the sibling KUC repo is absent"
+    );
+    assert!(
+        !script.contains("kuc_storybook_source_root")
+            && !script.contains("katana-ui-core-storybook --locked"),
+        "KUC boundary check must not depend on the obsolete Git Storybook package"
+    );
+    assert!(
+        script.contains("git|path") && script.contains("KUC_ROOT overrides are forbidden"),
+        "KUC boundary check must fail closed for Git/path and local-root overrides"
+    );
+}
+
+fn assert_kuc_optional_backend_contract(script: &str) -> Result<(), Box<dyn std::error::Error>> {
+    assert_contains_all(
+        "document-surface-boundary-check.sh",
+        script,
+        &[
+            "resolve_cargo_package_tree katana-ui-core registry+ 0.3.7",
+            "kuc_tree=",
+            "check_kuc_core_semantic_boundary \"katana-ui-core\"",
+            "check_embedded_kuc_source_boundary",
+            "raster-host",
+            "pub mod raster_host;",
+        ],
+    );
+    let semantic_boundary_start = script
+        .find("check_kuc_core_semantic_boundary() {")
+        .ok_or_else(|| std::io::Error::other("KUC semantic boundary function must exist"))?;
+    let embedded_boundary_start = script
+        .find("check_embedded_kuc_source_boundary() {")
+        .ok_or_else(|| std::io::Error::other("embedded KUC source boundary function must exist"))?;
+    let semantic_boundary = &script[semantic_boundary_start..embedded_boundary_start];
+    assert!(
+        !semantic_boundary.contains("$source_pattern"),
+        "registry KUC optional backends must be checked from the resolved dependency graph, not dormant source modules"
+    );
+    Ok(())
+}
+
+#[test]
+fn storybook_kuc_smoke_uses_the_registry_resolved_storybook_consumer()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
+    let script = std::fs::read_to_string(root.join("scripts/storybook-kuc-smoke.sh"))?;
+
+    assert_contains_all(
+        "storybook-kuc-smoke.sh",
+        &script,
+        &[
+            "test -p kdv-storybook --locked document_viewer",
+            "test -p katana-document-viewer --locked --lib document_surface",
+            "test -p katana-document-viewer --locked asset_loader",
+            "test -p katana-document-viewer --locked direct_",
+        ],
+    );
+    assert!(
+        !script.contains("../katana-ui-core")
+            && !script.contains("katana-ui-core-storybook --locked"),
+        "storybook smoke must exercise the registry-resolved KDV consumer, not a sibling KUC checkout"
     );
 
     Ok(())
@@ -635,13 +694,27 @@ const SCORE_OVERLAY_CONTROL_SNIPPETS: &[&str] = &[
     "reset-view",
 ];
 
+const LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS: &[&str] =
+    &[".github/scripts/install-linux-render-dependencies.sh"];
+
+const LINUX_EMOJI_INSTALL_SCRIPT_REQUIRED_SNIPPETS: &[&str] = &[
+    "emoji_version='2.047-0ubuntu0.24.04.1'",
+    "emoji_package_url=\"https://archive.ubuntu.com/ubuntu/pool/main/f/fonts-noto-color-emoji/${emoji_package}_${emoji_version}_all.deb\"",
+    "emoji_package_sha256='b102b62ce6a7313315223cff5e052bdf8fc0ad162c9e961ce0dc2202bc139ce2'",
+    "emoji_font_sha256='93cdc4ee9aa40e2afceecc63da0ca05ec7aab4bec991ece51a6b52389f48a477'",
+    "curl --fail --location --silent --show-error",
+    "sudo dpkg --install",
+    "fonts-noto-cjk graphviz imagemagick xvfb xclip",
+    "KUC_PINNED_LINUX_EMOJI_SHA256=${emoji_font_sha256}",
+];
+
 const CI_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "JAVA_TOOL_OPTIONS",
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install Graphviz (Ubuntu)",
-    "apt-get install -y graphviz",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "/opt/local/bin/dot",
     "GRAPHVIZ_DOT",
     "Install Graphviz (macOS)",
@@ -668,7 +741,7 @@ const PREFLIGHT_PLANTUML_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Xss16m",
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
-    "apt-get install -y graphviz imagemagick xvfb xclip",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -683,7 +756,7 @@ const RELEASE_WORKFLOW_RUNTIME_REQUIRED_SNIPPETS: &[&str] = &[
     "-Djava.awt.headless=true",
     "-Djdk.lang.processReaperUseDefaultStackSize=true",
     "Install diagram test dependencies",
-    "apt-get install -y graphviz imagemagick xvfb xclip",
+    ".github/scripts/install-linux-render-dependencies.sh",
     "command -v magick",
     "/usr/local/bin/magick",
     "exec convert",
@@ -986,8 +1059,8 @@ const RELEASE_DOD_REQUIRED_SNIPPETS: &[&str] = &[
     "Cargo.toml",
     "Cargo.lock",
     "KUC_CARGO_GIT_URL",
-    "KUC_CARGO_TAG",
-    "KUC_CARGO_LOCK_SOURCE",
+    "KUC_REGISTRY_VERSION",
+    "KUC_REGISTRY_SOURCE",
     "def kuc_cargo_dependency_errors",
     "def required_acceptance_source_root_file_paths",
     "root.rglob(\"*.rs\")",
@@ -1033,7 +1106,7 @@ const RELEASE_DOD_REQUIRED_SNIPPETS: &[&str] = &[
     "ls-files",
     "tools/kdv-storybook/src/document_viewer/media_control_icons.rs",
     "kuc cargo dependency:",
-    "KUC Cargo dependency scanner must reject stale Cargo.toml tag",
+    "KUC Cargo dependency scanner must reject stale Cargo.toml version",
     "KUC Cargo dependency scanner must reject sibling source include",
     "datetime.fromisoformat",
     "just storybook-release-acceptance-artifacts",
@@ -1131,7 +1204,8 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
             "node_factory_media_fixture.rs",
             "builder_media_height.rs",
             "builder_media_asset_height.rs",
-            "KUC_CARGO_LOCK_SOURCE",
+            "KUC_REGISTRY_SOURCE",
+            "KUC_REGISTRY_VERSION",
             "def kuc_cargo_dependency_errors",
         ],
     );
@@ -1140,10 +1214,11 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
     assert_contains_all(
         "KUC Cargo dependency is pinned through Cargo.toml",
         &cargo_toml,
-        &[
-            "katana-ui-core = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
-            "katana-ui-core-storybook = { git = \"https://github.com/HiroyukiFuruno/katana-ui-core.git\", tag = \"v0.3.0\" }",
-        ],
+        &["katana-ui-core = { version = \"=0.3.7\", features = [\"raster-host\"] }"],
+    );
+    assert!(
+        !cargo_toml.contains("katana-ui-core-storybook"),
+        "KDV Storybook must share the one registry-resolved KUC dependency"
     );
 
     let cargo_lock = std::fs::read_to_string(root.join("Cargo.lock"))?;
@@ -1152,8 +1227,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         &cargo_lock,
         &[
             "name = \"katana-ui-core\"",
-            "name = \"katana-ui-core-storybook\"",
-            "source = \"git+https://github.com/HiroyukiFuruno/katana-ui-core.git?tag=v0.3.0#1256fdd08ecc01bcc09066180e1a05d0503ba382\"",
+            "source = \"registry+https://github.com/rust-lang/crates.io-index\"",
         ],
     );
 
@@ -1164,7 +1238,7 @@ fn storybook_score_gate_keeps_diagram_scale_and_scroll_flake_contract_sources()
         "KDV diagram keeps fixed KatanA display scale",
         &image_surface,
         &[
-            "pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 0.927",
+            "pub const VIEWER_DIAGRAM_DISPLAY_SCALE: f32 = 1.0",
             "pub const VIEWER_DIAGRAM_DISPLAY_MAX_WIDTH: u32 = 1264",
         ],
     );
@@ -1720,6 +1794,62 @@ fn assert_contains_all(label: &str, haystack: &str, needles: &[&str]) {
             "{label} must include `{needle}`"
         );
     }
+}
+
+fn assert_linux_runtime_requirements(label: &str, workflow: &str, runtime_snippets: &[&str]) {
+    assert_contains_all(label, workflow, runtime_snippets);
+    assert_contains_all(
+        &format!("{label} color emoji font pin"),
+        workflow,
+        LINUX_EMOJI_FONT_PIN_REQUIRED_SNIPPETS,
+    );
+}
+
+fn assert_linux_emoji_install_contract(
+    root: &std::path::Path,
+    ci: &str,
+    preflight: &str,
+    release: &str,
+) -> Result<(), std::io::Error> {
+    let install_script =
+        std::fs::read_to_string(root.join(".github/scripts/install-linux-render-dependencies.sh"))?;
+    assert_contains_all(
+        "Linux render dependency installer",
+        &install_script,
+        LINUX_EMOJI_INSTALL_SCRIPT_REQUIRED_SNIPPETS,
+    );
+    assert!(!install_script.contains("apt-get install -y fonts-noto-color-emoji"));
+    assert_ci_ubuntu_contract(ci);
+    assert_release_ubuntu_contract("release preflight Ubuntu runner", preflight);
+    assert_release_ubuntu_contract("Release Ubuntu runner", release);
+    Ok(())
+}
+
+fn assert_ci_ubuntu_contract(ci: &str) {
+    assert_contains_all(
+        "CI Ubuntu runner",
+        ci,
+        &[
+            "os: [macos-latest, ubuntu-latest, windows-latest]",
+            "ubuntu-24.04",
+            "runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-24.04' || matrix.os }}",
+            "Install cargo-llvm-cov\n        if: matrix.os == 'ubuntu-latest'",
+            "Install Graphviz (Ubuntu)\n        if: matrix.os == 'ubuntu-latest'",
+            "Run coverage\n        if: matrix.os == 'ubuntu-latest'",
+        ],
+    );
+    assert!(!ci.contains("runs-on: ${{ matrix.os }}"));
+}
+
+fn assert_release_ubuntu_contract(label: &str, workflow: &str) {
+    assert_contains_all(
+        label,
+        workflow,
+        &[
+            "ubuntu-24.04",
+            "run: |\n          .github/scripts/install-linux-render-dependencies.sh",
+        ],
+    );
 }
 
 fn normalize_newlines(source: &str) -> String {

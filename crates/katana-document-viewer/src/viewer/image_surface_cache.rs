@@ -31,6 +31,11 @@ impl ViewerImageSurfaceCache {
     pub(super) fn len_for_tests() -> usize {
         cache_lock().len()
     }
+
+    #[cfg(test)]
+    pub(super) fn contains_for_tests(fingerprint: &str) -> bool {
+        cache_lock().contains_key(fingerprint)
+    }
 }
 
 fn cache() -> &'static Mutex<HashMap<String, ViewerImageSurface>> {

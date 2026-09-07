@@ -13,8 +13,8 @@ const MIN_RENDER_SCALE: f32 = 0.25;
 const MAX_RENDER_SCALE: f32 = 4.0;
 
 enum PagedEngine {
-    Pdf(PdfViewerSession),
-    Office(OfficeStaticViewerSession),
+    Pdf(Box<PdfViewerSession>),
+    Office(Box<OfficeStaticViewerSession>),
 }
 
 pub(super) struct PagedDocumentSession {
@@ -35,7 +35,11 @@ impl PagedDocumentSession {
     ) -> Result<Self, DocumentSessionError> {
         let session = PdfViewerSession::open(source)?;
         let metadata = pdf_metadata(&session);
-        Ok(Self::new(PagedEngine::Pdf(session), metadata, viewport))
+        Ok(Self::new(
+            PagedEngine::Pdf(Box::new(session)),
+            metadata,
+            viewport,
+        ))
     }
     pub(super) fn open_office(
         source: OfficeDocumentSource,
@@ -45,7 +49,11 @@ impl PagedDocumentSession {
         let format = ViewerDocumentFormat::from(source.format);
         let session = OfficeStaticViewerSession::open(source, worker)?;
         let metadata = office_metadata(&session, format);
-        Ok(Self::new(PagedEngine::Office(session), metadata, viewport))
+        Ok(Self::new(
+            PagedEngine::Office(Box::new(session)),
+            metadata,
+            viewport,
+        ))
     }
     fn new(
         engine: PagedEngine,
@@ -86,6 +94,10 @@ impl PagedDocumentSession {
         })
     }
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let _trace_scope = match &self.engine {
+            PagedEngine::Pdf(_) => None,
+            PagedEngine::Office(session) => session.trace_scope(),
+        };
         let page_index = self.state.active_index;
         self.render_scale().and_then(|scale| {
             let request = PdfPageRenderRequest::new(page_index, scale);
@@ -102,6 +114,11 @@ impl PagedDocumentSession {
         &self,
         rendered: PdfRenderedPage,
     ) -> Result<DocumentFrame, DocumentSessionError> {
+        let stage = match &self.engine {
+            PagedEngine::Pdf(_) => "pdf.frame_publication",
+            PagedEngine::Office(_) => "office.frame_publication",
+        };
+        let _publication = super::debug_trace::DebugTrace::start(stage);
         DocumentSurfaceFrame::from_rendered_page("Document page", rendered)
             .map(|surface| DocumentFrame {
                 surface: surface.with_navigation_metadata(Vec::new(), self.outline_items.clone()),
@@ -109,6 +126,7 @@ impl PagedDocumentSession {
                 capabilities: self.capabilities.clone(),
                 diagnostics: self.diagnostics.clone(),
                 format: self.format,
+                spreadsheet: None,
             })
             .map_err(DocumentSessionError::from)
     }

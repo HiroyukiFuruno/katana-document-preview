@@ -1,3 +1,4 @@
+use super::spreadsheet_worker_executable::SpreadsheetWorkerExecutable;
 use super::spreadsheet_worker_owner::SpreadsheetProcessOwner;
 #[cfg(not(windows))]
 use super::spreadsheet_worker_protocol::SPREADSHEET_MODE;
@@ -11,6 +12,8 @@ pub(crate) struct SpawnedSpreadsheetProcess {
     pub(crate) process_id: u32,
     pub(crate) input: Box<dyn Write + Send>,
     pub(crate) output: Box<dyn Read + Send>,
+    #[cfg(windows)]
+    pub(crate) stderr_reader: Option<std::thread::JoinHandle<()>>,
     pub(crate) owner: SpreadsheetProcessOwner,
     #[cfg(all(coverage, not(windows)))]
     pub(crate) coverage_profile: Option<super::coverage_profile::ChildCoverageProfile>,
@@ -24,17 +27,16 @@ impl SpreadsheetWorkerSpawn {
         workspace: &Path,
         config: &OfficeWorkerConfig,
     ) -> Result<SpawnedSpreadsheetProcess, OfficeWorkerError> {
-        let mut command = std::process::Command::new(&config.executable);
-        configure_command(&mut command, workspace, config);
+        let resolved = SpreadsheetWorkerExecutable::resolve(config);
+        let mut command = std::process::Command::new(&resolved.executable);
+        configure_command(&mut command, workspace, &resolved);
         #[cfg(coverage)]
         let coverage_profile = super::coverage_profile::ChildCoverageProfile::configure(
             &mut command,
             workspace,
             "spreadsheet",
         );
-        let mut child = command
-            .spawn()
-            .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))?;
+        let mut child = spawn_child(&mut command, &resolved)?;
         #[cfg(target_os = "macos")]
         let process_id = child.id();
         let input = child.stdin.take().ok_or_else(stdin_unavailable)?;
@@ -55,12 +57,50 @@ impl SpreadsheetWorkerSpawn {
         workspace: &Path,
         config: &OfficeWorkerConfig,
     ) -> Result<SpawnedSpreadsheetProcess, OfficeWorkerError> {
-        super::spreadsheet_worker_spawn_windows::spawn(workspace, config)
+        let resolved = SpreadsheetWorkerExecutable::resolve(config);
+        let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.worker_spawn");
+        super::spreadsheet_worker_spawn_windows::spawn(workspace, &resolved)
     }
 }
 
 #[cfg(not(windows))]
+fn spawn_child(
+    command: &mut std::process::Command,
+    config: &OfficeWorkerConfig,
+) -> Result<std::process::Child, OfficeWorkerError> {
+    let _spawn = super::debug_trace::DebugTrace::start("spreadsheet.worker_spawn");
+    command
+        .spawn()
+        .map_err(|error| OfficeWorkerError::unavailable(config, error.to_string()))
+}
+
+#[cfg(not(windows))]
 fn configure_command(
+    command: &mut std::process::Command,
+    workspace: &Path,
+    config: &OfficeWorkerConfig,
+) {
+    configure_command_with_debug(
+        command,
+        workspace,
+        config,
+        super::debug_trace::DebugTrace::enabled(),
+    );
+}
+
+#[cfg(not(windows))]
+fn configure_command_with_debug(
+    command: &mut std::process::Command,
+    workspace: &Path,
+    config: &OfficeWorkerConfig,
+    debug_enabled: bool,
+) {
+    configure_worker_command(command, workspace, config);
+    configure_debug_output(command, debug_enabled);
+}
+
+#[cfg(not(windows))]
+fn configure_worker_command(
     command: &mut std::process::Command,
     workspace: &Path,
     config: &OfficeWorkerConfig,
@@ -76,8 +116,28 @@ fn configure_command(
         .arg(limits.max_materialized_cells.to_string())
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
         .env_clear();
+}
+
+#[cfg(not(windows))]
+fn configure_debug_output(command: &mut std::process::Command, debug_enabled: bool) {
+    if !debug_enabled {
+        command.stderr(std::process::Stdio::null());
+        return;
+    }
+    command
+        .stderr(std::process::Stdio::inherit())
+        .env("DEBUG", "true");
+    propagate_trace_environment(command);
+}
+
+#[cfg(not(windows))]
+fn propagate_trace_environment(command: &mut std::process::Command) {
+    if let Some((session, source)) = super::debug_trace::DebugTrace::worker_environment() {
+        command
+            .env("KDV_TRACE_SESSION", session)
+            .env("KDV_TRACE_SOURCE", source);
+    }
 }
 
 pub(super) fn stdin_unavailable() -> OfficeWorkerError {
@@ -93,21 +153,5 @@ pub(super) fn cpu_seconds(timeout: Duration) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{cpu_seconds, stdin_unavailable, stdout_unavailable};
-    use crate::multi_format::OfficeWorkerError;
-    use std::time::Duration;
-
-    #[test]
-    fn pipe_failures_and_cpu_floor_are_typed() {
-        assert!(matches!(
-            stdin_unavailable(),
-            OfficeWorkerError::Protocol { .. }
-        ));
-        assert!(matches!(
-            stdout_unavailable(),
-            OfficeWorkerError::Protocol { .. }
-        ));
-        assert_eq!(1, cpu_seconds(Duration::ZERO));
-    }
-}
+#[path = "spreadsheet_worker_spawn_tests.rs"]
+mod tests;

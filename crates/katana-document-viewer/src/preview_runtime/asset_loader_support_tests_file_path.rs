@@ -10,6 +10,13 @@ fn file_path_from_uri_supports_encoded_file_uri() {
 }
 
 #[test]
+fn file_path_from_uri_preserves_encoded_filesystem_delimiters() {
+    let path = PreviewAssetLoaderSupport::file_path_from_uri("file:///tmp/a%20%5Bb%5D%23c%25.png");
+
+    assert_eq!(Some(PathBuf::from("/tmp/a [b]#c%.png")), path);
+}
+
+#[test]
 fn file_path_from_uri_supports_localhost_file_uri() {
     let path = PreviewAssetLoaderSupport::file_path_from_uri("file://localhost/tmp/kdv-icon.png");
 

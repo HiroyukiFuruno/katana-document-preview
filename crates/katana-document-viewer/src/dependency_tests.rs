@@ -11,7 +11,7 @@ fn viewer_manifest_is_backend_neutral_and_uses_registry_kuc()
     let dependencies = manifest_dependencies(&value)?;
 
     assert_neutral_dependencies(dependencies);
-    assert_registry_dependency(dependencies, "katana-ui-core", "0.3.0")?;
+    assert_registry_dependency(dependencies, "katana-ui-core", "=0.3.7")?;
     assert_no_egui_feature(&value);
     Ok(())
 }
@@ -31,7 +31,10 @@ fn manifest_dependencies(value: &toml::Value) -> Result<&toml::Table, Box<dyn st
 
 fn assert_neutral_dependencies(dependencies: &toml::Table) {
     for dependency in FORBIDDEN_VIEWER_DEPENDENCIES {
-        assert!(!dependencies.contains_key(dependency));
+        assert!(
+            !dependencies.contains_key(dependency),
+            "{dependency} must stay out of katana-document-viewer"
+        );
     }
     assert!(
         !dependencies
@@ -83,14 +86,29 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     let office = fs::read_to_string(format!("{source_root}/office_worker_process_windows.rs"))?;
     let spreadsheet =
         fs::read_to_string(format!("{source_root}/spreadsheet_worker_spawn_windows.rs"))?;
+    let spreadsheet_stderr = fs::read_to_string(format!(
+        "{source_root}/spreadsheet_worker_spawn_windows_stderr.rs"
+    ))?;
     let workspace = fs::read_to_string(format!("{source_root}/office_worker_workspace.rs"))?;
     let profile = fs::read_to_string(format!("{source_root}/windows_worker_profile.rs"))?;
 
+    assert_windows_worker_launch_contract(&staging, &office, &spreadsheet, &workspace, &profile);
+    assert_windows_spreadsheet_stdio_contract(&spreadsheet, &spreadsheet_stderr);
+    Ok(())
+}
+
+fn assert_windows_worker_launch_contract(
+    staging: &str,
+    office: &str,
+    spreadsheet: &str,
+    workspace: &str,
+    profile: &str,
+) {
     assert!(staging.contains("workspace.join(STAGED_WORKER_NAME)"));
     assert!(staging.contains("std::fs::copy(&config.executable, &destination)"));
     assert!(workspace.contains("windows_worker_profile::workspace_root(config)?"));
     assert!(workspace.contains("tempdir_in(root)"));
-    assert_windows_worker_profile_contract(&profile);
+    assert_windows_worker_profile_contract(profile);
     for worker in [&office, &spreadsheet] {
         assert!(worker.contains("stage_windows_worker(workspace, config)?"));
         assert!(worker.contains("exe: staged_executable.to_path_buf()"));
@@ -100,7 +118,36 @@ fn windows_workers_launch_only_the_workspace_staged_executable()
     }
     assert!(!office.contains("std::process::Command"));
     assert!(!spreadsheet.contains("std::process::Command"));
-    Ok(())
+}
+
+fn assert_windows_spreadsheet_stdio_contract(spreadsheet: &str, stderr: &str) {
+    for marker in [
+        "stdio: StdioConfig::Pipe",
+        "child.stderr.take()",
+        "spawn_stderr_reader(stderr, debug_enabled)",
+    ] {
+        assert!(
+            spreadsheet.contains(marker),
+            "Windows spreadsheet worker must preserve stderr spawn contract: {marker}"
+        );
+    }
+    for marker in [
+        "forward_debug_stderr(&mut source)",
+        "forward_stderr_chunks(source, |chunk| {",
+        "std::io::stderr().lock()",
+        "std::io::sink()",
+    ] {
+        assert!(
+            stderr.contains(marker),
+            "Windows spreadsheet worker must preserve stderr drain contract: {marker}"
+        );
+    }
+    assert!(
+        !stderr.contains(
+            "let mut parent_stderr = std::io::stderr().lock();\n        forward_stderr(&mut source, &mut parent_stderr);"
+        ),
+        "Windows DEBUG stderr relay must not retain the parent stderr lock until worker EOF"
+    );
 }
 
 fn assert_windows_worker_profile_contract(profile: &str) {

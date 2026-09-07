@@ -72,6 +72,24 @@ fn resolves_file_url_with_absolute_src() {
     assert_eq!(url, Some(absolute_asset_file_url().to_string()));
 }
 
+#[cfg(windows)]
+#[test]
+fn resolves_windows_drive_file_uri_as_local_path() {
+    let source_uri = SourceUri("file:///workspace/docs/notes.md".to_string());
+
+    let resolved = ExportAssetResolver::resolve_file_path(
+        &source_uri,
+        "file:///C:/Users/runner/AppData/Local/Temp/icon.png",
+    );
+
+    assert_eq!(
+        Some(std::path::PathBuf::from(
+            r"C:\Users\runner\AppData\Local\Temp\icon.png"
+        )),
+        resolved
+    );
+}
+
 #[test]
 fn resolves_absolute_file_uri_as_local_path() -> Result<(), Box<dyn std::error::Error>> {
     let source_uri = SourceUri("file:///workspace/docs/notes.md".to_string());

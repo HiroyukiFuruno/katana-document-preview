@@ -1,13 +1,17 @@
 use crate::{
-    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact,
-    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
-    SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,
-    SpreadsheetRatingArtifact, SpreadsheetTrackArtifact, SpreadsheetVerticalAlignment,
+    SpreadsheetBorderSideArtifact, SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact,
+    SpreadsheetCellStyleArtifact, SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
+    SpreadsheetHorizontalAlignment, SpreadsheetMergedCellArtifact, SpreadsheetTrackArtifact,
+    SpreadsheetVerticalAlignment,
 };
 use katana_ui_core::molecule::{
-    GridCellAppearance, GridCellContent, GridCellSpan, GridCoordinate, GridDataBar,
-    GridHorizontalAlignment, GridIcon, GridRating, GridTrackSizeProvider, GridVerticalAlignment,
+    GridCellAppearance, GridCellContent, GridCellSpan, GridCoordinate, GridHorizontalAlignment,
+    GridTrackSizeProvider, GridVerticalAlignment,
 };
+use katana_ui_core::render_model::{UiGridBorderLineStyle, UiGridBorderSide, UiGridCellBorders};
+
+#[path = "spreadsheet_grid_mapping_values.rs"]
+mod values;
 
 pub(super) fn spreadsheet_coordinate(coordinate: GridCoordinate) -> SpreadsheetCoordinate {
     SpreadsheetCoordinate::new(coordinate.row, coordinate.column)
@@ -34,6 +38,26 @@ pub(super) fn track_provider(
         .iter()
         .enumerate()
         .filter_map(|(index, track)| track.hidden.then_some(index))
+        .collect();
+    GridTrackSizeProvider::VariableWithHidden {
+        sizes,
+        fallback_size,
+        hidden_indices,
+    }
+}
+
+pub(super) fn row_track_provider(
+    tracks: &[SpreadsheetTrackArtifact],
+    fallback_size: u32,
+    filtered_out_rows: &[usize],
+) -> GridTrackSizeProvider {
+    let sizes = tracks.iter().map(|track| track_size(track.size)).collect();
+    let hidden_indices = tracks
+        .iter()
+        .enumerate()
+        .filter_map(|(index, track)| {
+            (track.hidden || filtered_out_rows.binary_search(&index).is_ok()).then_some(index)
+        })
         .collect();
     GridTrackSizeProvider::VariableWithHidden {
         sizes,
@@ -70,9 +94,47 @@ fn cell_appearance(
         horizontal_alignment: horizontal_alignment(style.horizontal_alignment),
         vertical_alignment: vertical_alignment(style.vertical_alignment),
         wrap_text: style.wrap_text,
-        data_bar: conditional.data_bar.map(data_bar),
-        icon: conditional.icon.map(icon),
-        rating: conditional.rating.map(rating),
+        data_bar: conditional.data_bar.map(values::data_bar),
+        icon: conditional.icon.map(values::icon),
+        rating: conditional.rating.map(values::rating),
+        borders: cell_borders(style.borders),
+    }
+}
+
+fn cell_borders(value: SpreadsheetCellBorderArtifact) -> UiGridCellBorders {
+    UiGridCellBorders {
+        left: border_side(value.left),
+        right: border_side(value.right),
+        top: border_side(value.top),
+        bottom: border_side(value.bottom),
+    }
+}
+
+fn border_side(value: Option<SpreadsheetBorderSideArtifact>) -> UiGridBorderSide {
+    value.map_or_else(UiGridBorderSide::default, |side| UiGridBorderSide {
+        line_style: border_line_style(&side.style),
+        color: side.color,
+    })
+}
+
+fn border_line_style(value: &str) -> UiGridBorderLineStyle {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "" | "none" => UiGridBorderLineStyle::None,
+        "hair" => UiGridBorderLineStyle::Hair,
+        "thin" => UiGridBorderLineStyle::Thin,
+        "medium" => UiGridBorderLineStyle::Medium,
+        "thick" => UiGridBorderLineStyle::Thick,
+        "double" => UiGridBorderLineStyle::Double,
+        "dotted" => UiGridBorderLineStyle::Dotted,
+        "dashed" => UiGridBorderLineStyle::Dashed,
+        "dashdot" | "dash-dot" => UiGridBorderLineStyle::DashDot,
+        "dashdotdot" | "dash-dot-dot" => UiGridBorderLineStyle::DashDotDot,
+        "mediumdashed" | "medium-dashed" => UiGridBorderLineStyle::MediumDashed,
+        "mediumdashdot" | "medium-dash-dot" => UiGridBorderLineStyle::MediumDashDot,
+        "mediumdashdotdot" | "medium-dash-dot-dot" => UiGridBorderLineStyle::MediumDashDotDot,
+        "slantdashdot" | "slant-dash-dot" => UiGridBorderLineStyle::SlantDashDot,
+        "solid" => UiGridBorderLineStyle::Solid,
+        _ => UiGridBorderLineStyle::Solid,
     }
 }
 
@@ -104,40 +166,4 @@ const fn vertical_alignment(value: SpreadsheetVerticalAlignment) -> GridVertical
         SpreadsheetVerticalAlignment::Justify => GridVerticalAlignment::Justify,
         SpreadsheetVerticalAlignment::Distributed => GridVerticalAlignment::Distributed,
     }
-}
-
-fn data_bar(value: SpreadsheetDataBarArtifact) -> GridDataBar {
-    GridDataBar {
-        positive_color: value.positive_color,
-        negative_color: value.negative_color,
-        fill_ratio_basis_points: ratio_basis_points(value.value),
-        axis_ratio_basis_points: ratio_basis_points(value.axis_position),
-        gradient: value.gradient,
-        show_value: value.show_value,
-    }
-}
-
-fn icon(value: SpreadsheetIconArtifact) -> GridIcon {
-    GridIcon {
-        name: value.name,
-        color: value.color,
-        show_value: value.show_value,
-    }
-}
-
-fn rating(value: SpreadsheetRatingArtifact) -> GridRating {
-    GridRating {
-        icon_name: value.icon_name,
-        count: value.count,
-        maximum: value.maximum,
-        color: value.color,
-        show_value: value.show_value,
-    }
-}
-
-pub(super) fn ratio_basis_points(value: f64) -> u16 {
-    if !value.is_finite() {
-        return 0;
-    }
-    (value.clamp(0.0, 1.0) * 10_000.0).round() as u16
 }

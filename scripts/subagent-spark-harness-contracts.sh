@@ -45,38 +45,15 @@ check_policy_contracts() {
     fi
   done
 
-  check_required_terms "$GLOBAL_AGENTS_FILE" \
-    "分離できる実装・調査" \
-    "原則 subagent" \
-    "$MODEL_TOKEN" \
-    "$REASONING_TOKEN" \
-    "親モデル継承" \
-    "省略しない" \
-    "単純な一手作業" \
-    "直列のクリティカルパス" \
-    "書き込み範囲を明示できない" \
-    "ユーザーが明示的に禁止" \
-    "main agent は設計" \
-    "subagent には分離できる実装・調査" \
-    "完了済み subagent"
+  check_external_delegation_policy "$GLOBAL_AGENTS_FILE"
+  check_required_terms "$GLOBAL_AGENTS_FILE" "完了済み subagent"
   check_forbidden_terms_absent \
     "$GLOBAL_AGENTS_FILE" \
     "${OPTIONAL_DELEGATION_TERMS[@]}" \
     "${CONDITIONAL_SPARK_POLICY_TERMS[@]}"
   check_forbidden_regex_terms_absent "$GLOBAL_AGENTS_FILE"
 
-  check_required_terms "$TASK_DELEGATION_SKILL_FILE" \
-    "許可済みの作業で、分離できる実装・調査" \
-    "原則 subagent" \
-    "$MODEL_TOKEN" \
-    "$REASONING_TOKEN" \
-    "親モデル継承" \
-    "省略しない" \
-    "単純な一手作業" \
-    "直列のクリティカルパス" \
-    "書き込み範囲を明示できない" \
-    "ユーザーがsubagent利用を禁止" \
-    "main agent"
+  check_external_delegation_policy "$TASK_DELEGATION_SKILL_FILE"
   check_forbidden_terms_absent "$TASK_DELEGATION_SKILL_FILE" \
     "${OPTIONAL_DELEGATION_TERMS[@]}" \
     "${CONDITIONAL_SPARK_POLICY_TERMS[@]}"

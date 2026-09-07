@@ -1,5 +1,4 @@
 use super::office_worker_constraints::OfficeWorkerConstraints;
-use super::office_worker_protocol::INPUT_NAME;
 use super::spreadsheet_engine::SpreadsheetEngineSession;
 use super::spreadsheet_worker_arguments::SpreadsheetWorkerArguments;
 use super::spreadsheet_worker_protocol::{
@@ -8,7 +7,6 @@ use super::spreadsheet_worker_protocol::{
 };
 use std::ffi::OsString;
 use std::io::{BufReader, BufWriter, Write};
-
 #[path = "spreadsheet_worker_io.rs"]
 mod io;
 #[cfg(test)]
@@ -17,16 +15,23 @@ use io::{
     write_encoded_response,
 };
 use io::{read_request, write_response, write_response_limited};
-
+#[path = "spreadsheet_worker_open.rs"]
+mod open;
+use open::{open_engine, protocol_failure};
 const EXIT_USAGE: i32 = 64;
 const EXIT_FAILURE: i32 = 70;
 type SpreadsheetWorker = fn(SpreadsheetWorkerArguments) -> Result<(), (String, String)>;
 type ConstraintApplier = fn(&std::path::Path, u64, u64) -> Result<(), (String, String)>;
 
-pub(super) struct SpreadsheetWorkerEntrypoint;
+pub struct SpreadsheetWorkerEntrypoint;
 
 impl SpreadsheetWorkerEntrypoint {
-    pub(super) fn run(arguments: Vec<OsString>) -> i32 {
+    #[must_use]
+    pub fn run_from_env() -> i32 {
+        Self::run(std::env::args_os().collect())
+    }
+
+    pub fn run(arguments: Vec<OsString>) -> i32 {
         let mut writer = BufWriter::new(std::io::stdout());
         Self::run_with(arguments, SpreadsheetWorkerLoop::run, &mut writer)
     }
@@ -40,6 +45,10 @@ impl SpreadsheetWorkerEntrypoint {
             Ok(arguments) => arguments,
             Err(_) => return EXIT_USAGE,
         };
+        let _trace_session = super::debug_trace::DebugTrace::session_from_environment_or_workspace(
+            &arguments.workspace,
+        );
+        super::debug_trace::DebugTrace::event("spreadsheet.worker", "start=true");
         match worker(arguments) {
             Ok(()) => 0,
             Err((stage, message)) => {
@@ -70,16 +79,15 @@ impl SpreadsheetWorkerLoop {
         arguments: SpreadsheetWorkerArguments,
         apply_constraints: ConstraintApplier,
     ) -> Result<(), (String, String)> {
-        apply_constraints(
-            &arguments.workspace,
-            arguments.max_memory_bytes,
-            arguments.max_cpu_seconds,
-        )?;
-        let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
-        let name = arguments.workspace.join(INPUT_NAME);
-        let engine =
-            SpreadsheetEngineSession::open(input, &name.to_string_lossy(), arguments.limits)
-                .map_err(spreadsheet_open_failure)?;
+        {
+            let _runtime_init = super::debug_trace::DebugTrace::start("spreadsheet.runtime_init");
+            apply_constraints(
+                &arguments.workspace,
+                arguments.max_memory_bytes,
+                arguments.max_cpu_seconds,
+            )?;
+        }
+        let engine = open_engine(&arguments)?;
         let mut worker = Self {
             engine,
             reader: BufReader::new(std::io::stdin()),
@@ -96,18 +104,44 @@ impl SpreadsheetWorkerLoop {
     fn run_requests(&mut self) -> Result<(), String> {
         loop {
             let request = self.read()?;
-            match request {
-                SpreadsheetWorkerRequest::Materialize {
-                    request_id,
-                    sheet_index,
-                    coordinates,
-                } => self.materialize(request_id, sheet_index, &coordinates)?,
-                SpreadsheetWorkerRequest::Shutdown => {
-                    self.write(&SpreadsheetWorkerResponse::Stopped)?;
-                    return Ok(());
-                }
+            if self.handle_request(request)? {
+                return Ok(());
             }
         }
+    }
+
+    fn handle_request(&mut self, request: SpreadsheetWorkerRequest) -> Result<bool, String> {
+        match request {
+            SpreadsheetWorkerRequest::Materialize {
+                request_id,
+                sheet_index,
+                coordinates,
+            } => self.materialize(request_id, sheet_index, &coordinates)?,
+            SpreadsheetWorkerRequest::Shutdown => return self.shutdown(),
+            SpreadsheetWorkerRequest::FilterCandidates {
+                request_id,
+                sheet_index,
+                column,
+                limit,
+            } => self.filter_candidates(request_id, sheet_index, column, limit)?,
+            SpreadsheetWorkerRequest::ApplyFilter {
+                request_id,
+                sheet_index,
+                column,
+                values,
+            } => self.apply_filter(request_id, sheet_index, column, values)?,
+            SpreadsheetWorkerRequest::ClearFilter {
+                request_id,
+                sheet_index,
+                column,
+            } => self.clear_filter(request_id, sheet_index, column)?,
+        }
+        Ok(false)
+    }
+
+    fn shutdown(&mut self) -> Result<bool, String> {
+        self.write(&SpreadsheetWorkerResponse::Stopped)?;
+        Ok(true)
     }
 
     fn materialize(
@@ -136,23 +170,8 @@ impl SpreadsheetWorkerLoop {
     }
 }
 
-fn protocol_failure(message: String) -> (String, String) {
-    ("protocol".to_owned(), message)
-}
-
-fn input_failure(error: std::io::Error) -> (String, String) {
-    failure("input", error.to_string())
-}
-
-fn spreadsheet_open_failure(
-    error: super::spreadsheet_engine::SpreadsheetEngineError,
-) -> (String, String) {
-    failure("spreadsheet_open", error.to_string())
-}
-
-fn failure(stage: &str, message: String) -> (String, String) {
-    (stage.to_owned(), message)
-}
+#[path = "spreadsheet_worker_filter.rs"]
+mod filter;
 
 #[cfg(test)]
 #[path = "spreadsheet_worker_entrypoint_tests.rs"]

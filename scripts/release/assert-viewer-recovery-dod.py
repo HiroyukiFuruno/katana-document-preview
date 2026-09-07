@@ -68,7 +68,9 @@ KUC_INTERACTION_TARGET_STALE_CARGO_LOCK_SOURCE = (
     f"?tag={KUC_INTERACTION_TARGET_STALE_CARGO_TAG}"
     f"#{KUC_INTERACTION_TARGET_STALE_CARGO_REV}"
 )
-KUC_CARGO_DEPENDENCY_NAMES = ("katana-ui-core", "katana-ui-core-storybook")
+KUC_REGISTRY_VERSION = "0.3.7"
+KUC_REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
+KUC_CARGO_DEPENDENCY_NAMES = ("katana-ui-core",)
 KUC_CARGO_FORBIDDEN_SIBLING_MARKERS = (
     "../katana-ui-core",
     "../../../../katana-ui-core",
@@ -1535,37 +1537,49 @@ def self_test() -> int:
         failures.append(
             "document_viewer harness scanner must reject stale KUC document_viewer command"
         )
-    valid_kuc_cargo_toml = "\n".join(
-        f'{name} = {{ git = "{KUC_CARGO_GIT_URL}", tag = "{KUC_CARGO_TAG}" }}'
-        for name in KUC_CARGO_DEPENDENCY_NAMES
+    valid_kuc_cargo_toml = (
+        'katana-ui-core = { version = "=0.3.7", features = ["raster-host"] }'
     )
-    valid_kuc_cargo_lock = "\n\n".join(
-        (
-            "[[package]]\n"
-            f'name = "{name}"\n'
-            f'version = "{KUC_CARGO_VERSION}"\n'
-            f'source = "{KUC_CARGO_LOCK_SOURCE}"'
-        )
-        for name in KUC_CARGO_DEPENDENCY_NAMES
+    valid_kuc_cargo_lock = (
+        "[[package]]\n"
+        'name = "katana-ui-core"\n'
+        'version = "0.3.7"\n'
+        'source = "registry+https://github.com/rust-lang/crates.io-index"'
     )
     if kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml,
         valid_kuc_cargo_lock,
         "mod document_viewer;\nmod test_assert;\n",
     ):
-        failures.append("KUC Cargo dependency scanner must allow pinned v0.1.1 git deps")
+        failures.append("KUC Cargo dependency scanner must allow exact registry v0.3.7 deps")
     if not kuc_cargo_dependency_errors(
-        valid_kuc_cargo_toml.replace(KUC_CARGO_TAG, "v0.1.0"),
+        valid_kuc_cargo_toml.replace('version = "=0.3.7"', 'version = "=0.3.6"'),
         valid_kuc_cargo_lock,
         "mod document_viewer;\n",
     ):
-        failures.append("KUC Cargo dependency scanner must reject stale Cargo.toml tag")
+        failures.append("KUC Cargo dependency scanner must reject stale Cargo.toml version")
     if not kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml,
-        valid_kuc_cargo_lock.replace(KUC_CARGO_TAG, "v0.1.0"),
+        valid_kuc_cargo_lock.replace('version = "0.3.7"', 'version = "0.3.6"'),
         "mod document_viewer;\n",
     ):
-        failures.append("KUC Cargo dependency scanner must reject stale Cargo.lock tag")
+        failures.append("KUC Cargo dependency scanner must reject stale Cargo.lock version")
+    if not kuc_cargo_dependency_errors(
+        valid_kuc_cargo_toml.replace(
+            'version = "=0.3.7", features',
+            'git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", version = "=0.3.7", features',
+        ),
+        valid_kuc_cargo_lock,
+        "mod document_viewer;\n",
+    ):
+        failures.append("KUC Cargo dependency scanner must reject a KUC git override")
+    if not kuc_cargo_dependency_errors(
+        valid_kuc_cargo_toml
+        + '\nkatana-ui-core-storybook = { package = "katana-ui-core", version = "=0.3.7", features = ["raster-host"] }',
+        valid_kuc_cargo_lock,
+        "mod document_viewer;\n",
+    ):
+        failures.append("KUC Cargo dependency scanner must reject a second Storybook alias")
     if not kuc_cargo_dependency_errors(
         valid_kuc_cargo_toml,
         valid_kuc_cargo_lock,
@@ -3357,6 +3371,10 @@ def kuc_cargo_dependency_errors(
     storybook_main_rs: str,
 ) -> list[str]:
     errors: list[str] = []
+    if re.search(r"^\s*katana-ui-core-storybook\s*=", cargo_toml, re.MULTILINE):
+        errors.append(
+            "Cargo.toml must resolve KUC through one katana-ui-core registry dependency."
+        )
     for marker in KUC_CARGO_FORBIDDEN_SIBLING_MARKERS:
         if marker in cargo_toml:
             errors.append(
@@ -3369,27 +3387,52 @@ def kuc_cargo_dependency_errors(
                 f"{marker}."
             )
     for name in KUC_CARGO_DEPENDENCY_NAMES:
-        expected_dependency = (
-            f'{name} = {{ git = "{KUC_CARGO_GIT_URL}", tag = "{KUC_CARGO_TAG}" }}'
-        )
-        if expected_dependency not in cargo_toml:
+        dependency_lines = [
+            line
+            for line in cargo_toml.splitlines()
+            if re.match(rf"^\s*{re.escape(name)}\s*=", line)
+        ]
+        if not dependency_lines:
             errors.append(
-                "Cargo.toml must pin KUC through the reviewed Cargo git dependency: "
-                f"{expected_dependency}."
+                "Cargo.toml must declare the KUC registry dependency: "
+                f"{name} v{KUC_REGISTRY_VERSION}."
             )
-        if re.search(rf"(?m)^{re.escape(name)}\s*=.*\bpath\s*=", cargo_toml):
-            errors.append(f"Cargo.toml must not use a path dependency for {name}.")
+        for line in dependency_lines:
+            if re.search(r"\b(?:git|path)\s*=", line):
+                errors.append(
+                    f"Cargo.toml must not override registry {name} with git/path: {line.strip()}."
+                )
+            if not re.search(
+                rf"version\s*=\s*\"=?{re.escape(KUC_REGISTRY_VERSION)}\"",
+                line,
+            ):
+                errors.append(
+                    f"Cargo.toml must pin {name} to registry v{KUC_REGISTRY_VERSION}."
+                )
+            if "raster-host" not in line:
+                errors.append(
+                    f"Cargo.toml must enable KUC {name}'s raster-host feature."
+                )
         expected_lock_block = (
             "[[package]]\n"
             f'name = "{name}"\n'
-            f'version = "{KUC_CARGO_VERSION}"\n'
-            f'source = "{KUC_CARGO_LOCK_SOURCE}"'
+            f'version = "{KUC_REGISTRY_VERSION}"\n'
+            f'source = "{KUC_REGISTRY_SOURCE}"'
         )
         if expected_lock_block not in cargo_lock:
             errors.append(
-                "Cargo.lock must pin KUC to the reviewed git tag/revision for "
-                f"{name}: {KUC_CARGO_LOCK_SOURCE}."
+                "Cargo.lock must pin KUC to the exact registry artifact for "
+                f"{name} v{KUC_REGISTRY_VERSION}."
             )
+        if re.search(
+            rf'(?ms)^name = "{re.escape(name)}"\nversion = "[^"]+"\nsource = "(?:git\+|path\+)',
+            cargo_lock,
+        ):
+            errors.append(f"Cargo.lock must not resolve {name} from git/path.")
+    if "katana-ui-core-storybook" in cargo_lock:
+        errors.append(
+            "Cargo.lock must not contain the obsolete katana-ui-core-storybook package."
+        )
     return errors
 
 

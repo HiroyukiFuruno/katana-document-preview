@@ -4,6 +4,7 @@ use super::spreadsheet_worker_protocol::SPREADSHEET_MODE;
 use super::spreadsheet_worker_spawn::{
     SpawnedSpreadsheetProcess, cpu_seconds, stdin_unavailable, stdout_unavailable,
 };
+use super::spreadsheet_worker_spawn_windows_stderr::{spawn_stderr_reader, stderr_unavailable};
 use super::windows_command_line::WindowsCommandLine;
 use super::windows_worker_executable::stage_windows_worker;
 use super::windows_worker_profile::{app_container_profile, launch_error, worker_environment};
@@ -18,14 +19,18 @@ pub(super) fn spawn(
 ) -> Result<SpawnedSpreadsheetProcess, OfficeWorkerError> {
     let staged_executable = stage_windows_worker(workspace, config)?;
     let capabilities = windows_capabilities(workspace, &staged_executable, config)?;
-    let options = windows_options(workspace, &staged_executable, config);
+    let debug_enabled = super::debug_trace::DebugTrace::enabled();
+    let options = windows_options(workspace, &staged_executable, config, debug_enabled);
     let mut child = rappct::launch::launch_in_container_with_io(&capabilities, &options)
         .map_err(|error| launch_error(config, &staged_executable, error))?;
+    let stderr = child.stderr.take().ok_or_else(stderr_unavailable)?;
+    let stderr_reader = spawn_stderr_reader(stderr, debug_enabled);
     let input = child.stdin.take().ok_or_else(stdin_unavailable)?;
     let output = child.stdout.take().ok_or_else(stdout_unavailable)?;
     Ok(SpawnedSpreadsheetProcess {
         input: Box::new(input),
         output: Box::new(output),
+        stderr_reader: Some(stderr_reader),
         owner: SpreadsheetProcessOwner { child: Some(child) },
     })
 }
@@ -83,6 +88,7 @@ fn windows_options(
     workspace: &Path,
     staged_executable: &Path,
     config: &OfficeWorkerConfig,
+    debug_enabled: bool,
 ) -> rappct::LaunchOptions {
     use rappct::{JobLimits, StdioConfig};
     rappct::LaunchOptions {
@@ -93,7 +99,7 @@ fn windows_options(
             config,
         )),
         cwd: Some(workspace.to_path_buf()),
-        env: Some(worker_environment(workspace)),
+        env: Some(worker_environment_with_trace(workspace, debug_enabled)),
         stdio: StdioConfig::Pipe,
         join_job: Some(JobLimits {
             memory_bytes: Some(config.max_memory_bytes),
@@ -102,6 +108,17 @@ fn windows_options(
         }),
         ..rappct::LaunchOptions::default()
     }
+}
+
+fn worker_environment_with_trace(
+    workspace: &Path,
+    debug_enabled: bool,
+) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    let mut environment = worker_environment(workspace);
+    if debug_enabled {
+        super::debug_trace::DebugTrace::configure_worker_environment(&mut environment);
+    }
+    environment
 }
 
 fn spreadsheet_command_line(

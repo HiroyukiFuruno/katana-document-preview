@@ -14,6 +14,7 @@ pub struct PdfViewerSession {
     outline: Vec<PdfOutlineItem>,
     cache: PdfPageCache,
     limits: PdfViewerLimits,
+    _artifact_lease: super::resource_metrics::ArtifactByteLease,
 }
 
 impl PdfViewerSession {
@@ -26,6 +27,8 @@ impl PdfViewerSession {
         limits: PdfViewerLimits,
     ) -> Result<Self, PdfViewerError> {
         validate_pdf_source(&source, limits)?;
+        let artifact_lease =
+            super::resource_metrics::ArtifactByteLease::acquire(source.bytes.len());
         let pdf = Pdf::new(source.bytes).map_err(map_load_error)?;
         let outline = super::pdf_outline::PdfOutlineBuilder::build(&pdf);
         let artifact = PdfDocumentBuilder::build(source.identity, source.mime, &pdf);
@@ -40,6 +43,7 @@ impl PdfViewerSession {
             outline,
             cache: PdfPageCache::new(),
             limits,
+            _artifact_lease: artifact_lease,
         })
     }
 
@@ -60,8 +64,11 @@ impl PdfViewerSession {
         self.validate_request(request)?;
         let key = (request.page_index, request.scale.to_bits());
         if let Some(rendered) = self.cache.get(key) {
+            super::debug_trace::DebugTrace::event("pdf.cache", "hit=true");
             return Ok(rendered);
         }
+        super::debug_trace::DebugTrace::event("pdf.cache", "hit=false");
+        let _render = super::debug_trace::DebugTrace::start("pdf.render");
         let rendered = self.render_uncached(request)?;
         self.cache.insert(key, rendered.clone(), self.limits);
         Ok(rendered)

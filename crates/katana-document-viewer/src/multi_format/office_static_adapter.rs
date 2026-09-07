@@ -9,6 +9,8 @@ use super::{
 pub struct OfficeStaticViewerSession {
     artifact: OfficeStaticDocumentArtifact,
     pdf: PdfViewerSession,
+    conversion_key: super::office_conversion_key::OfficeConversionKey,
+    trace_session: Option<super::debug_trace::TraceSession>,
 }
 
 impl std::fmt::Debug for OfficeStaticViewerSession {
@@ -25,6 +27,12 @@ impl OfficeStaticViewerSession {
         source: OfficeDocumentSource,
         config: OfficeWorkerConfig,
     ) -> Result<Self, OfficeWorkerError> {
+        let trace_session =
+            super::office_worker_parent::trace::start_trace_session(&source.identity);
+        let _trace_scope = trace_session.map(super::debug_trace::DebugTrace::session);
+        let _open = super::debug_trace::DebugTrace::start("office.session_open");
+        let conversion_key =
+            super::office_conversion_key::OfficeConversionKey::new(&source, &config);
         let profile = static_profile(source.format)?;
         let output = OfficeWorkerRunner::convert(&source, &config)?;
         let mut diagnostics = profile.diagnostics();
@@ -32,10 +40,18 @@ impl OfficeStaticViewerSession {
         diagnostics.extend(output.warnings.into_iter().map(engine_warning));
         let pdf_source =
             BinaryDocumentSource::new(source.identity.clone(), "application/pdf", output.pdf);
-        let pdf = PdfViewerSession::open(pdf_source)?;
+        let pdf = {
+            let _decode = super::debug_trace::DebugTrace::start("office.pdf_decode");
+            PdfViewerSession::open(pdf_source)?
+        };
         let items = static_items(&pdf);
         let artifact = static_artifact(source, profile, diagnostics, items);
-        Ok(Self { artifact, pdf })
+        Ok(Self {
+            artifact,
+            pdf,
+            conversion_key,
+            trace_session,
+        })
     }
 
     #[must_use]
@@ -43,11 +59,33 @@ impl OfficeStaticViewerSession {
         &self.artifact
     }
 
+    #[cfg(test)]
+    pub(super) const fn conversion_key(
+        &self,
+    ) -> &super::office_conversion_key::OfficeConversionKey {
+        &self.conversion_key
+    }
+
     pub fn render_item(
         &mut self,
         request: PdfPageRenderRequest,
     ) -> Result<PdfRenderedPage, PdfViewerError> {
+        let _trace_scope = self.trace_scope();
+        let _render = super::debug_trace::DebugTrace::start("office.raster");
+        super::debug_trace::DebugTrace::event(
+            "office.frame_artifact",
+            format_args!(
+                "page_index={} content_bytes={}",
+                request.page_index,
+                self.conversion_key.content_bytes()
+            ),
+        );
         self.pdf.render_page(request)
+    }
+
+    pub(super) fn trace_scope(&self) -> Option<super::debug_trace::TraceCorrelationGuard> {
+        self.trace_session
+            .map(super::debug_trace::DebugTrace::session)
     }
 }
 

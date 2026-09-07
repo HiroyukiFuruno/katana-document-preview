@@ -12,7 +12,7 @@ pub struct DirectVisualCase {
 
 impl DirectVisualCase {
     fn image(label: &'static str, path: PathBuf) -> Self {
-        let uri = format!("file://{}", path.to_string_lossy());
+        let uri = file_uri(&path);
         Self {
             label,
             document_id: path.to_string_lossy().to_string(),
@@ -66,6 +66,22 @@ impl DirectVisualCase {
             self.label
         );
     }
+}
+
+fn file_uri(path: &Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    let prefix = if normalized.starts_with('/') { "" } else { "/" };
+    format!("file://{prefix}{normalized}")
+}
+
+#[test]
+fn file_uri_formats_windows_path_as_a_file_url() {
+    assert_eq!(
+        "file:///C:/Users/runner/AppData/Local/Temp/direct-source.png",
+        file_uri(Path::new(
+            r"C:\Users\runner\AppData\Local\Temp\direct-source.png"
+        ))
+    );
 }
 
 pub struct DirectVisualCases {

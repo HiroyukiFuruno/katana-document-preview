@@ -42,6 +42,16 @@ fn navigation_precedes_coalesced_frame() -> TestResult {
 }
 
 #[test]
+fn wait_returns_none_immediately_for_zero_timeout_without_update() -> TestResult {
+    assert!(
+        BrowserSessionState::default()
+            .wait_for_update(Duration::ZERO)
+            .is_none()
+    );
+    Ok(())
+}
+
+#[test]
 fn wait_returns_none_after_timeout_without_update() -> TestResult {
     assert!(
         BrowserSessionState::default()

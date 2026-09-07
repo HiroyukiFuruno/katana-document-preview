@@ -3,9 +3,9 @@ use super::office_worker_process::OfficeWorkerProcess;
 use super::office_worker_protocol::OfficeWorkerResponse;
 use super::office_worker_workspace::OfficeWorkerWorkspace;
 use super::{
-    OfficeDocumentFormat, OfficeDocumentSource, OfficePackagePreflight, OfficePreflightError,
-    OfficePreflightLimits, PdfViewerError, SpreadsheetViewerLimits, ViewerDiagnostic,
-    ViewerDiagnosticCode, ViewerDiagnosticSeverity,
+    OfficeDocumentFormat, OfficeDocumentSource, OfficePreflightError, OfficePreflightLimits,
+    PdfViewerError, SpreadsheetViewerLimits, ViewerDiagnostic, ViewerDiagnosticCode,
+    ViewerDiagnosticSeverity,
 };
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -14,6 +14,12 @@ use thiserror::Error;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(45);
 const DEFAULT_MAX_MEMORY_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_OUTPUT_BYTES: u64 = 128 * 1024 * 1024;
+
+#[path = "office_worker_parent_preflight.rs"]
+mod preflight;
+#[path = "office_worker_trace.rs"]
+pub(super) mod trace;
+use preflight::preflight_diagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OfficeWorkerConfig {
@@ -113,7 +119,6 @@ pub(super) struct OfficeWorkerOutput {
     pub warnings: Vec<String>,
     pub preflight_diagnostics: Vec<ViewerDiagnostic>,
 }
-
 pub(super) struct OfficeWorkerRunner;
 
 impl OfficeWorkerRunner {
@@ -121,19 +126,32 @@ impl OfficeWorkerRunner {
         source: &OfficeDocumentSource,
         config: &OfficeWorkerConfig,
     ) -> Result<OfficeWorkerOutput, OfficeWorkerError> {
-        let (_, preflight_diagnostics) =
-            OfficePackagePreflight::inspect_with_diagnostics(source, config.preflight_limits)?;
-        let workspace =
-            OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?;
-        let status = OfficeWorkerProcess::run(workspace.path(), source.format, config)?;
-        let response = OfficeWorkerOutputReader::read_response(workspace.path())?;
+        let _conversion = super::debug_trace::DebugTrace::start("office.total");
+        let preflight_diagnostics = preflight_diagnostics(source, config)?;
+        let workspace = {
+            let _transfer = super::debug_trace::DebugTrace::start("office.transfer_to_worker");
+            let _workspace = super::debug_trace::DebugTrace::start("office.workspace");
+            OfficeWorkerWorkspace::prepare("kdv-office-worker-", &source.bytes, config)?
+        };
+        let status = {
+            let _convert = super::debug_trace::DebugTrace::start("office.conversion");
+            OfficeWorkerProcess::run(workspace.path(), source.format, config)?
+        };
+        let response = {
+            let _transfer = super::debug_trace::DebugTrace::start("office.transfer_from_worker");
+            let _decode = super::debug_trace::DebugTrace::start("office.response_decode");
+            OfficeWorkerOutputReader::read_response(workspace.path())?
+        };
         complete_conversion(workspace.path(), status, response, config).map(|mut output| {
+            super::debug_trace::DebugTrace::event(
+                "office.artifact",
+                format_args!("bytes={}", output.pdf.len()),
+            );
             output.preflight_diagnostics = preflight_diagnostics;
             output
         })
     }
 }
-
 fn complete_conversion(
     workspace: &Path,
     status: Option<i64>,

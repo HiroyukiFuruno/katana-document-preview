@@ -3,7 +3,7 @@ use crate::viewer::ViewerImageSurface;
 
 #[test]
 fn diagram_display_scale_caps_intrinsic_and_wide_surfaces() {
-    assert_eq!(0.927, diagram_display_scale(100.0, 200));
+    assert_eq!(1.0, diagram_display_scale(100.0, 200));
     assert_eq!(0.5, diagram_display_scale(400.0, 200));
 }
 

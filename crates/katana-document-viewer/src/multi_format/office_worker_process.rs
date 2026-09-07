@@ -28,16 +28,15 @@ impl OfficeWorkerProcess {
             workspace,
             "office",
         );
-        let mut child = spawn_worker(&mut command, config)?;
+        let mut child = {
+            let _spawn = super::debug_trace::DebugTrace::start("office.worker_spawn");
+            spawn_worker(&mut command, config)?
+        };
         #[cfg(target_os = "macos")]
         let memory_monitor = MacOsMemoryMonitor::start(child.id(), config.max_memory_bytes);
         let result = wait_for_worker(&mut child, config)?;
         #[cfg(target_os = "macos")]
-        if memory_monitor.finish() {
-            return Err(OfficeWorkerError::WorkerMemoryLimitExceeded {
-                limit: config.max_memory_bytes,
-            });
-        }
+        finish_memory_monitor(memory_monitor, config.max_memory_bytes)?;
         #[cfg(coverage)]
         if let Some(profile) = coverage_profile {
             let _ = profile.collect();
@@ -53,6 +52,18 @@ impl OfficeWorkerProcess {
     ) -> Result<Option<i64>, OfficeWorkerError> {
         windows::OfficeWorkerWindowsProcess::run(workspace, format, config)
     }
+}
+
+#[cfg(target_os = "macos")]
+fn finish_memory_monitor(
+    memory_monitor: MacOsMemoryMonitor,
+    limit: usize,
+) -> Result<(), OfficeWorkerError> {
+    let _monitor = super::debug_trace::DebugTrace::start("office.monitor_finish");
+    if memory_monitor.finish() {
+        return Err(OfficeWorkerError::WorkerMemoryLimitExceeded { limit });
+    }
+    Ok(())
 }
 
 #[cfg(not(windows))]
@@ -110,6 +121,23 @@ fn configure_command(
     format: OfficeDocumentFormat,
     config: &OfficeWorkerConfig,
 ) {
+    configure_command_with_debug(
+        command,
+        workspace,
+        format,
+        config,
+        super::debug_trace::DebugTrace::enabled(),
+    );
+}
+
+#[cfg(not(windows))]
+fn configure_command_with_debug(
+    command: &mut Command,
+    workspace: &Path,
+    format: OfficeDocumentFormat,
+    config: &OfficeWorkerConfig,
+    debug_enabled: bool,
+) {
     command
         .arg(workspace)
         .arg(format_argument(format))
@@ -118,8 +146,17 @@ fn configure_command(
         .arg(config.max_output_bytes.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
         .env_clear();
+    if debug_enabled {
+        command.stderr(Stdio::inherit()).env("DEBUG", "true");
+        if let Some((session, source)) = super::debug_trace::DebugTrace::worker_environment() {
+            command
+                .env("KDV_TRACE_SESSION", session)
+                .env("KDV_TRACE_SOURCE", source);
+        }
+    } else {
+        command.stderr(Stdio::null());
+    }
 }
 
 const fn format_argument(format: OfficeDocumentFormat) -> &'static str {

@@ -75,6 +75,37 @@ fn node_plan_displays_markdown_blocks_without_source_markup()
     Ok(())
 }
 
+#[test]
+fn node_plan_preserves_rich_html_style_boundaries() -> Result<(), Box<dyn std::error::Error>> {
+    let input = viewer_input("<p>plain <strong>bold</strong> plain</p>")?;
+
+    let plan = ViewerNodePlanner::create(&input, 0.0);
+
+    assert!(matches!(plan.nodes[0].kind, ViewerNodeKind::Html { .. }));
+    assert_eq!(3, plan.nodes[0].spans.len());
+    assert_eq!("plain ", plan.nodes[0].spans[0].text);
+    assert!(!plan.nodes[0].spans[0].style.bold);
+    assert_eq!("bold", plan.nodes[0].spans[1].text);
+    assert!(plan.nodes[0].spans[1].style.bold);
+    assert_eq!(" plain", plan.nodes[0].spans[2].text);
+    assert!(!plan.nodes[0].spans[2].style.bold);
+    Ok(())
+}
+
+#[test]
+fn node_plan_preserves_rich_html_line_break_boundaries() -> Result<(), Box<dyn std::error::Error>> {
+    let input = viewer_input("<p>first<br>second</p>")?;
+
+    let plan = ViewerNodePlanner::create(&input, 0.0);
+
+    assert!(matches!(plan.nodes[0].kind, ViewerNodeKind::Html { .. }));
+    assert_ne!("firstsecond", plan.nodes[0].text);
+    assert_eq!("first", plan.nodes[0].spans[0].text);
+    assert_eq!("\n", plan.nodes[0].spans[1].text);
+    assert_eq!("second", plan.nodes[0].spans[2].text);
+    Ok(())
+}
+
 fn viewer_input(markdown: &str) -> Result<ViewerInput, Box<dyn std::error::Error>> {
     let document = KatanaMarkdownModel::parse(MarkdownInput::from_content(
         "node-plan.md",

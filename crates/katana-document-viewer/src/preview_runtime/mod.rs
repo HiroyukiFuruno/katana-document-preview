@@ -11,17 +11,21 @@ mod asset_loader_media;
 mod asset_loader_media_types;
 mod asset_loader_parallel;
 mod asset_loader_support;
+mod direct_html_css;
+mod direct_html_css_attrs;
 mod direct_html_normalizer;
+mod direct_html_preview_renderer;
 mod direct_html_table_normalizer;
+mod direct_html_visibility;
 mod engine;
 mod output_factory;
 mod source_normalizer;
-mod source_path_normalizer;
 #[cfg(test)]
 mod storybook_score_gate;
 pub mod types;
 
 pub use asset_loader::{PreviewAssetLoadReport, PreviewAssetLoader};
+pub use direct_html_preview_renderer::DirectHtmlPreviewRenderer;
 pub use engine::PreviewRenderEngine;
 pub use output_factory::PreviewOutputFactory;
 pub use types::{
@@ -53,8 +57,14 @@ mod asset_loader_tests;
 #[path = "direct_diagram_score_matrix_tests.rs"]
 mod direct_diagram_score_matrix_tests;
 #[cfg(test)]
+#[path = "direct_html_preview_renderer_tests.rs"]
+mod direct_html_preview_renderer_tests;
+#[cfg(test)]
 #[path = "direct_html_source_tests.rs"]
 mod direct_html_source_tests;
+#[cfg(test)]
+#[path = "direct_html_static_css_source_tests.rs"]
+mod direct_html_static_css_source_tests;
 #[cfg(test)]
 #[path = "direct_image_source_tests.rs"]
 mod direct_image_source_tests;

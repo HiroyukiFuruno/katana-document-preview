@@ -137,7 +137,7 @@ fn inline_code_only_paragraph_uses_code_font_for_width_parity() {
     let ui_node = factory.viewer_node(&node);
 
     assert_eq!("document-code", ui_node.props().font_role);
-    assert_eq!("body", ui_node.props().text.role);
+    assert_eq!("paragraph", ui_node.props().text.role);
 }
 
 #[test]

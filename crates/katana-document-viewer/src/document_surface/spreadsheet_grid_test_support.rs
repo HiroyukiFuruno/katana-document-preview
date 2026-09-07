@@ -1,9 +1,9 @@
 use crate::{
-    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
-    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate, SpreadsheetDataBarArtifact,
-    SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,
-    SpreadsheetRatingArtifact, SpreadsheetSheetArtifact, SpreadsheetTrackArtifact,
-    SpreadsheetVerticalAlignment,
+    SpreadsheetBorderSideArtifact, SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact,
+    SpreadsheetCellStyleArtifact, SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact,
+    SpreadsheetCoordinate, SpreadsheetDataBarArtifact, SpreadsheetHorizontalAlignment,
+    SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact, SpreadsheetRatingArtifact,
+    SpreadsheetSheetArtifact, SpreadsheetTrackArtifact, SpreadsheetVerticalAlignment,
 };
 
 const TEXT_COLOR: [u8; 3] = [0x10, 0x20, 0x30];
@@ -32,6 +32,7 @@ pub(super) fn sample_sheet() -> SpreadsheetSheetArtifact {
             column_span: 2,
         }],
         show_grid_lines: true,
+        auto_filter: None,
     }
 }
 
@@ -73,6 +74,13 @@ fn sample_style() -> SpreadsheetCellStyleArtifact {
         vertical_alignment: SpreadsheetVerticalAlignment::Center,
         wrap_text: true,
         number_format: "0.0".to_owned(),
+        borders: SpreadsheetCellBorderArtifact {
+            left: Some(SpreadsheetBorderSideArtifact {
+                style: "thin".to_owned(),
+                color: Some(color([0xB7, 0xC4, 0xCE])),
+            }),
+            ..SpreadsheetCellBorderArtifact::default()
+        },
     }
 }
 

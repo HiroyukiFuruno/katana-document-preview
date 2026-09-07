@@ -24,6 +24,8 @@ fn process(
         input: Box::new(Vec::<u8>::new()),
         responses,
         reader: None,
+        #[cfg(windows)]
+        stderr_reader: None,
         owner: SpreadsheetProcessOwner { child: None },
         #[cfg(target_os = "macos")]
         memory_monitor: None,
@@ -31,6 +33,8 @@ fn process(
         #[cfg(target_os = "macos")]
         max_memory_bytes: usize::MAX,
         _workspace: workspace,
+        _resource_lease: super::super::resource_metrics::SpreadsheetWorkerLease::acquire(),
+        trace_session: None,
         #[cfg(all(coverage, not(windows)))]
         coverage_profile: None,
     }

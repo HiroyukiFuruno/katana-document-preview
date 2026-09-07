@@ -48,7 +48,7 @@ impl OfficePreflightArchive {
         let mut archive = open_archive(source)?;
         OfficePreflightPolicy::validate_entry_count(archive.len(), limits)?;
         let scan = scan_archive(&mut archive, source.format, limits)?;
-        OfficeZipEntries::validate(source.bytes.as_slice(), archive.len())?;
+        OfficeZipEntries::validate(source.bytes.as_slice(), &mut archive)?;
         validate_main_part(source.format, scan.has_main_part)?;
         let external_relationship_count =
             inspect_relationships(&mut archive, &scan.relationships, limits)?;

@@ -263,6 +263,20 @@ fn docx_isolated_worker_produces_bounded_static_pages() -> TestResult {
 }
 
 #[test]
+fn exact_katana_data_descriptor_docx_worker_generates_a_frame() -> TestResult {
+    let mut session = OfficeStaticViewerSession::open(
+        fixture("data-descriptor.docx", OfficeDocumentFormat::Docx)?,
+        worker_config(),
+    )?;
+    let frame = session.render_item(PdfPageRenderRequest::new(0, 1.0))?;
+
+    assert!(frame.surface.width > 0);
+    assert!(frame.surface.height > 0);
+    assert!(!frame.surface.rgba.is_empty());
+    Ok(())
+}
+
+#[test]
 fn pptx_isolated_worker_preserves_slide_profile_and_fallback_diagnostics() -> TestResult {
     let mut session = OfficeStaticViewerSession::open(
         fixture("representative.pptx", OfficeDocumentFormat::Pptx)?,

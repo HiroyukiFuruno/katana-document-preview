@@ -19,6 +19,18 @@ fn package(entries: &[(&str, &[u8])]) -> TestResult<Vec<u8>> {
     Ok(writer.finish()?.into_inner())
 }
 
+fn streaming_package(entries: &[(&str, &[u8])], zip64: bool) -> TestResult<Vec<u8>> {
+    let mut writer = zip::ZipWriter::new_stream(Vec::new());
+    for (name, bytes) in entries {
+        let options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .large_file(zip64);
+        writer.start_file(*name, options)?;
+        writer.write_all(bytes)?;
+    }
+    Ok(writer.finish()?.into_inner())
+}
+
 fn duplicate_filename_package() -> TestResult<Vec<u8>> {
     const CANONICAL: &[u8] = b"word/document.xml";
     const ALIAS: &[u8] = b"word/documenz.xml";
@@ -47,6 +59,23 @@ fn corrupt_local_header_package() -> TestResult<Vec<u8>> {
         .position(|window| window == name)
         .ok_or("document local header")?;
     bytes[name_offset - 30] = 0;
+    Ok(bytes)
+}
+
+fn corrupt_stored_entry_data() -> TestResult<Vec<u8>> {
+    let name = b"word/document.xml";
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    writer.start_file(
+        "word/document.xml",
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
+    )?;
+    writer.write_all(b"<w:document/>")?;
+    let mut bytes = writer.finish()?.into_inner();
+    let name_offset = bytes
+        .windows(name.len())
+        .position(|window| window == name)
+        .ok_or("document local header")?;
+    bytes[name_offset + name.len()] ^= 0xff;
     Ok(bytes)
 }
 
@@ -119,10 +148,124 @@ fn representative_packages_pass_bounded_preflight() -> TestResult {
 }
 
 #[test]
+fn data_descriptor_packages_pass_bounded_preflight_for_each_office_format() -> TestResult {
+    let cases = [
+        (
+            OfficeDocumentFormat::Docx,
+            "word/document.xml",
+            b"<w:document/>".as_slice(),
+        ),
+        (
+            OfficeDocumentFormat::Xlsx,
+            "xl/workbook.xml",
+            b"<workbook/>".as_slice(),
+        ),
+        (
+            OfficeDocumentFormat::Pptx,
+            "ppt/presentation.xml",
+            b"<p:presentation/>".as_slice(),
+        ),
+    ];
+
+    for (format, main_part, payload) in cases {
+        let bytes = streaming_package(&[(main_part, payload)], false)?;
+        let flags = u16::from_le_bytes([bytes[6], bytes[7]]);
+        assert_ne!(0, flags & (1 << 3), "fixture must use a data descriptor");
+        let report = OfficePackagePreflight::inspect(
+            &office(bytes, format),
+            OfficePreflightLimits::strict(),
+        )?;
+        assert_eq!(1, report.entry_count);
+    }
+    Ok(())
+}
+
+#[test]
+fn exact_katana_data_descriptor_docx_passes_bounded_preflight() -> TestResult {
+    let bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/fixtures/multi-format/data-descriptor.docx"),
+    )?;
+    let report =
+        OfficePackagePreflight::inspect(&docx(bytes.clone()), OfficePreflightLimits::strict())?;
+    assert_eq!(20, report.entry_count);
+
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes.as_slice()))?;
+    assert_eq!(20, archive.len());
+    let mut document_sizes = None;
+    for index in 0..archive.len() {
+        let (name, header_start, compressed_size, uncompressed_size) = {
+            let entry = archive.by_index(index)?;
+            (
+                entry.name().to_owned(),
+                usize::try_from(entry.header_start())?,
+                entry.compressed_size(),
+                entry.size(),
+            )
+        };
+        let header = bytes
+            .get(header_start..header_start + 30)
+            .ok_or("data-descriptor local header")?;
+        let flags = u16::from_le_bytes([header[6], header[7]]);
+        let crc32 = u32::from_le_bytes([header[14], header[15], header[16], header[17]]);
+        let compressed = u32::from_le_bytes([header[18], header[19], header[20], header[21]]);
+        let uncompressed = u32::from_le_bytes([header[22], header[23], header[24], header[25]]);
+        assert_ne!(0, flags & (1 << 3), "{name} must use a data descriptor");
+        assert_eq!(
+            (0, 0, 0),
+            (crc32, compressed, uncompressed),
+            "{name} local header must defer CRC and sizes"
+        );
+        if name == "word/document.xml" {
+            document_sizes = Some((compressed_size, uncompressed_size));
+        }
+    }
+    assert_eq!(Some((1383, 4907)), document_sizes);
+    Ok(())
+}
+
+#[test]
+fn zip64_data_descriptor_package_passes_bounded_preflight() -> TestResult {
+    let bytes = streaming_package(&[("word/document.xml", b"<w:document/>")], true)?;
+    let flags = u16::from_le_bytes([bytes[6], bytes[7]]);
+    assert_ne!(0, flags & (1 << 3), "fixture must use a data descriptor");
+    let version_needed = u16::from_le_bytes([bytes[4], bytes[5]]);
+    assert!(
+        version_needed >= 45,
+        "fixture must require ZIP64 extraction"
+    );
+    let name_length = usize::from(u16::from_le_bytes([bytes[26], bytes[27]]));
+    let extra_length = usize::from(u16::from_le_bytes([bytes[28], bytes[29]]));
+    let extra_start = 30 + name_length;
+    assert!(
+        bytes[extra_start..extra_start + extra_length]
+            .windows(2)
+            .any(|window| window == [1, 0]),
+        "fixture must contain a ZIP64 extra field"
+    );
+
+    let report = OfficePackagePreflight::inspect(&docx(bytes), OfficePreflightLimits::strict())?;
+    assert_eq!(1, report.entry_count);
+    Ok(())
+}
+
+#[test]
 fn corrupt_local_entry_header_fails_during_archive_scan() -> TestResult {
     assert!(matches!(
         OfficePackagePreflight::inspect(
             &docx(corrupt_local_header_package()?),
+            OfficePreflightLimits::strict(),
+        ),
+        Err(OfficePreflightError::InvalidArchive { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn corrupt_stored_entry_crc_fails_during_archive_scan() -> TestResult {
+    assert!(matches!(
+        OfficePackagePreflight::inspect(
+            &docx(corrupt_stored_entry_data()?),
             OfficePreflightLimits::strict(),
         ),
         Err(OfficePreflightError::InvalidArchive { .. })

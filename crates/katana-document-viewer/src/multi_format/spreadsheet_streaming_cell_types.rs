@@ -1,7 +1,7 @@
 use super::spreadsheet_engine::SpreadsheetEngineError;
 use super::{
-    SpreadsheetCellArtifact, SpreadsheetCellStyleArtifact, SpreadsheetCellValue,
-    SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
+    SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact, SpreadsheetCellStyleArtifact,
+    SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact, SpreadsheetCoordinate,
     SpreadsheetHorizontalAlignment, SpreadsheetVerticalAlignment,
 };
 
@@ -116,6 +116,7 @@ fn default_style() -> SpreadsheetCellStyleArtifact {
         vertical_alignment: SpreadsheetVerticalAlignment::Bottom,
         wrap_text: false,
         number_format: "General".to_owned(),
+        borders: SpreadsheetCellBorderArtifact::default(),
     }
 }
 

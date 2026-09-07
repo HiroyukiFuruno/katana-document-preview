@@ -34,8 +34,13 @@ impl PdfPageCache {
         if limits.max_cached_pages == 0 || page_bytes > limits.max_cached_bytes {
             return;
         }
+        if self.pages.contains_key(&key) {
+            self.order.retain(|cached| *cached != key);
+            self.evict(key);
+        }
         self.evict_until_available(page_bytes, limits);
         self.bytes = self.bytes.saturating_add(page_bytes);
+        super::resource_metrics::CacheMetrics::insert(page_bytes);
         self.order.push_back(key);
         self.pages.insert(key, rendered);
     }
@@ -69,7 +74,22 @@ impl PdfPageCache {
 
     fn evict(&mut self, key: PdfRenderCacheKey) {
         if let Some(rendered) = self.pages.remove(&key) {
-            self.bytes = self.bytes.saturating_sub(rendered.surface.rgba.len());
+            let bytes = rendered.surface.rgba.len();
+            self.bytes = self.bytes.saturating_sub(bytes);
+            super::resource_metrics::CacheMetrics::remove(bytes);
+        }
+    }
+}
+
+impl Drop for PdfPageCache {
+    fn drop(&mut self) {
+        let bytes = self
+            .pages
+            .values()
+            .map(|rendered| rendered.surface.rgba.len())
+            .collect::<Vec<_>>();
+        for bytes in bytes {
+            super::resource_metrics::CacheMetrics::remove(bytes);
         }
     }
 }

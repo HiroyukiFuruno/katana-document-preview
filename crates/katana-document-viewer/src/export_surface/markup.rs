@@ -6,6 +6,8 @@ use katana_markdown_model::{KmmNode, ListItemNode};
 mod export_surface_markup_alert;
 #[path = "export_surface_markup_html.rs"]
 mod export_surface_markup_html;
+#[path = "export_surface_markup_html_style.rs"]
+mod export_surface_markup_html_style;
 
 pub(super) use self::export_surface_markup_alert::{
     alert_body_lines, alert_color, alert_label_text,

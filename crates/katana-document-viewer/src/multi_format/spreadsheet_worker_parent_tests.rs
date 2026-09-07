@@ -1,8 +1,8 @@
-use super::{SpreadsheetViewerSession, materialized_cells, opened_sheets};
+use super::{SpreadsheetViewerSession, filter::filter_event, materialized_cells, opened_sheets};
 use crate::multi_format::spreadsheet_worker_protocol::SpreadsheetWorkerResponse;
 use crate::multi_format::{
     OfficeDocumentFormat, OfficeDocumentSource, OfficeWorkerConfig, OfficeWorkerError,
-    ViewerSourceIdentity,
+    SpreadsheetCoordinate, ViewerSourceIdentity, debug_trace::DebugTrace,
 };
 use std::path::{Path, PathBuf};
 
@@ -77,12 +77,53 @@ fn debug_output_is_covered_with_the_isolated_worker() -> Result<(), Box<dyn std:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         std::fs::read(fixture)?,
     );
-    let session =
+    let mut session =
         SpreadsheetViewerSession::open(source, OfficeWorkerConfig::new(worker_binary_path()?))?;
 
+    assert_trace_scope(&mut session);
     assert!(format!("{session:?}").contains("SpreadsheetViewerSession"));
     assert_eq!(2, session.artifact().sheet_count);
+    session.update_candidates(0, 0, &["ignored".to_owned()]);
+    session
+        .worker
+        .send(&super::SpreadsheetWorkerRequest::Materialize {
+            request_id: 99,
+            sheet_index: usize::MAX,
+            coordinates: vec![SpreadsheetCoordinate::new(0, 0)],
+        })?;
+    assert!(matches!(
+        materialized_cells(99, session.worker.receive()?),
+        Err(OfficeWorkerError::EngineFailure { .. })
+    ));
     Ok(())
+}
+
+fn assert_trace_scope(session: &mut SpreadsheetViewerSession) {
+    session.trace_session = Some((42, 0x0123_4567_89ab_cdef));
+    let _trace_scope = session.trace_scope();
+    assert_eq!(
+        Some((42, 0x0123_4567_89ab_cdef)),
+        DebugTrace::current_session()
+    );
+}
+
+#[test]
+fn filter_response_decoder_preserves_failures_and_rejects_wrong_states() {
+    assert!(matches!(
+        filter_event(
+            1,
+            SpreadsheetWorkerResponse::Failed {
+                request_id: Some(1),
+                stage: "spreadsheet".to_owned(),
+                message: "failed".to_owned(),
+            },
+        ),
+        Err(OfficeWorkerError::EngineFailure { .. })
+    ));
+    assert!(matches!(
+        filter_event(1, SpreadsheetWorkerResponse::Stopped),
+        Err(OfficeWorkerError::Protocol { .. })
+    ));
 }
 
 fn worker_binary_path() -> Result<PathBuf, Box<dyn std::error::Error>> {

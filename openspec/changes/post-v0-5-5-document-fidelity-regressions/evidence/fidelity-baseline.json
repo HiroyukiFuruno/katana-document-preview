@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-03T23:00:35.024844+00:00",
+  "reference_config": {
+    "path": "openspec/changes/post-v0-5-5-document-fidelity-regressions/evidence/fidelity-reference.json",
+    "sha256": "23748332dd5511e08dbd7637004c7379533ff763408bb3834150a1c74cadffb6"
+  },
+  "source_renderer": {
+    "command": "soffice",
+    "version": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+    "comparison_only": true
+  },
+  "rasterizer": {
+    "command": "pdftoppm",
+    "dpi": 72
+  },
+  "fixtures": {
+    "docx": {
+      "path": "assets/fixtures/multi-format/representative.docx",
+      "sha256": "ce8ec76f77935e63824331f783bbb73f086333c6b331dda5a6d01c1e5f69d0dc",
+      "source_artifact": {
+        "pdf_sha256": "545818d0906758d1cb1675928b21cea93ad4d4a825a9bf54cc73518883d75045",
+        "pages": [
+          {
+            "name": "page-1.png",
+            "sha256": "a756db586394497693e7df00c2a3471668b9e615c7d678b662191949d4c071dd",
+            "dimensions": [
+              842,
+              596
+            ],
+            "foreground_bbox": "746x518+0+0"
+          },
+          {
+            "name": "page-2.png",
+            "sha256": "44334515f5d3a8f40c362aa786e0de61e88d48591da3ca0ccb997d6eb19a4601",
+            "dimensions": [
+              842,
+              596
+            ],
+            "foreground_bbox": "740x518+0+0"
+          }
+        ]
+      },
+      "comparison": {
+        "source_page_count": 2,
+        "candidate_page_count": 2,
+        "page_count_delta": 0,
+        "baseline_score": {
+          "normalized_mae": 0.0,
+          "normalized_rmse": 0.0
+        },
+        "candidate_score": {
+          "mean_normalized_mae": 0.0287398,
+          "mean_normalized_rmse": 0.11015744999999999
+        },
+        "pages": [
+          {
+            "index": 0,
+            "candidate_sha256": "4629de9580f37b554c3583f86b6274fe96beb087b62ad55aa50f1fa3838e7289",
+            "reference_sha256": "a756db586394497693e7df00c2a3471668b9e615c7d678b662191949d4c071dd",
+            "candidate_native_dimensions": [
+              739,
+              523
+            ],
+            "reference_dimensions": [
+              842,
+              596
+            ],
+            "width_delta": -103,
+            "height_delta": -73,
+            "candidate_foreground_bbox": "654x456+0+0",
+            "reference_foreground_bbox": "746x518+0+0",
+            "difference_bbox_after_normalization": "749x521+0+0",
+            "normalized_mae": 0.05454,
+            "normalized_rmse": 0.184968
+          },
+          {
+            "index": 1,
+            "candidate_sha256": "4a4e46b90d1d2c8ece3848d4afd83d244d57c45bf64d8b9cfb27c2cff6f1fc85",
+            "reference_sha256": "44334515f5d3a8f40c362aa786e0de61e88d48591da3ca0ccb997d6eb19a4601",
+            "candidate_native_dimensions": [
+              739,
+              523
+            ],
+            "reference_dimensions": [
+              842,
+              596
+            ],
+            "width_delta": -103,
+            "height_delta": -73,
+            "candidate_foreground_bbox": "651x456+0+0",
+            "reference_foreground_bbox": "740x518+0+0",
+            "difference_bbox_after_normalization": "742x521+0+0",
+            "normalized_mae": 0.0029396,
+            "normalized_rmse": 0.0353469
+          }
+        ]
+      }
+    },
+    "xlsx": {
+      "path": "assets/fixtures/multi-format/representative.xlsx",
+      "sha256": "82d645dd146f50b0f0ab0fc59448dad2a400d74e7210920950df89574d434f4e",
+      "source_artifact": {
+        "pdf_sha256": "14a27ef68d47601d6fc357a5c44f740e8181f7ce67273f3e1f9a24091496ebc3",
+        "pages": [
+          {
+            "name": "page-1.png",
+            "sha256": "a492609f483af97312aee83ee735ab0f48ece5f6a0ad3cd6b95285196084a92f",
+            "dimensions": [
+              596,
+              842
+            ],
+            "foreground_bbox": "456x352+0+0"
+          },
+          {
+            "name": "page-2.png",
+            "sha256": "4d30425cf529e1d89ce8faf807bd6889294b5e78e3993749446a1bdbf2e712d4",
+            "dimensions": [
+              596,
+              842
+            ],
+            "foreground_bbox": "327x23+0+0"
+          }
+        ]
+      },
+      "comparison": {
+        "source_sheet_count": 2,
+        "candidate_sheet_count": 2,
+        "worksheet_count_delta": 0,
+        "source_reference_pdf_page_count": 2,
+        "candidate_pagination_representation": "continuous_grid",
+        "candidate_page_count": null,
+        "pagination_missing_page_surface_count": 2,
+        "candidate_api_exposes_borders": true,
+        "candidate_ui_renders_custom_cell_borders": true,
+        "border_visual_missing_count": 0,
+        "missing_element_count": 0,
+        "sheets": [
+          {
+            "index": 0,
+            "source_name": "Dashboard",
+            "candidate_name": "Dashboard",
+            "row_count_delta": 0,
+            "column_count_delta": 0,
+            "text_missing_count": 0,
+            "text_mismatch_count": 0,
+            "font_missing_count": 0,
+            "font_difference_count": 0,
+            "fill_missing_count": 0,
+            "fill_difference_count": 0,
+            "border_metadata_missing_count": 0,
+            "border_difference_count": 0,
+            "merged_cell_missing_count": 0,
+            "row_track_mean_absolute_delta": 0.0037456584413520628,
+            "column_track_mean_absolute_delta": 0.0
+          },
+          {
+            "index": 1,
+            "source_name": "Notes",
+            "candidate_name": "Notes",
+            "row_count_delta": 0,
+            "column_count_delta": 0,
+            "text_missing_count": 0,
+            "text_mismatch_count": 0,
+            "font_missing_count": 0,
+            "font_difference_count": 0,
+            "fill_missing_count": 0,
+            "fill_difference_count": 0,
+            "border_metadata_missing_count": 0,
+            "border_difference_count": 0,
+            "merged_cell_missing_count": 0,
+            "row_track_mean_absolute_delta": 0.0,
+            "column_track_mean_absolute_delta": 0.0
+          }
+        ],
+        "totals": {
+          "text_missing_count": 0,
+          "text_mismatch_count": 0,
+          "font_missing_count": 0,
+          "font_difference_count": 0,
+          "fill_missing_count": 0,
+          "fill_difference_count": 0,
+          "border_metadata_missing_count": 0,
+          "border_difference_count": 0,
+          "merged_cell_missing_count": 0
+        }
+      }
+    }
+  },
+  "verification": {
+    "tolerances_checked": true,
+    "tolerances_met": true,
+    "failures": []
+  }
+}

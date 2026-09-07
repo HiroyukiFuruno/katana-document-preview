@@ -14,8 +14,9 @@ pub use frame_grid::{
     DocumentRect,
 };
 pub use frame_grid_style::{
-    DocumentGridCellAppearance, DocumentGridDataBar, DocumentGridHorizontalAlignment,
-    DocumentGridIcon, DocumentGridRating, DocumentGridVerticalAlignment,
+    DocumentGridBorderSide, DocumentGridCellAppearance, DocumentGridCellBorders,
+    DocumentGridDataBar, DocumentGridHorizontalAlignment, DocumentGridIcon, DocumentGridRating,
+    DocumentGridVerticalAlignment,
 };
 pub use spreadsheet_grid::SpreadsheetGridSurface;
 

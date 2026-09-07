@@ -2,7 +2,7 @@ use super::BrowserSessionUpdate;
 use std::{
     collections::VecDeque,
     sync::{Condvar, Mutex, MutexGuard},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 #[derive(Debug, Default)]
@@ -34,12 +34,22 @@ impl BrowserSessionState {
     }
 
     pub(crate) fn wait_for_update(&self, timeout: Duration) -> Option<BrowserSessionUpdate> {
-        let updates = self.lock_updates();
-        let mut updates = if updates_available(&updates) {
-            updates
-        } else {
-            self.wait_for_change(updates, timeout)
-        };
+        let deadline = Instant::now() + timeout;
+        let mut updates = self.lock_updates();
+        while !updates_available(&updates) {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return None;
+            }
+            let (next, timeout) = self
+                .changed
+                .wait_timeout(updates, remaining)
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            updates = next;
+            if timeout.timed_out() && !updates_available(&updates) {
+                return None;
+            }
+        }
         self.take_from(&mut updates)
     }
 
@@ -54,17 +64,6 @@ impl BrowserSessionState {
         self.updates
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
-
-    fn wait_for_change<'a>(
-        &self,
-        updates: MutexGuard<'a, PendingUpdates>,
-        timeout: Duration,
-    ) -> MutexGuard<'a, PendingUpdates> {
-        self.changed
-            .wait_timeout(updates, timeout)
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .0
     }
 }
 

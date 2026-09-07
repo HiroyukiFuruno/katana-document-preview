@@ -1,9 +1,9 @@
 use super::{
-    Alignment, CfDataBar, CfIcon, CfRating, Color, HorizontalAlignment,
-    SpreadsheetCellMaterializer, SpreadsheetHorizontalAlignment, SpreadsheetVerticalAlignment,
-    Style, Theme, VerticalAlignment,
+    Alignment, CfDataBar, CfIcon, CfRating, HorizontalAlignment, SpreadsheetCellMaterializer,
+    SpreadsheetHorizontalAlignment, SpreadsheetVerticalAlignment, Style, Theme, VerticalAlignment,
 };
 use ironcalc::base::cf_types::{ExtendedStyle, Icon};
+use ironcalc::base::types::Color;
 
 fn data_bar() -> CfDataBar {
     CfDataBar {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub(super) const INPUT_NAME: &str = "input.office";
+pub(super) use super::office_worker_input::INPUT_NAME;
 pub(super) const OUTPUT_NAME: &str = "output.pdf";
 pub(super) const RESPONSE_NAME: &str = "response.json";
 pub(super) const MAX_RESPONSE_BYTES: u64 = 64 * 1024;

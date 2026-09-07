@@ -163,7 +163,7 @@ impl ViewerMediaHeight {
 
 #[cfg(test)]
 mod tests {
-    use super::{MEDIA_VERTICAL_MARGIN, ViewerHeightMode, ViewerMediaHeight, ViewerNodeMetrics};
+    use super::{ViewerHeightMode, ViewerMediaHeight, ViewerNodeMetrics};
     use crate::artifact::{ArtifactBytes, ArtifactDiagnostics, ArtifactFactory, ArtifactFormat};
     use crate::viewer::asset::ViewerAssetReference;
     use crate::viewer::node_plan::planned_node::PlannedNode;
@@ -245,8 +245,7 @@ mod tests {
 
         let expected = 244.0
             * ViewerMediaHeight::content_width(1280.0, ViewerHeightMode::InteractivePreview) as f32
-            / 1520.0
-            + MEDIA_VERTICAL_MARGIN;
+            / 1520.0;
 
         assert!(
             (expected - height).abs() <= 0.01,

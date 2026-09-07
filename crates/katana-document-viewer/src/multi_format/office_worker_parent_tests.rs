@@ -1,7 +1,11 @@
-use super::{OfficeWorkerConfig, OfficeWorkerError, complete_conversion, failed_conversion};
+use super::{
+    OfficeWorkerConfig, OfficeWorkerError, complete_conversion, failed_conversion,
+    trace::trace_source_fingerprint,
+};
 use crate::multi_format::office_worker_protocol::{OUTPUT_NAME, OfficeWorkerResponse};
 use crate::multi_format::{
     OfficeDocumentFormat, OfficePreflightError, PdfViewerError, ViewerDiagnosticCode,
+    ViewerSourceIdentity,
 };
 use std::path::PathBuf;
 
@@ -150,4 +154,14 @@ fn failed_conversion_maps_output_and_engine_failures() {
         complete_conversion(workspace, Some(70), response, &config),
         Err(OfficeWorkerError::EngineFailure { .. })
     ));
+}
+
+#[test]
+fn trace_source_fingerprint_separates_source_revisions_without_exposing_them() {
+    let first = ViewerSourceIdentity::new("memory://report.xlsx", "rev-7");
+    let second = ViewerSourceIdentity::new("memory://report.xlsx", "rev-8");
+    assert_ne!(
+        trace_source_fingerprint(&first),
+        trace_source_fingerprint(&second)
+    );
 }

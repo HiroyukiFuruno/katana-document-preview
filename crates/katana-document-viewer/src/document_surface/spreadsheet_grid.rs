@@ -10,7 +10,9 @@ use katana_ui_core::molecule::{
     GenericGrid, GridAction, GridCoordinate, GridEvent, GridNavigationIntent, GridViewport,
 };
 use katana_ui_core::render_model::UiGridValidationError;
-use mapping::{cell_content, cell_span, spreadsheet_coordinate, track_provider};
+use mapping::{
+    cell_content, cell_span, row_track_provider, spreadsheet_coordinate, track_provider,
+};
 
 const DEFAULT_ROW_SIZE: u32 = 20;
 const DEFAULT_COLUMN_SIZE: u32 = 80;
@@ -35,8 +37,16 @@ impl SpreadsheetGridSurface {
         viewport: DocumentViewport,
     ) -> Result<Self, DocumentSurfaceError> {
         let (frozen_rows, frozen_columns) = adjusted_frozen_panes(sheet);
+        let filtered_out_rows = sheet
+            .auto_filter
+            .as_ref()
+            .map_or(&[][..], |filter| filter.filtered_out_rows.as_slice());
         let mut grid = GenericGrid::new(&sheet.name, sheet.row_count, sheet.column_count)
-            .row_tracks(track_provider(&sheet.row_tracks, DEFAULT_ROW_SIZE))
+            .row_tracks(row_track_provider(
+                &sheet.row_tracks,
+                DEFAULT_ROW_SIZE,
+                filtered_out_rows,
+            ))
             .column_tracks(track_provider(&sheet.column_tracks, DEFAULT_COLUMN_SIZE))
             .viewport(GridViewport::new(viewport.width, viewport.height))
             .overscan(1, 1)
@@ -157,11 +167,22 @@ const fn navigation_intent(intent: DocumentGridNavigation) -> GridNavigationInte
 #[path = "spreadsheet_grid_alignment_tests.rs"]
 mod alignment_tests;
 #[cfg(test)]
+#[path = "spreadsheet_grid_appearance_tests.rs"]
+mod appearance_tests;
+#[cfg(test)]
 #[path = "spreadsheet_grid_command_tests.rs"]
 mod command_tests;
 #[cfg(test)]
+#[path = "spreadsheet_grid_filter_tests.rs"]
+mod filter_tests;
+#[cfg(test)]
+#[path = "spreadsheet_grid_mapping_tests.rs"]
+mod mapping_tests;
+#[cfg(test)]
 #[path = "spreadsheet_grid_pointer_tests.rs"]
 mod pointer_tests;
+#[path = "spreadsheet_grid_state.rs"]
+mod state;
 #[cfg(test)]
 #[path = "spreadsheet_grid_test_support.rs"]
 mod test_support;

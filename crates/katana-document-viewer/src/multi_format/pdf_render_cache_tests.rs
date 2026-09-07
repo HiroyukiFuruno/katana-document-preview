@@ -26,6 +26,7 @@ fn cache_hits_touch_entries_and_both_limits_evict() {
 
     assert_eq!(None, cache.get((0, 1.0_f32.to_bits())));
     cache.insert((0, 1.0_f32.to_bits()), page(0, 4), limits);
+    cache.insert((0, 1.0_f32.to_bits()), page(0, 4), limits);
     cache.insert((1, 1.0_f32.to_bits()), page(1, 4), limits);
     assert_eq!(Some(page(0, 4)), cache.get((0, 1.0_f32.to_bits())));
 

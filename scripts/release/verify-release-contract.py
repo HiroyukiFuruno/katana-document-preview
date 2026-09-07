@@ -8,17 +8,21 @@ import hashlib
 import json
 import re
 import tempfile
-import tomllib
 from pathlib import Path
+
+from toml_compat import loads as toml_loads
 
 
 VERSION_RE = re.compile(r"^v(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)\.(?P<patch>0|[1-9][0-9]*)$")
 REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
 RELEASE_CONTRACT = "multi-format-viewer"
-KRR_MIN_VERSION = (0, 4, 16)
+KRR_MIN_VERSION = (0, 4, 19)
+# Cargoの裸のバージョン指定はcaret互換のため、KRRを完全固定しない。
 KRR_DECLARED_VERSION = ".".join(map(str, KRR_MIN_VERSION))
-KRR_VERSION_REQUIREMENT = "^0.4.16"
+KRR_VERSION_REQUIREMENT = "^0.4.19"
 KRR_LOCK_VERSION_RE = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
+V8_VERSION = "152.2.0"
+V8_DECLARED_VERSION = f"={V8_VERSION}"
 ADAPTER_SOURCES = (
     "crates/katana-document-viewer/src/browser_session.rs",
     "crates/katana-document-viewer/src/browser_session_command_coalescing.rs",
@@ -43,7 +47,7 @@ FORBIDDEN_ADAPTER_MARKERS = (
 )
 SELECTED_ENGINES = {
     "hayro": ("hayro", "0.7.1"),
-    "office2pdf": ("office2pdf-katana", "0.6.10"),
+    "office2pdf": ("office2pdf", "0.6.8"),
     "ironcalc": ("ironcalc", "0.8.3"),
 }
 LINUX_SANDBOX_DEPENDENCIES = {
@@ -51,7 +55,8 @@ LINUX_SANDBOX_DEPENDENCIES = {
     "seccompiler": "0.5.0",
     "skarn-sandbox": "1.0.1",
 }
-KUC_VERSION = "0.3.0"
+KUC_VERSION = "0.3.7"
+KUC_DECLARED_VERSION = f"={KUC_VERSION}"
 MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/artifact.rs",
     "crates/katana-document-viewer/src/multi_format/capability.rs",
@@ -64,8 +69,10 @@ MULTI_FORMAT_SOURCES = (
     "crates/katana-document-viewer/src/multi_format/office_worker_network_seccomp.rs",
     "crates/katana-document-viewer/src/multi_format/pdf_adapter.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_engine.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_entrypoint.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_parent.rs",
     "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows.rs",
+    "crates/katana-document-viewer/src/multi_format/spreadsheet_worker_spawn_windows_stderr.rs",
     "crates/katana-document-viewer/src/multi_format/windows_worker_executable.rs",
     "crates/katana-document-viewer/src/document_surface/mod.rs",
     "crates/katana-document-viewer/src/document_surface/frame.rs",
@@ -121,14 +128,20 @@ def release_contract(root: Path, target_version: str) -> str:
 
 
 def manifest_errors(manifest: str) -> list[str]:
-    workspace = tomllib.loads(manifest)
+    workspace = toml_loads(manifest)
     dependencies = workspace.get("workspace", {}).get("dependencies", {})
-    if dependency_version(dependencies.get("katana-render-runtime")) == KRR_DECLARED_VERSION:
-        return []
-    return [
-        "Cargo.toml must depend on "
-        f"katana-render-runtime = \"{KRR_DECLARED_VERSION}\"."
-    ]
+    errors: list[str] = []
+    if dependency_version(dependencies.get("katana-render-runtime")) != KRR_DECLARED_VERSION:
+        errors.append(
+            "Cargo.toml must depend on "
+            f"katana-render-runtime = \"{KRR_DECLARED_VERSION}\"."
+        )
+    v8 = dependencies.get("v8")
+    if dependency_version(v8) != V8_DECLARED_VERSION:
+        errors.append(f"Cargo.toml must pin v8 to {V8_DECLARED_VERSION}.")
+    if not isinstance(v8, dict) or "simdutf" not in v8.get("features", []):
+        errors.append("Cargo.toml must retain the v8 simdutf feature.")
+    return errors
 
 
 def dependency_version(declared: object) -> str | None:
@@ -149,11 +162,15 @@ def krr_lock_version_is_allowed(version: object) -> bool:
     if match is None:
         return False
     parsed = tuple(int(match.group(name)) for name in ("major", "minor", "patch"))
-    return parsed >= KRR_MIN_VERSION and parsed[:2] == KRR_MIN_VERSION[:2]
+    return (
+        parsed[0] == KRR_MIN_VERSION[0]
+        and parsed[1] == KRR_MIN_VERSION[1]
+        and parsed[2] >= KRR_MIN_VERSION[2]
+    )
 
 
 def lockfile_errors(lockfile: str) -> list[str]:
-    lock = tomllib.loads(lockfile)
+    lock = toml_loads(lockfile)
     packages = [
         package
         for package in lock.get("package", [])
@@ -173,11 +190,23 @@ def lockfile_errors(lockfile: str) -> list[str]:
     checksum = package.get("checksum")
     if not isinstance(checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", checksum):
         errors.append("katana-render-runtime crates.io lock entry must include a SHA-256 checksum.")
+    v8_packages = [package for package in lock.get("package", []) if package.get("name") == "v8"]
+    if len(v8_packages) != 1:
+        errors.append("Cargo.lock must contain exactly one v8 package.")
+        return errors
+    v8 = v8_packages[0]
+    if v8.get("version") != V8_VERSION:
+        errors.append(f"v8 must resolve exactly {V8_VERSION}.")
+    if v8.get("source") != REGISTRY_SOURCE:
+        errors.append("v8 must resolve from crates.io, not a path or git override.")
+    v8_checksum = v8.get("checksum")
+    if not isinstance(v8_checksum, str) or not re.fullmatch(r"[0-9a-f]{64}", v8_checksum):
+        errors.append("v8 crates.io lock entry must include a SHA-256 checksum.")
     return errors
 
 
 def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
-    workspace = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
+    workspace = toml_loads((root / "Cargo.toml").read_text(encoding="utf-8"))
     members = workspace.get("workspace", {}).get("members", [])
     dependencies = workspace.get("workspace", {}).get("dependencies", {})
     errors: list[str] = []
@@ -199,22 +228,31 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
             errors.append(f"Cargo.toml must pin {name} to ={version}.")
 
     kuc = dependencies.get("katana-ui-core")
-    kuc_storybook = dependencies.get("katana-ui-core-storybook")
-    expected_git = "https://github.com/HiroyukiFuruno/katana-ui-core.git"
-    for name, declared in (
-        ("katana-ui-core", kuc),
-        ("katana-ui-core-storybook", kuc_storybook),
+    if (
+        not isinstance(kuc, dict)
+        or dependency_version(kuc) != KUC_DECLARED_VERSION
+        or "raster-host" not in kuc.get("features", [])
     ):
-        if not isinstance(declared, dict) or declared.get("git") != expected_git or declared.get("tag") != "v0.3.0":
-            errors.append(f"development-only {name} must resolve from KUC tag v0.3.0.")
+        errors.append(
+            "workspace katana-ui-core must use the exact registry KUC "
+            f"{KUC_DECLARED_VERSION} raster-host API."
+        )
+    if "katana-ui-core-storybook" in dependencies:
+        errors.append(
+            "workspace must resolve KUC through one katana-ui-core registry dependency, "
+            "not a second Storybook alias."
+        )
 
-    core_manifest = tomllib.loads(
+    core_manifest = toml_loads(
         (root / "crates/katana-document-viewer/Cargo.toml").read_text(encoding="utf-8")
     )
     core_dependencies = core_manifest.get("dependencies", {})
     core_kuc = core_dependencies.get("katana-ui-core")
-    if dependency_version(core_kuc) != KUC_VERSION:
-        errors.append("KDV document surface must depend on crates.io katana-ui-core 0.3.0.")
+    if dependency_version(core_kuc) != KUC_DECLARED_VERSION:
+        errors.append(
+            "KDV document surface must depend on the exact crates.io "
+            f"katana-ui-core {KUC_DECLARED_VERSION}."
+        )
     elif isinstance(core_kuc, dict) and any(key in core_kuc for key in ("path", "git", "optional")):
         errors.append("KDV document surface KUC dependency must be required and registry-only.")
     for dependency in ("eframe", "egui"):
@@ -227,7 +265,7 @@ def multi_format_manifest_errors(root: Path, _target_version: str) -> list[str]:
 
 
 def multi_format_lockfile_errors(lockfile: str) -> list[str]:
-    packages = tomllib.loads(lockfile).get("package", [])
+    packages = toml_loads(lockfile).get("package", [])
     errors: list[str] = []
     selected_packages = {
         package: version for package, version in SELECTED_ENGINES.values()
@@ -235,7 +273,6 @@ def multi_format_lockfile_errors(lockfile: str) -> list[str]:
     for name, version in {
         **selected_packages,
         **LINUX_SANDBOX_DEPENDENCIES,
-        "katana-ui-core": KUC_VERSION,
     }.items():
         registry_matches = [
             package
@@ -248,6 +285,26 @@ def multi_format_lockfile_errors(lockfile: str) -> list[str]:
         ]
         if not registry_matches:
             errors.append(f"Cargo.lock must contain crates.io {name} {version} with checksum.")
+    kuc_packages = [
+        package for package in packages if package.get("name") == "katana-ui-core"
+    ]
+    if len(kuc_packages) != 1:
+        errors.append("Cargo.lock must contain exactly one katana-ui-core package.")
+    else:
+        kuc = kuc_packages[0]
+        if (
+            kuc.get("version") != KUC_VERSION
+            or kuc.get("source") != REGISTRY_SOURCE
+            or not isinstance(kuc.get("checksum"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", kuc["checksum"])
+        ):
+            errors.append(
+                f"Cargo.lock must contain crates.io katana-ui-core {KUC_VERSION} with checksum."
+            )
+    if any(package.get("name") == "katana-ui-core-storybook" for package in packages):
+        errors.append(
+            "Cargo.lock must not contain a separate katana-ui-core-storybook package."
+        )
     forbidden = sorted(
         {
             package.get("name")
@@ -278,6 +335,7 @@ def multi_format_source_errors(root: Path) -> list[str]:
         "OfficeWorkerEntrypoint",
         "PdfViewerSession",
         "SpreadsheetViewerSession",
+        "SpreadsheetWorkerEntrypoint",
         "SeccompFilter",
         "NetPolicy::Deny",
         "GenericGrid",
@@ -396,8 +454,22 @@ def justfile_errors(justfile: str) -> list[str]:
         "{{CARGO}} test -p katana-document-viewer --test browser_session_adapter_contract --locked",
         "release-verify: release-contract-check check coverage",
         'COVERAGE_TARGET_PACKAGES := "-p katana-document-viewer"',
+        "coverage-v8-refresh:",
+        "{{CARGO}} clean -p v8 --target-dir target/llvm-cov-target",
+        "coverage: coverage-v8-refresh",
+        "coverage-missing: coverage-v8-refresh",
         "document-surface-boundary-check:",
         "scripts/document-surface-boundary-check.sh",
+        "v8-runtime-check:",
+        "verify-v8-runtime-singleton.py",
+        "office-profiling-stage-check:",
+        "verify-office-profiling-stages.py",
+        "office-performance-harness-check:",
+        "measure-office-first-frame.py --self-test",
+        "office-fidelity-harness-check:",
+        "measure-office-fidelity.py --self-test",
+        "measure-office-fidelity.py --verify-record",
+        "verify-registry-consumer-link.py --self-test",
     )
     missing = [token for token in required if token not in justfile]
     if not missing:
@@ -409,6 +481,7 @@ def staged_publish_errors(script: str) -> list[str]:
     ordered = (
         "cargo publish -p katana-document-viewer --locked",
         "wait_until_published katana-document-viewer",
+        "verify-registry-consumer-link.py",
     )
     positions = [script.find(token) for token in ordered]
     publishes_adapter = "cargo publish -p katana-document-viewer-kuc" in script
@@ -418,7 +491,37 @@ def staged_publish_errors(script: str) -> list[str]:
         and not publishes_adapter
     ):
         return []
-    return ["publish script must publish only the KDV core crate and await its registry entry."]
+    return [
+        "publish script must publish only the KDV core crate, await its registry entry, "
+        "and link a fresh registry consumer."
+    ]
+
+
+def registry_consumer_contract_errors(root: Path) -> list[str]:
+    manifest_path = root / "tools/kdv-v8-registry-consumer/Cargo.toml"
+    source_path = root / "tools/kdv-v8-registry-consumer/src/main.rs"
+    verifier_path = root / "scripts/release/verify-registry-consumer-link.py"
+    errors: list[str] = []
+    if not manifest_path.is_file():
+        errors.append("V8 registry consumer manifest is missing.")
+    else:
+        manifest = manifest_path.read_text(encoding="utf-8")
+        if 'katana-document-viewer = "__KDV_VERSION__"' not in manifest:
+            errors.append("V8 registry consumer must substitute an exact KDV version.")
+        if "path" in manifest or "git" in manifest:
+            errors.append("V8 registry consumer template must not contain path or git overrides.")
+    if not source_path.is_file():
+        errors.append("V8 registry consumer link source is missing.")
+    elif "KrrMathRenderEngine::render_display_svg" not in source_path.read_text(encoding="utf-8"):
+        errors.append("V8 registry consumer must link KDV's public KRR entrypoint.")
+    if not verifier_path.is_file():
+        errors.append("V8 registry consumer verifier is missing.")
+    else:
+        verifier = verifier_path.read_text(encoding="utf-8")
+        for token in ('"metadata"', '"build"', '"tree"', REGISTRY_SOURCE):
+            if token not in verifier:
+                errors.append(f"V8 registry consumer verifier is missing {token}.")
+    return errors
 
 
 def release_workflow_errors(preflight: str, release: str) -> list[str]:
@@ -442,6 +545,42 @@ def release_workflow_errors(preflight: str, release: str) -> list[str]:
                 f"{label} must refresh static and live Storybook acceptance artifacts "
                 f"before the KDV {required_recipe} recipe."
             )
+        diagnostic_position = workflow.find(
+            "name: Upload Storybook preview-crop diagnostics on failure"
+        )
+        diagnostic = workflow[diagnostic_position:] if diagnostic_position >= 0 else ""
+        diagnostic_required = (
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
+        )
+        if diagnostic_position <= recipe_position or any(
+            marker not in diagnostic for marker in diagnostic_required
+        ):
+            errors.append(
+                f"{label} must upload preview-crop diagnostics after a failed release gate."
+            )
+    return errors
+
+
+def v8_cache_refresh_errors(workflows: dict[str, str]) -> list[str]:
+    errors: list[str] = []
+    for label, workflow in workflows.items():
+        cache_position = workflow.find("uses: Swatinem/rust-cache@v2")
+        refresh_position = workflow.find(
+            "name: Refresh V8 link artifact after cache restore"
+        )
+        clean_position = workflow.find("run: cargo clean -p v8")
+        if (
+            cache_position == -1
+            or refresh_position == -1
+            or clean_position == -1
+            or not cache_position < refresh_position <= clean_position
+        ):
+            errors.append(
+                f"{label} must refresh V8 link artifacts after restoring the Rust cache."
+            )
     return errors
 
 
@@ -461,6 +600,7 @@ def validate(root: Path, target_version: str) -> list[str]:
     errors.extend(integration_contract_errors(root))
     errors.extend(multi_format_source_errors(root))
     errors.extend(office_font_contract_errors(root))
+    errors.extend(registry_consumer_contract_errors(root))
     errors.extend(justfile_errors((root / "Justfile").read_text(encoding="utf-8")))
     errors.extend(
         staged_publish_errors(
@@ -471,6 +611,21 @@ def validate(root: Path, target_version: str) -> list[str]:
         release_workflow_errors(
             (root / ".github/workflows/release-preflight.yml").read_text(encoding="utf-8"),
             (root / ".github/workflows/release.yml").read_text(encoding="utf-8"),
+        )
+    )
+    errors.extend(
+        v8_cache_refresh_errors(
+            {
+                "CI workflow": (root / ".github/workflows/test-and-build.yml").read_text(
+                    encoding="utf-8"
+                ),
+                "release preflight": (
+                    root / ".github/workflows/release-preflight.yml"
+                ).read_text(encoding="utf-8"),
+                "release workflow": (root / ".github/workflows/release.yml").read_text(
+                    encoding="utf-8"
+                ),
+            }
         )
     )
     return errors
@@ -504,12 +659,16 @@ def self_test() -> None:
     valid_manifest = (
         "[workspace.dependencies]\n"
         f'katana-render-runtime = "{KRR_DECLARED_VERSION}"\n'
+        f'v8 = {{ version = "{V8_DECLARED_VERSION}", features = ["simdutf"] }}\n'
     )
     assert not manifest_errors(valid_manifest)
     assert not manifest_errors(
         "[workspace.dependencies]\n"
         f'katana-render-runtime = {{ version = "{KRR_DECLARED_VERSION}" }}\n'
+        f'v8 = {{ version = "{V8_DECLARED_VERSION}", features = ["simdutf"] }}\n'
     )
+    assert manifest_errors(valid_manifest.replace(V8_DECLARED_VERSION, "=150.0.0"))
+    assert manifest_errors(valid_manifest.replace('features = ["simdutf"]', "features = []"))
     assert manifest_errors(
         '[workspace.dependencies]\nkatana-render-runtime = { path = "../krr" }\n'
     )
@@ -519,13 +678,12 @@ def self_test() -> None:
         selected_dependencies = "\n".join(
             (
                 'hayro = "=0.7.1"',
-                'office2pdf = { package = "office2pdf-katana", version = "=0.6.10" }',
+                'office2pdf = { package = "office2pdf", version = "=0.6.8" }',
                 'ironcalc = "=0.8.3"',
                 'libc = "=0.2.189"',
                 'seccompiler = "=0.5.0"',
                 'skarn-sandbox = "=1.0.1"',
-                'katana-ui-core = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
-                'katana-ui-core-storybook = { git = "https://github.com/HiroyukiFuruno/katana-ui-core.git", tag = "v0.3.0" }',
+                f'katana-ui-core = {{ version = "{KUC_DECLARED_VERSION}", features = ["raster-host"] }}',
             )
         )
         (root / "Cargo.toml").write_text(
@@ -534,13 +692,13 @@ def self_test() -> None:
         )
         (root / "crates/katana-document-viewer/Cargo.toml").write_text(
             '[package]\nname = "test"\nversion = "0.0.0"\n'
-            '[dependencies]\nkatana-ui-core = "0.3.0"\n',
+            f'[dependencies]\nkatana-ui-core = "{KUC_DECLARED_VERSION}"\n',
             encoding="utf-8",
         )
         assert not multi_format_manifest_errors(root, "v0.5.2")
         stale_manifest = (root / "Cargo.toml").read_text(encoding="utf-8").replace(
-            'office2pdf = { package = "office2pdf-katana", version = "=0.6.10" }',
-            'office2pdf = { package = "office2pdf-katana", version = "=0.6.9" }',
+            'office2pdf = { package = "office2pdf", version = "=0.6.8" }',
+            'office2pdf = { package = "office2pdf", version = "=0.6.7" }',
         )
         (root / "Cargo.toml").write_text(stale_manifest, encoding="utf-8")
         assert multi_format_manifest_errors(root, "v0.5.2")
@@ -549,17 +707,25 @@ version = 4
 
 [[package]]
 name = "katana-render-runtime"
-version = "0.4.16"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0000000000000000000000000000000000000000000000000000000000000000"
+
+[[package]]
+name = "v8"
+version = "152.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 """
     assert not lockfile_errors(registry_lock)
-    assert not lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.17"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.4.15"'))
-    assert lockfile_errors(registry_lock.replace('version = "0.4.16"', 'version = "0.5.0"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.18"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.20"'))
+    assert not lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.4.99"'))
+    assert lockfile_errors(registry_lock.replace('version = "0.4.19"', 'version = "0.5.0"'))
     duplicate_package = registry_lock.split("[[package]]", maxsplit=1)[1]
     assert lockfile_errors(registry_lock + "\n[[package]]" + duplicate_package)
     assert lockfile_errors(registry_lock.replace(REGISTRY_SOURCE, "path+file:///tmp/krr"))
+    assert lockfile_errors(registry_lock.replace('version = "152.2.0"', 'version = "150.0.0"'))
     assert lockfile_errors(
         registry_lock.replace(
             "0000000000000000000000000000000000000000000000000000000000000000",
@@ -570,12 +736,22 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
         (
             "xvfb-run -a just storybook-release-acceptance-artifacts",
             'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-check',
+            "name: Upload Storybook preview-crop diagnostics on failure",
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
         )
     )
     release_workflow = "\n".join(
         (
             "xvfb-run -a just storybook-release-acceptance-artifacts",
             'xvfb-run -a just VERSION="${{ steps.version.outputs.version }}" release-verify',
+            "name: Upload Storybook preview-crop diagnostics on failure",
+            "if: failure()",
+            "uses: actions/upload-artifact@v4",
+            "path: target/acceptance/preview-crop-reference",
+            "if-no-files-found: warn",
         )
     )
     assert not release_workflow_errors(release_preflight, release_workflow)
@@ -586,10 +762,26 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert release_workflow_errors(
         "\n".join(reversed(release_preflight.splitlines())), release_workflow
     )
+    v8_cache_workflow = "\n".join(
+        (
+            "uses: Swatinem/rust-cache@v2",
+            "name: Refresh V8 link artifact after cache restore",
+            "run: cargo clean -p v8",
+        )
+    )
+    assert not v8_cache_refresh_errors(
+        {
+            "CI workflow": v8_cache_workflow,
+            "release preflight": v8_cache_workflow,
+            "release workflow": v8_cache_workflow,
+        }
+    )
+    assert v8_cache_refresh_errors({"CI workflow": "uses: Swatinem/rust-cache@v2"})
     staged_publish = "\n".join(
         (
             "cargo publish -p katana-document-viewer --locked",
             "wait_until_published katana-document-viewer",
+            "verify-registry-consumer-link.py",
         )
     )
     assert not staged_publish_errors(staged_publish)
@@ -597,6 +789,27 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     assert staged_publish_errors(
         staged_publish + "\ncargo publish -p katana-document-viewer-kuc --locked"
     )
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        (root / "tools/kdv-v8-registry-consumer/src").mkdir(parents=True)
+        (root / "scripts/release").mkdir(parents=True)
+        (root / "tools/kdv-v8-registry-consumer/Cargo.toml").write_text(
+            '[dependencies]\nkatana-document-viewer = "__KDV_VERSION__"\n',
+            encoding="utf-8",
+        )
+        (root / "tools/kdv-v8-registry-consumer/src/main.rs").write_text(
+            "KrrMathRenderEngine::render_display_svg", encoding="utf-8"
+        )
+        (root / "scripts/release/verify-registry-consumer-link.py").write_text(
+            '"metadata"\n"build"\n"tree"\n' + REGISTRY_SOURCE,
+            encoding="utf-8",
+        )
+        assert not registry_consumer_contract_errors(root)
+        (root / "tools/kdv-v8-registry-consumer/Cargo.toml").write_text(
+            '[dependencies]\nkatana-document-viewer = { path = "../kdv" }\n',
+            encoding="utf-8",
+        )
+        assert registry_consumer_contract_errors(root)
     selected_lock = "version = 4\n\n" + "\n\n".join(
         (
             "[[package]]\n"
@@ -612,7 +825,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     )
     assert not multi_format_lockfile_errors(selected_lock)
     assert multi_format_lockfile_errors(
-        selected_lock.replace('version = "0.6.10"', 'version = "0.6.9"', 1)
+        selected_lock.replace('version = "0.6.8"', 'version = "0.6.7"', 1)
     )
 
 

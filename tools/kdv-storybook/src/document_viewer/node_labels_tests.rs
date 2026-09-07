@@ -76,6 +76,11 @@ fn text_roles_cover_html_and_blockquote_cases() {
         "blockquote",
         KucNodeLabels::text_role(&ViewerNodeKind::BlockQuote)
     );
+    assert_eq!(
+        "paragraph",
+        KucNodeLabels::text_role(&ViewerNodeKind::Paragraph),
+        "interactive paragraphs must use KatanA's unadjusted compact wrap role"
+    );
 }
 
 #[test]
@@ -112,6 +117,11 @@ fn export_surface_body_uses_export_font_role() {
     assert_eq!(
         "document-export-body",
         KucNodeLabels::export_surface_font_role(&ViewerNodeKind::Paragraph)
+    );
+    assert_eq!(
+        "body",
+        KucNodeLabels::export_surface_text_role(&ViewerNodeKind::Paragraph),
+        "the preview-only paragraph role must not alter the export contract"
     );
 }
 

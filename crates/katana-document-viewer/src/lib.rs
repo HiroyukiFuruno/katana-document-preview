@@ -71,6 +71,7 @@ mod forge_diagram_render;
 mod forge_diagram_render_types;
 mod forge_types;
 mod html_sanitizer;
+mod html_style;
 mod markdown_fence_normalizer;
 pub mod multi_format;
 mod preview_runtime;
@@ -96,12 +97,13 @@ pub use document::{
     SourceRevision, SourceUri,
 };
 pub use document_surface::{
-    DocumentGridCell, DocumentGridCellAppearance, DocumentGridCommand, DocumentGridCoordinate,
-    DocumentGridDataBar, DocumentGridEvent, DocumentGridHorizontalAlignment, DocumentGridIcon,
-    DocumentGridNavigation, DocumentGridRating, DocumentGridSurfaceFrame,
-    DocumentGridVerticalAlignment, DocumentGridViewport, DocumentPageSurfaceFrame, DocumentRect,
-    DocumentSurfaceCommand, DocumentSurfaceError, DocumentSurfaceFrame, DocumentSurfaceKind,
-    DocumentViewport, PdfOutlineItem, SpreadsheetGridSurface,
+    DocumentGridBorderSide, DocumentGridCell, DocumentGridCellAppearance, DocumentGridCellBorders,
+    DocumentGridCommand, DocumentGridCoordinate, DocumentGridDataBar, DocumentGridEvent,
+    DocumentGridHorizontalAlignment, DocumentGridIcon, DocumentGridNavigation, DocumentGridRating,
+    DocumentGridSurfaceFrame, DocumentGridVerticalAlignment, DocumentGridViewport,
+    DocumentPageSurfaceFrame, DocumentRect, DocumentSurfaceCommand, DocumentSurfaceError,
+    DocumentSurfaceFrame, DocumentSurfaceKind, DocumentViewport, PdfOutlineItem,
+    SpreadsheetGridSurface,
 };
 pub use evaluation::{
     BackendCapability, BackendCapabilityMatrix, CoverageStatus, EvaluationCoverageMatrix,
@@ -134,28 +136,32 @@ pub use katana_markdown_model::{
 };
 pub use markdown_fence_normalizer::MarkdownFenceNormalizer;
 pub use multi_format::{
-    BinaryDocumentSource, DocumentFitMode, DocumentFrame, DocumentSession, DocumentSessionCommand,
-    DocumentSessionCommandKind, DocumentSessionConfig, DocumentSessionError, DocumentSessionEvent,
-    DocumentSessionInfo, DocumentViewerCommand, DocumentViewerEvent, DocumentViewerState,
-    DocumentViewerStateError, OfficeDocumentFormat, OfficeDocumentSource, OfficePackagePreflight,
-    OfficePreflightError, OfficePreflightLimits, OfficePreflightReport, OfficeResourceLimitKind,
-    OfficeStaticDocumentArtifact, OfficeStaticItemArtifact, OfficeStaticViewerSession,
-    OfficeWorkerConfig, OfficeWorkerEntrypoint, OfficeWorkerError, PdfDocumentArtifact,
-    PdfPageArtifact, PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage, PdfResourceLimitKind,
-    PdfViewerError, PdfViewerLimits, PdfViewerSession, SpreadsheetCellArtifact,
+    BinaryDocumentSource, DocumentFitMode, DocumentFrame, DocumentResourceSnapshot,
+    DocumentSession, DocumentSessionCommand, DocumentSessionCommandKind, DocumentSessionConfig,
+    DocumentSessionError, DocumentSessionEvent, DocumentSessionInfo, DocumentViewerCommand,
+    DocumentViewerEvent, DocumentViewerState, DocumentViewerStateError, OfficeDocumentFormat,
+    OfficeDocumentSource, OfficePackagePreflight, OfficePreflightError, OfficePreflightLimits,
+    OfficePreflightReport, OfficeResourceLimitKind, OfficeStaticDocumentArtifact,
+    OfficeStaticItemArtifact, OfficeStaticViewerSession, OfficeWorkerConfig,
+    OfficeWorkerEntrypoint, OfficeWorkerError, PdfDocumentArtifact, PdfPageArtifact,
+    PdfPageRenderRequest, PdfPageRotation, PdfRenderedPage, PdfResourceLimitKind, PdfViewerError,
+    PdfViewerLimits, PdfViewerSession, SpreadsheetAutoFilterArtifact,
+    SpreadsheetBorderSideArtifact, SpreadsheetCellArtifact, SpreadsheetCellBorderArtifact,
     SpreadsheetCellStyleArtifact, SpreadsheetCellValue, SpreadsheetConditionalFormattingArtifact,
     SpreadsheetCoordinate, SpreadsheetDataBarArtifact, SpreadsheetDocumentArtifact,
+    SpreadsheetFilterColumnArtifact, SpreadsheetFilterCommand, SpreadsheetFilterCriterion,
+    SpreadsheetFilterEvent, SpreadsheetFilterRange, SpreadsheetFrameMetadata,
     SpreadsheetHorizontalAlignment, SpreadsheetIconArtifact, SpreadsheetMergedCellArtifact,
     SpreadsheetRatingArtifact, SpreadsheetSheetArtifact, SpreadsheetTrackArtifact,
     SpreadsheetVerticalAlignment, SpreadsheetViewerLimits, SpreadsheetViewerSession,
-    ViewerCapabilities, ViewerDiagnostic, ViewerDiagnosticCode, ViewerDiagnosticSeverity,
-    ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus, ViewerQualityProfile,
-    ViewerQualityProfileKind, ViewerSource, ViewerSourceIdentity,
+    SpreadsheetWorkerEntrypoint, ViewerCapabilities, ViewerDiagnostic, ViewerDiagnosticCode,
+    ViewerDiagnosticSeverity, ViewerDocumentFormat, ViewerFeature, ViewerFeatureStatus,
+    ViewerQualityProfile, ViewerQualityProfileKind, ViewerSource, ViewerSourceIdentity,
 };
 pub use preview_runtime::{
-    MarkdownPreview, MarkdownSource, PreviewAssetLoadReport, PreviewAssetLoader, PreviewConfig,
-    PreviewDiagnostics, PreviewError, PreviewOutput, PreviewOutputFactory, PreviewRenderEngine,
-    PreviewSurfaceImage, PreviewTheme, RenderTarget,
+    DirectHtmlPreviewRenderer, MarkdownPreview, MarkdownSource, PreviewAssetLoadReport,
+    PreviewAssetLoader, PreviewConfig, PreviewDiagnostics, PreviewError, PreviewOutput,
+    PreviewOutputFactory, PreviewRenderEngine, PreviewSurfaceImage, PreviewTheme, RenderTarget,
 };
 pub use preview_surface::{
     KDV_INTERACTIVE_PREVIEW_SURFACE_HORIZONTAL_PADDING_PX,
@@ -188,9 +194,7 @@ pub use viewer::{
     ViewerTextStyle, ViewerTocCommandFactory, ViewerTocItem, ViewerTocModel,
     ViewerTypographyConfig, ViewerVector, ViewerViewport, ViewerVisibleRange,
 };
-
 #[cfg(test)]
 mod dependency_tests;
-
 #[cfg(test)]
 mod test_support;

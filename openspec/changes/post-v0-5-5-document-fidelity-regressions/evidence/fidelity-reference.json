@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "source_renderer": {
+    "name": "LibreOffice",
+    "command": "soffice",
+    "version": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+    "conversion_arguments": [
+      "--headless",
+      "--convert-to",
+      "pdf"
+    ],
+    "comparison_only": true,
+    "production_runtime_dependency": false
+  },
+  "rasterizer": {
+    "command": "pdftoppm",
+    "version": "pdftoppm version 26.05.0",
+    "dpi": 72
+  },
+  "candidate_projection": {
+    "custom_cell_border_rendering": true,
+    "reason": "KDV v0.5.6 maps per-cell border metadata into the public katana-ui-core 0.3.5 per-side border API and raster host."
+  },
+  "fixtures": {
+    "docx": {
+      "path": "assets/fixtures/multi-format/representative.docx",
+      "sha256": "ce8ec76f77935e63824331f783bbb73f086333c6b331dda5a6d01c1e5f69d0dc",
+      "expected_page_count": 2,
+      "reference_viewport_px": [
+        842,
+        596
+      ]
+    },
+    "xlsx": {
+      "path": "assets/fixtures/multi-format/representative.xlsx",
+      "sha256": "82d645dd146f50b0f0ab0fc59448dad2a400d74e7210920950df89574d434f4e",
+      "expected_page_count": 2,
+      "reference_viewport_px": [
+        596,
+        842
+      ]
+    }
+  },
+  "tolerances": {
+    "docx": {
+      "max_mean_normalized_mae": 0.03,
+      "max_mean_normalized_rmse": 0.12,
+      "max_page_count_delta": 0,
+      "max_native_width_delta": 103,
+      "max_native_height_delta": 73
+    },
+    "xlsx": {
+      "max_worksheet_count_delta": 0,
+      "max_text_missing_count": 0,
+      "max_text_mismatch_count": 0,
+      "max_font_missing_count": 0,
+      "max_font_difference_count": 0,
+      "max_fill_missing_count": 0,
+      "max_fill_difference_count": 0,
+      "max_border_metadata_missing_count": 0,
+      "max_border_difference_count": 0,
+      "max_border_visual_missing_count": 0,
+      "max_merged_cell_missing_count": 0,
+      "max_pagination_missing_page_surface_count": 2,
+      "max_row_track_mean_absolute_delta": 0.004,
+      "max_column_track_mean_absolute_delta": 0.0
+    }
+  }
+}

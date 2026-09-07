@@ -14,7 +14,12 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage)"] }
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "kdv-spreadsheet-worker"
+path = "src/kdv_spreadsheet_worker.rs"
+
 [dependencies]
+katana-ui-core = "=0.3.7"
 cosmic-text = { workspace = true }
 epaint_default_fonts = { workspace = true }
 flate2 = { workspace = true }
@@ -23,7 +28,6 @@ image = { workspace = true }
 ironcalc = { workspace = true }
 katana-markdown-model = { workspace = true }
 katana-render-runtime = { workspace = true }
-katana-ui-core = "0.3.0"
 office2pdf = { workspace = true }
 process_control = { workspace = true }
 quick-xml = { workspace = true }

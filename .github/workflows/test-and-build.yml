@@ -53,8 +53,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # 保護されたstatus contextを維持しつつ、実行するUbuntuイメージを固定する。
         os: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-24.04' || matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -70,6 +71,9 @@ jobs:
           shared-key: ci-${{ matrix.os }}-stable-default-nobin
           cache-bin: false
 
+      - name: Refresh V8 link artifact after cache restore
+        run: cargo clean -p v8
+
       - name: Install cargo-llvm-cov
         if: matrix.os == 'ubuntu-latest'
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -79,12 +83,7 @@ jobs:
 
       - name: Install Graphviz (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y graphviz
-          sudo mkdir -p /opt/local/bin
-          sudo ln -sf /usr/bin/dot /opt/local/bin/dot
-          echo "GRAPHVIZ_DOT=/opt/local/bin/dot" >> "$GITHUB_ENV"
+        run: .github/scripts/install-linux-render-dependencies.sh
 
       - name: Install Graphviz (macOS)
         if: matrix.os == 'macos-latest'

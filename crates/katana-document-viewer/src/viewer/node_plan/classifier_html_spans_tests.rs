@@ -3,6 +3,12 @@ use super::test_support::node;
 use crate::ViewerTextSpan;
 use katana_markdown_model::{HtmlBlockRole, InlineHtmlNode, KmmNodeKind};
 
+#[path = "classifier_html_spans_void_tests.rs"]
+mod void_tests;
+
+#[path = "classifier_html_spans_block_boundary_tests.rs"]
+mod block_boundary_tests;
+
 #[test]
 fn html_block_spans_falls_back_to_plain_text_without_links() {
     let spans = node_spans_from_html("<p>Hello</p>");
@@ -69,12 +75,36 @@ fn inline_html_spans_parses_quoted_link_target() {
 }
 
 #[test]
-fn inline_html_spans_parses_unquoted_link_target() {
+fn inline_html_spans_preserves_unquoted_link_targets() {
     let spans = inline_node_spans("<a href=/raw/path>raw</a>");
 
     assert_eq!("raw", spans[0].text);
-    assert_eq!("raw/path", spans[0].link_target);
+    assert_eq!("/raw/path", spans[0].link_target);
     assert!(spans[0].style.underline);
+
+    let protocol_relative = inline_node_spans("<a href=//cdn.example/x>cdn</a>");
+    assert_eq!("cdn", protocol_relative[0].text);
+    assert_eq!("//cdn.example/x", protocol_relative[0].link_target);
+}
+
+#[test]
+fn html_spans_require_an_anchor_and_an_exact_href_attribute() {
+    for raw in [
+        r#"<span data-href="/spoof">plain</span>"#,
+        r#"<a data-href="/spoof">plain</a>"#,
+        r#"<a hrefx="/spoof">plain</a>"#,
+        r#"<a-data href="/spoof">plain</a-data>"#,
+    ] {
+        let spans = inline_node_spans(raw);
+        assert_eq!(1, spans.len(), "{raw}");
+        assert_eq!("plain", spans[0].text, "{raw}");
+        assert!(spans[0].link_target.is_empty(), "{raw}");
+        assert!(!spans[0].style.underline, "{raw}");
+    }
+
+    let spans = node_spans_from_html(r#"<span data-href="/spoof">plain</span>"#);
+    assert_eq!(1, spans.len());
+    assert!(spans[0].link_target.is_empty());
 }
 
 #[test]
@@ -103,6 +133,23 @@ fn inline_html_spans_supports_style_markers() {
 }
 
 #[test]
+fn inline_html_spans_allow_font_style_normal_to_clear_inherited_italics() {
+    let spans = inline_node_spans(r#"<em><span style="font-style: normal">plain</span></em>"#);
+
+    assert_eq!(1, spans.len());
+    assert!(!spans[0].style.italic);
+}
+
+#[test]
+fn html_block_spans_applies_inline_css_style() {
+    let spans = node_spans_from_html(r#"<p style="color: #ff0000; font-weight: bold">Red</p>"#);
+
+    assert_eq!("Red", spans[0].text);
+    assert_eq!([255, 0, 0, 255], spans[0].style.color_rgba);
+    assert!(spans[0].style.bold);
+}
+
+#[test]
 fn inline_html_spans_skips_unclosed_anchor_tag_as_plain() {
     let spans = inline_node_spans("<a href=\"/broken\">broken");
 
@@ -118,7 +165,7 @@ fn inline_html_spans_without_link_target_keeps_plain_text() {
     assert_eq!("plain", spans[0].text);
 }
 
-fn node_spans_from_html(raw: &str) -> Vec<ViewerTextSpan> {
+pub(super) fn node_spans_from_html(raw: &str) -> Vec<ViewerTextSpan> {
     node_spans_from_html_role(raw, crate::ViewerHtmlRole::Generic)
 }
 

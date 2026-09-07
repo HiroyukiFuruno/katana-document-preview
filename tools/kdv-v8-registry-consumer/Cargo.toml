@@ -1,0 +1,10 @@
+[package]
+name = "kdv-v8-registry-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+katana-document-viewer = "__KDV_VERSION__"

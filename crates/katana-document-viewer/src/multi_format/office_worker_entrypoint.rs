@@ -4,7 +4,6 @@ use super::office_worker_fonts::stage_deterministic_fonts;
 use super::office_worker_protocol::{INPUT_NAME, OUTPUT_NAME, OfficeWorkerResponse};
 use super::spreadsheet_worker_entrypoint::SpreadsheetWorkerEntrypoint;
 use super::spreadsheet_worker_protocol::SPREADSHEET_MODE;
-use office2pdf::config::{ConvertOptions, Format};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -17,6 +16,13 @@ mod response_writer;
 use response_writer::write_response;
 #[cfg(test)]
 use response_writer::write_response_with;
+
+#[path = "office_worker_format.rs"]
+mod format;
+use format::{conversion_options, engine_format};
+#[path = "office_worker_runtime.rs"]
+mod runtime;
+use runtime::apply_runtime_constraints;
 
 const EXIT_USAGE: i32 = 64;
 const EXIT_FAILURE: i32 = 70;
@@ -57,6 +63,9 @@ impl OfficeWorkerEntrypoint {
                 return EXIT_USAGE;
             }
         };
+        let _trace_session = super::debug_trace::DebugTrace::session_from_environment_or_workspace(
+            &arguments.workspace,
+        );
         match executor(&arguments) {
             Ok(response) => write_response(&arguments.workspace, &response, 0),
             Err((stage, message)) => write_response(
@@ -76,16 +85,19 @@ fn execute_with_constraints(
     arguments: &WorkerArguments,
     apply_constraints: ConstraintApplier,
 ) -> Result<OfficeWorkerResponse, (String, String)> {
-    apply_constraints(
-        &arguments.workspace,
-        arguments.max_memory_bytes,
-        arguments.max_cpu_seconds,
-    )?;
-    let input = std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?;
-    let font_path = stage_deterministic_fonts(&arguments.workspace)?;
+    let _worker = super::debug_trace::DebugTrace::start("office.worker_total");
+    apply_runtime_constraints(arguments, apply_constraints)?;
+    let input = {
+        let _read = super::debug_trace::DebugTrace::start("office.worker_input");
+        std::fs::read(arguments.workspace.join(INPUT_NAME)).map_err(input_failure)?
+    };
+    let font_path = {
+        let _fonts = super::debug_trace::DebugTrace::start("office.worker_fonts");
+        stage_deterministic_fonts(&arguments.workspace)?
+    };
     let result = convert_document(arguments, &input, font_path)?;
     validate_output_size(arguments, result.pdf.len())?;
-    std::fs::write(arguments.workspace.join(OUTPUT_NAME), result.pdf).map_err(output_failure)?;
+    write_pdf(arguments, result.pdf)?;
     Ok(OfficeWorkerResponse::Completed {
         warnings: result
             .warnings
@@ -95,21 +107,20 @@ fn execute_with_constraints(
     })
 }
 
+fn write_pdf(arguments: &WorkerArguments, pdf: Vec<u8>) -> Result<(), (String, String)> {
+    let _write = super::debug_trace::DebugTrace::start("office.worker_output_write");
+    std::fs::write(arguments.workspace.join(OUTPUT_NAME), pdf).map_err(output_failure)
+}
+
 fn convert_document(
     arguments: &WorkerArguments,
     input: &[u8],
     font_path: PathBuf,
 ) -> Result<office2pdf::error::ConvertResult, (String, String)> {
+    let _engine = super::debug_trace::DebugTrace::start("office.parse_layout");
     let options = conversion_options(font_path);
     office2pdf::convert_bytes(input, engine_format(arguments.format), &options)
         .map_err(engine_failure)
-}
-
-fn conversion_options(font_path: PathBuf) -> ConvertOptions {
-    ConvertOptions {
-        font_paths: vec![font_path],
-        ..ConvertOptions::default()
-    }
 }
 
 fn validate_output_size(
@@ -181,14 +192,6 @@ fn parse_u64(value: Option<OsString>, name: &str) -> Result<u64, String> {
         return Err(format!("{name} must be greater than zero"));
     }
     Ok(parsed)
-}
-
-const fn engine_format(format: OfficeDocumentFormat) -> Format {
-    match format {
-        OfficeDocumentFormat::Docx => Format::Docx,
-        OfficeDocumentFormat::Pptx => Format::Pptx,
-        OfficeDocumentFormat::Xlsx => Format::Xlsx,
-    }
 }
 
 #[cfg(test)]

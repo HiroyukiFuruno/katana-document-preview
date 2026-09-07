@@ -16,9 +16,11 @@ const PREVIEW_FONT_SIZE: u16 = 14;
 const COMPACT_BADGE_VERTICAL_MARGIN: usize = 15;
 const KATANA_REFERENCE_CROP_PHYSICAL_WIDTH: usize = 2374;
 const KATANA_REFERENCE_CROP_PHYSICAL_HEIGHT: usize = 4450;
-const STORYBOOK_SCORE_RENDER_SCALE: f32 =
-    KATANA_REFERENCE_CROP_PHYSICAL_WIDTH as f32 / SURFACE_WIDTH as f32;
 const KATANA_REFERENCE_DEVICE_SCALE: f32 = 2.0;
+const LEGACY_SCORE_RENDER_SCALE: f32 =
+    KATANA_REFERENCE_CROP_PHYSICAL_WIDTH as f32 / SURFACE_WIDTH as f32;
+const KATANA_PREVIEW_CONTENT_LOGICAL_WIDTH: usize = 1187;
+const KATANA_PREVIEW_CONTENT_LOGICAL_HEIGHT: usize = 2225;
 const KATANA_PREVIEW_CROP_REFERENCE: &str = "assets/reference/katana/preview_crops/sample-top.png";
 const KATANA_SAMPLE_DIAGRAMS_CROP_REFERENCE: &str =
     "assets/reference/katana/preview_crops/sample-diagrams-top.png";
@@ -52,6 +54,8 @@ fn storybook_preview_crop_score_uses_scaled_canvas_pixels() -> Result<(), Box<dy
 
     assert_eq!(SURFACE_WIDTH, scaled.crop.width);
     assert_eq!(CROP_HEIGHT, scaled.crop.height);
+    assert_eq!(SURFACE_WIDTH, scaled.rendered_logical_width);
+    assert_eq!(CROP_HEIGHT, scaled.rendered_logical_height);
     assert_eq!(
         KATANA_REFERENCE_CROP_PHYSICAL_WIDTH,
         scaled.crop_physical_width
@@ -75,6 +79,31 @@ fn storybook_preview_crop_score_uses_scaled_canvas_pixels() -> Result<(), Box<dy
             .abs_diff(KATANA_REFERENCE_CROP_PHYSICAL_HEIGHT)
             <= 1,
         "storybook score rendered physical height must match the KatanA crop within rounding: expected={} actual={}",
+        KATANA_REFERENCE_CROP_PHYSICAL_HEIGHT,
+        scaled.rendered_physical_height
+    );
+    Ok(())
+}
+
+#[test]
+fn storybook_sample_diagrams_score_uses_katana_preview_content_rect()
+-> Result<(), Box<dyn std::error::Error>> {
+    let scaled =
+        PreviewCrop::render_storybook_top_score_crop_info("katana/sample_diagrams.md", true)?;
+
+    assert_eq!(
+        KATANA_PREVIEW_CONTENT_LOGICAL_WIDTH,
+        scaled.rendered_logical_width
+    );
+    assert_eq!(
+        KATANA_PREVIEW_CONTENT_LOGICAL_HEIGHT,
+        scaled.rendered_logical_height
+    );
+    assert_eq!(
+        KATANA_REFERENCE_CROP_PHYSICAL_WIDTH,
+        scaled.rendered_physical_width
+    );
+    assert_eq!(
         KATANA_REFERENCE_CROP_PHYSICAL_HEIGHT,
         scaled.rendered_physical_height
     );
@@ -592,6 +621,8 @@ struct PreviewCrop {
 
 struct PreviewCropRender {
     crop: PreviewCrop,
+    rendered_logical_width: usize,
+    rendered_logical_height: usize,
     rendered_physical_width: usize,
     rendered_physical_height: usize,
     crop_physical_width: usize,
@@ -991,10 +1022,11 @@ impl PreviewCrop {
         path: &str,
         dark: bool,
     ) -> Result<PreviewCropRender, Box<dyn std::error::Error>> {
+        let capture = ScoreCapture::for_fixture(path);
         Self::render_storybook_top_with_canvas_scales(
             path,
-            (STORYBOOK_SCORE_RENDER_SCALE, KATANA_REFERENCE_DEVICE_SCALE),
-            (SURFACE_WIDTH, CROP_HEIGHT),
+            (capture.layout_scale, capture.raster_scale),
+            (capture.logical_width, capture.logical_height),
             (SURFACE_WIDTH, CROP_HEIGHT),
             dark,
         )
@@ -1041,6 +1073,8 @@ impl PreviewCrop {
         };
         Ok(PreviewCropRender {
             crop,
+            rendered_logical_width: render_width,
+            rendered_logical_height: render_height,
             rendered_physical_width: physical_width,
             rendered_physical_height: physical_height,
             crop_physical_width: physical_width,
@@ -1092,6 +1126,33 @@ impl PreviewCrop {
     fn brightness(&self, x: usize, y: usize) -> u8 {
         let [red, green, blue, _alpha] = self.pixel(x, y);
         ((u16::from(red) + u16::from(green) + u16::from(blue)) / 3) as u8
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ScoreCapture {
+    logical_width: usize,
+    logical_height: usize,
+    layout_scale: f32,
+    raster_scale: f32,
+}
+
+impl ScoreCapture {
+    fn for_fixture(path: &str) -> Self {
+        if path == "katana/sample_diagrams.md" {
+            return Self {
+                logical_width: KATANA_PREVIEW_CONTENT_LOGICAL_WIDTH,
+                logical_height: KATANA_PREVIEW_CONTENT_LOGICAL_HEIGHT,
+                layout_scale: KATANA_REFERENCE_DEVICE_SCALE,
+                raster_scale: KATANA_REFERENCE_DEVICE_SCALE,
+            };
+        }
+        Self {
+            logical_width: SURFACE_WIDTH,
+            logical_height: CROP_HEIGHT,
+            layout_scale: LEGACY_SCORE_RENDER_SCALE,
+            raster_scale: KATANA_REFERENCE_DEVICE_SCALE,
+        }
     }
 }
 

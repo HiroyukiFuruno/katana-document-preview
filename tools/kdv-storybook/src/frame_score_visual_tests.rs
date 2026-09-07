@@ -2,7 +2,13 @@ use super::frame_surface_dump::{SurfaceDump, SurfaceDumpImage};
 use super::frame_surface_similarity::SurfaceParityScorer;
 use crate::catalog::StorybookFixture;
 use crate::preview::PreviewBuilder;
-use katana_document_viewer::{ViewerTypographyConfig, ViewerViewport};
+use katana_document_viewer::{
+    BuildProfile, BuildRequest, DiagramRenderingBackend, DocumentSnapshotFactory, DocumentSource,
+    ExportFormat, ExportRequest, ForgePipeline, KdvThemeSnapshot, KrrDiagramRenderEngine,
+    MarkdownFenceNormalizer, SourceKind, SourceRevision, SourceUri, ViewerTypographyConfig,
+    ViewerViewport,
+};
+use katana_markdown_model::{KatanaMarkdownModel, MarkdownInput};
 use katana_ui_core::render_model::UiNode;
 use std::path::{Path, PathBuf};
 
@@ -19,7 +25,7 @@ fn storybook_score_visual_uses_katana_export_png_reference()
 -> Result<(), Box<dyn std::error::Error>> {
     let reference = ReferenceSurface::load(KATANA_EXPORT_PNG_REFERENCE)?;
     reference.assert_readable_foreground();
-    let candidate = StorybookSurface::render("katana/sample.md")?;
+    let candidate = StorybookSurface::render_native_export("katana/sample.md")?;
     let report = SurfaceParityScorer::report_with_dimensions(
         &reference.rgba,
         &candidate.rgba,
@@ -47,12 +53,16 @@ fn storybook_score_visual_uses_katana_export_png_reference()
 
     assert!(
         report.score >= VISUAL_SCORE_THRESHOLD,
-        "storybook visual_score is {}/{}; average={} content={} dimension={} reference={}x{} candidate={}x{}",
+        "storybook visual_score is {}/{}; average={} content={} dimension={} row={} ref_to_candidate_row={} candidate_to_reference_row={} loss_bands={:?} reference={}x{} candidate={}x{}",
         report.score,
         VISUAL_SCORE_THRESHOLD,
         report.average_score,
         report.content_score,
         report.dimension_score,
+        report.row_score,
+        report.reference_to_candidate_row_score,
+        report.candidate_to_reference_row_score,
+        report.reference_row_loss_bands,
         reference.width,
         reference.height,
         candidate.width,
@@ -142,15 +152,41 @@ struct StorybookSurface {
 }
 
 impl StorybookSurface {
-    fn render(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let scene = Self::render_scene(path)?;
-        let surface = scene
-            .surface
-            .ok_or("preview scene did not expose surface")?;
+    fn render_native_export(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let path = workspace_root()?.join(format!("assets/fixtures/{path}"));
+        let source = std::fs::read_to_string(&path)?;
+        let content =
+            MarkdownFenceNormalizer::normalize(&source.replace("\r\n", "\n").replace('\r', "\n"));
+        let document = KatanaMarkdownModel::parse(MarkdownInput::from_content(
+            path.display().to_string(),
+            content.clone(),
+        ))?;
+        let snapshot = DocumentSnapshotFactory::from_kmm(
+            DocumentSource {
+                uri: SourceUri(format!("file://{}", path.display())),
+                kind: SourceKind::Markdown,
+                revision: SourceRevision("storybook-score".to_string()),
+                content,
+            },
+            document,
+        );
+        let theme = KdvThemeSnapshot::katana_light();
+        let pipeline = ForgePipeline::new(DiagramRenderingBackend::new(KrrDiagramRenderEngine));
+        let graph = pipeline.build(&BuildRequest {
+            snapshot,
+            profile: BuildProfile::markdown_export(),
+            theme: theme.clone(),
+        })?;
+        let output = pipeline.export(&ExportRequest {
+            graph,
+            format: ExportFormat::Png,
+            theme,
+        })?;
+        let image = image::load_from_memory(&output.artifact.bytes.bytes)?.to_rgba8();
         Ok(Self {
-            width: surface.width,
-            height: surface.height,
-            rgba: surface.rgba,
+            width: image.width(),
+            height: image.height(),
+            rgba: image.into_raw(),
         })
     }
 

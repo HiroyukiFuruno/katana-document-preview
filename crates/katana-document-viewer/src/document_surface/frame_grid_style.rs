@@ -1,3 +1,8 @@
+#[path = "frame_grid_borders.rs"]
+mod borders;
+
+pub use borders::{DocumentGridBorderSide, DocumentGridCellBorders};
+
 use katana_ui_core::render_model::{
     UiGridCellAppearance, UiGridDataBar, UiGridHorizontalAlignment, UiGridIcon, UiGridRating,
     UiGridVerticalAlignment,
@@ -19,6 +24,7 @@ pub struct DocumentGridCellAppearance {
     pub data_bar: Option<DocumentGridDataBar>,
     pub icon: Option<DocumentGridIcon>,
     pub rating: Option<DocumentGridRating>,
+    pub borders: DocumentGridCellBorders,
 }
 
 impl From<&UiGridCellAppearance> for DocumentGridCellAppearance {
@@ -38,6 +44,7 @@ impl From<&UiGridCellAppearance> for DocumentGridCellAppearance {
             data_bar: value.data_bar.as_ref().map(DocumentGridDataBar::from),
             icon: value.icon.as_ref().map(DocumentGridIcon::from),
             rating: value.rating.as_ref().map(DocumentGridRating::from),
+            borders: DocumentGridCellBorders::from(&value.borders),
         }
     }
 }

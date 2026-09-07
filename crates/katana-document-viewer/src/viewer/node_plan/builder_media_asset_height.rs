@@ -27,9 +27,9 @@ impl ViewerMediaHeight {
 
     fn diagram_container_height(height: f32, height_mode: ViewerHeightMode) -> f32 {
         match height_mode {
-            ViewerHeightMode::InteractivePreview => {
-                height.max(DIAGRAM_MIN_CONTAINER_HEIGHT) + MEDIA_VERTICAL_MARGIN
-            }
+            // KatanA の interactive diagram は 145px 最小値以外に行高を足さない。
+            // 共通 media margin は export と非 diagram の契約として維持する。
+            ViewerHeightMode::InteractivePreview => height.max(DIAGRAM_MIN_CONTAINER_HEIGHT),
             ViewerHeightMode::ExportSurface => height + MEDIA_VERTICAL_MARGIN,
         }
     }
@@ -170,7 +170,7 @@ mod tests {
         };
 
         assert_eq!(
-            179.0,
+            145.0,
             ViewerMediaHeight::diagram_height(
                 &[artifact],
                 &planned,
@@ -205,7 +205,7 @@ mod tests {
         let planned = diagram_planned_node(artifact_id);
 
         assert_eq!(
-            590.2,
+            600.0,
             ViewerMediaHeight::diagram_height(
                 &[artifact],
                 &planned,
@@ -240,7 +240,7 @@ mod tests {
         let planned = diagram_planned_node(artifact_id);
 
         assert_near(
-            982.0,
+            948.0,
             ViewerMediaHeight::diagram_height(
                 &[artifact],
                 &planned,
@@ -327,8 +327,25 @@ mod tests {
     fn image_and_svg_heights_use_materialized_surface_dimensions()
     -> Result<(), Box<dyn std::error::Error>> {
         let artifact_id = ArtifactId("doc:image:Svg".to_string());
-        let artifact = ArtifactFactory::image_asset_with_id(
-            artifact_id.clone(),
+        let artifact = materialized_svg_artifact(artifact_id.clone());
+        let planned = diagram_planned_node(artifact_id);
+
+        assert_eq!(
+            Some(74.0),
+            ViewerMediaHeight::image_height(std::slice::from_ref(&artifact), &planned),
+            "non-diagram images retain the shared media margin"
+        );
+        assert_eq!(
+            Some(54.0),
+            ViewerMediaHeight::svg_height(&[artifact], &planned, 40),
+            "math and generic SVG surfaces retain the shared media margin"
+        );
+        Ok(())
+    }
+
+    fn materialized_svg_artifact(artifact_id: ArtifactId) -> crate::Artifact {
+        ArtifactFactory::image_asset_with_id(
+            artifact_id,
             ArtifactFormat::Svg,
             DocumentId("doc".to_string()),
             SourceRevision("rev".to_string()),
@@ -341,14 +358,7 @@ mod tests {
             ArtifactDiagnostics {
                 entries: Vec::new(),
             },
-        );
-        let planned = diagram_planned_node(artifact_id);
-
-        assert!(
-            ViewerMediaHeight::image_height(std::slice::from_ref(&artifact), &planned).is_some()
-        );
-        assert!(ViewerMediaHeight::svg_height(&[artifact], &planned, 40).is_some());
-        Ok(())
+        )
     }
 
     fn diagram_planned_node(

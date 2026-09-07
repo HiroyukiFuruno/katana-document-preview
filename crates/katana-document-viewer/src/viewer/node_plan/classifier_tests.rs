@@ -55,6 +55,9 @@ mod assets_tests;
 #[path = "classifier_html_spans_tests.rs"]
 mod html_spans_tests;
 
+#[path = "classifier_html_spans_coverage_tests.rs"]
+mod html_spans_coverage_tests;
+
 #[path = "classifier_spans_tests.rs"]
 mod spans_tests;
 

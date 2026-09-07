@@ -156,6 +156,55 @@ check_required_terms() {
   done
 }
 
+check_reasoning_medium_policy() {
+  local file="$1"
+
+  if ! grep -Eq 'reasoning[^`[:cntrl:]]*`medium`' "$file"; then
+    fail_fast "$file" \
+      'required subagent / Spark policy term is missing: reasoning `medium`'
+  fi
+}
+
+check_main_orchestrator_policy() {
+  local file="$1"
+
+  if ! grep -Eq 'main[[:space:]]+(agent|Codex)[^[:cntrl:]]*設計[^[:cntrl:]]*統合' "$file"; then
+    fail_fast "$file" \
+      "required subagent / Spark policy term is missing: main agent/Codex must own design and integration."
+  fi
+}
+
+check_external_delegation_policy() {
+  local file="$1"
+
+  check_required_terms "$file" \
+    "$MODEL_TOKEN" \
+    "分離できる実装・調査" \
+    "親モデル継承" \
+    "省略しない" \
+    "単純な一手作業" \
+    "直列のクリティカルパス" \
+    "書き込み範囲を明示できない"
+
+  if ! grep -Eq '(原則[[:space:]]+subagent|既定で許可)' "$file"; then
+    fail_fast "$file" \
+      "required subagent / Spark policy term is missing: proactive subagent delegation."
+  fi
+
+  if ! grep -Eq 'ユーザー[^[:cntrl:]]*(禁止|使わない)' "$file"; then
+    fail_fast "$file" \
+      "required subagent / Spark policy term is missing: user prohibition exception."
+  fi
+
+  if ! grep -Eq '(subagent[^[:cntrl:]]*分離できる実装・調査|分離できる実装・調査[^[:cntrl:]]*subagent)' "$file"; then
+    fail_fast "$file" \
+      "required subagent / Spark policy term is missing: delegable work ownership."
+  fi
+
+  check_reasoning_medium_policy "$file"
+  check_main_orchestrator_policy "$file"
+}
+
 normalize_policy_text() {
   local source="$1"
 

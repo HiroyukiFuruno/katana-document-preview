@@ -3,7 +3,6 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cargo_bin="${CARGO:-cargo}"
-kuc_root="${KUC_ROOT:-}"
 embedded_kuc_root="$repo_root/crates/katana-ui-core"
 metadata_file=""
 
@@ -15,6 +14,11 @@ cleanup_metadata_file() {
 trap cleanup_metadata_file EXIT
 
 cd "$repo_root"
+
+if [[ -n "${KUC_ROOT:-}" ]]; then
+  echo "document-surface-boundary-check: KUC_ROOT overrides are forbidden; use the registry artifact" >&2
+  exit 1
+fi
 
 packages=(
   katana-document-viewer
@@ -69,23 +73,29 @@ kuc_workspace_manifest="$repo_root/Cargo.toml"
 resolve_cargo_package_root() {
   local package="$1"
   local source_prefix="$2"
+  local version="$3"
   if [[ -z "$metadata_file" ]]; then
     metadata_file="$(mktemp)"
     "$cargo_bin" metadata --locked --format-version 1 --all-features > "$metadata_file"
   fi
-  python3 - "$package" "$source_prefix" "$metadata_file" <<'PY'
+python3 - "$package" "$source_prefix" "$version" "$metadata_file" <<'PY'
 import json
 import pathlib
 import sys
 
 package_name = sys.argv[1]
 source_prefix = sys.argv[2]
-metadata_path = sys.argv[3]
+version = sys.argv[3]
+metadata_path = sys.argv[4]
 with open(metadata_path, encoding="utf-8") as metadata_file:
     metadata = json.load(metadata_file)
 for package in metadata["packages"]:
     source = package.get("source") or ""
-    if package["name"] == package_name and source.startswith(source_prefix):
+    if (
+        package["name"] == package_name
+        and package["version"] == version
+        and source.startswith(source_prefix)
+    ):
         print(pathlib.Path(package["manifest_path"]).parent.as_posix())
         sys.exit(0)
 sys.exit(1)
@@ -95,17 +105,19 @@ PY
 resolve_cargo_package_tree() {
   local package="$1"
   local source_prefix="$2"
+  local version="$3"
   if [[ -z "$metadata_file" ]]; then
     metadata_file="$(mktemp)"
     "$cargo_bin" metadata --locked --format-version 1 --all-features > "$metadata_file"
   fi
-  python3 - "$package" "$source_prefix" "$metadata_file" <<'PY'
+python3 - "$package" "$source_prefix" "$version" "$metadata_file" <<'PY'
 import json
 import sys
 
 package_name = sys.argv[1]
 source_prefix = sys.argv[2]
-metadata_path = sys.argv[3]
+version = sys.argv[3]
+metadata_path = sys.argv[4]
 with open(metadata_path, encoding="utf-8") as metadata_file:
     metadata = json.load(metadata_file)
 
@@ -114,6 +126,7 @@ roots = [
     package["id"]
     for package in metadata["packages"]
     if package["name"] == package_name
+    and package["version"] == version
     and (package.get("source") or "").startswith(source_prefix)
 ]
 if len(roots) != 1:
@@ -133,25 +146,32 @@ while pending:
 PY
 }
 
-check_kuc_core_source_boundary() {
+check_kuc_core_semantic_boundary() {
   local label="$1"
   local root="$2"
-  local source_paths=("$root/Cargo.toml" "$root/src")
   local semantic_paths=("$root/src")
 
   if [[ -d "$root/tests" ]]; then
     semantic_paths+=("$root/tests")
   fi
 
+  if grep -R -n -E "$kuc_forbidden_viewer_semantic_pattern" "${semantic_paths[@]}"; then
+    echo "document-surface-boundary-check: viewer media semantics leaked into $label" >&2
+    exit 1
+  fi
+}
+
+check_embedded_kuc_source_boundary() {
+  local label="$1"
+  local root="$2"
+  local source_paths=("$root/Cargo.toml" "$root/src")
+
   if grep -R -n -E "$source_pattern" "${source_paths[@]}"; then
     echo "document-surface-boundary-check: vendor runtime source reference leaked into $label" >&2
     exit 1
   fi
 
-  if grep -R -n -E "$kuc_forbidden_viewer_semantic_pattern" "${semantic_paths[@]}"; then
-    echo "document-surface-boundary-check: viewer media semantics leaked into $label" >&2
-    exit 1
-  fi
+  check_kuc_core_semantic_boundary "$label" "$root"
 }
 
 check_file_tree_facade_contract() {
@@ -235,8 +255,8 @@ for package in "${packages[@]}"; do
   fi
 done
 
-if ! grep -q '^katana-ui-core = "0[.]3[.]0"$' "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV document surface must use required crates.io KUC 0.3.0" >&2
+if ! grep -q '^katana-ui-core = "=0[.]3[.]7"$' "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV document surface must use exact registry KUC 0.3.7" >&2
   exit 1
 fi
 
@@ -250,13 +270,14 @@ if [[ -e "$repo_root/crates/katana-document-viewer-kuc" ]] || grep -q '"crates/k
   exit 1
 fi
 
-if ! grep -q 'katana-ui-core.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest" || ! grep -q 'katana-ui-core-storybook.*tag = "v0[.]3[.]0"' "$kuc_workspace_manifest"; then
-  echo "document-surface-boundary-check: development-only KUC Storybook crates must use the matching v0.3.0 tag" >&2
+if ! grep -Eq '^katana-ui-core = \{ version = "=0[.]3[.]7",.*raster-host' "$kuc_workspace_manifest" || \
+   grep -Eq '^katana-ui-core-storybook[[:space:]]*=' "$kuc_workspace_manifest"; then
+  echo "document-surface-boundary-check: KDV workspace must use one exact registry KUC v0.3.7 raster-host dependency" >&2
   exit 1
 fi
 
-if grep -n -E 'katana-ui-core.*path[[:space:]]*=' "$kuc_workspace_manifest" "$document_viewer_manifest"; then
-  echo "document-surface-boundary-check: KDV must not use a sibling KUC path dependency" >&2
+if grep -n -E 'katana-ui-core[^\n]*(git|path)[[:space:]]*=' "$kuc_workspace_manifest" "$document_viewer_manifest"; then
+  echo "document-surface-boundary-check: KDV must not override registry KUC with git/path" >&2
   exit 1
 fi
 
@@ -275,37 +296,32 @@ if grep -R -n -E 'struct[[:space:]]+Grid(Cell|Layout|Viewport|Selection|HitTest)
   exit 1
 fi
 
-if [[ -n "$kuc_root" ]]; then
-  kuc_core_source_root="$kuc_root/crates/katana-ui-core"
-  kuc_storybook_source_root="$kuc_root/crates/katana-ui-core-storybook"
-else
-  kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core registry+)"
-  kuc_storybook_source_root="$(resolve_cargo_package_root katana-ui-core-storybook git+)"
-fi
+kuc_core_source_root="$(resolve_cargo_package_root katana-ui-core registry+ 0.3.7)"
 
-if [[ ! -f "$kuc_core_source_root/Cargo.toml" || ! -f "$kuc_storybook_source_root/Cargo.toml" ]]; then
-  echo "document-surface-boundary-check: resolved KUC v0.3.0 package sources are unavailable" >&2
+if [[ ! -f "$kuc_core_source_root/Cargo.toml" ]]; then
+  echo "document-surface-boundary-check: registry katana-ui-core v0.3.7 source is unavailable" >&2
   exit 1
 fi
 
-kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+)"
+kuc_manifest="$kuc_core_source_root/Cargo.toml"
+if ! grep -q '^raster-host[[:space:]]*=' "$kuc_manifest" || \
+   ! grep -q '^pub mod raster_host;' "$kuc_core_source_root/src/lib.rs"; then
+  echo "document-surface-boundary-check: KUC v0.3.7 must expose the public raster-host API" >&2
+  exit 1
+fi
+
+kuc_tree="$(resolve_cargo_package_tree katana-ui-core registry+ 0.3.7)"
+# KUC の任意 backend は未有効化でもソースに存在するため、解決済み依存グラフで判定する。
 if printf '%s\n' "$kuc_tree" | grep -E "$vendor_pattern"; then
   echo "document-surface-boundary-check: vendor runtime dependency leaked into katana-ui-core" >&2
   exit 1
 fi
 
-check_kuc_core_source_boundary "katana-ui-core" "$kuc_core_source_root"
+check_kuc_core_semantic_boundary "katana-ui-core" "$kuc_core_source_root"
 check_file_tree_facade_contract_for_root "katana-ui-core" "$kuc_core_source_root"
 
-kuc_storybook_lib="$kuc_storybook_source_root/src/lib.rs"
-kuc_storybook_visual_mod="$kuc_storybook_source_root/src/visual/mod.rs"
-if grep -n -E 'present_frame,|present_frame[[:space:]]*}' "$kuc_storybook_lib" "$kuc_storybook_visual_mod"; then
-  echo "document-surface-boundary-check: raw frame presentation must not be exported; use present_frame_for_window" >&2
-  exit 1
-fi
-
 if [[ -f "$embedded_kuc_root/Cargo.toml" ]]; then
-  check_kuc_core_source_boundary "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
+  check_embedded_kuc_source_boundary "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
   if grep -R -q 'pub struct FileTree' "$embedded_kuc_root/src" 2>/dev/null; then
     check_file_tree_facade_contract_for_root "embedded KDV crates/katana-ui-core" "$embedded_kuc_root"
   fi
@@ -457,171 +473,6 @@ if [[ -n "$duplicate_viewer_media_prefix_matches" ]]; then
   printf '%s\n' "$duplicate_viewer_media_prefix_matches"
   echo "document-surface-boundary-check: viewer media action prefix must be owned by KDV core ViewerMediaControlAction" >&2
   exit 1
-fi
-
-kuc_document_viewer_source="$kuc_storybook_source_root/src/document_viewer"
-if [[ -d "$kuc_document_viewer_source" ]]; then
-  kuc_document_viewer_manual_interactive_matches="$(
-    find "$kuc_document_viewer_source" \
-      -type f \
-      -name '*.rs' \
-      ! -name '*tests.rs' \
-      ! -name 'tests.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kdv_kuc_forbidden_manual_interactive_pattern" || true
-  )"
-
-  if [[ -n "$kuc_document_viewer_manual_interactive_matches" ]]; then
-    printf '%s\n' "$kuc_document_viewer_manual_interactive_matches"
-    echo "document-surface-boundary-check: KUC document viewer projection must use KUC interactive presets instead of manual pointer cursor" >&2
-    exit 1
-  fi
-
-  kuc_document_viewer_media_contract_matches="$(
-    grep -n -E "$forbidden_adapter_media_control_contract_pattern" \
-      "$kuc_document_viewer_source/node_factory_code.rs" \
-      "$kuc_document_viewer_source/node_factory_media_controls.rs" \
-      "$kuc_document_viewer_source/node_factory_media_diagram_controls.rs" \
-      || true
-  )"
-
-  if [[ -n "$kuc_document_viewer_media_contract_matches" ]]; then
-    printf '%s\n' "$kuc_document_viewer_media_contract_matches"
-    echo "document-surface-boundary-check: viewer media control commands must be owned by KDV core ViewerMediaControlSet" >&2
-    exit 1
-  fi
-
-  if ! grep -q 'variant(UiVariant::Icon)' \
-    "$kuc_document_viewer_source/node_factory_media_diagram_controls.rs"; then
-    echo "document-surface-boundary-check: diagram media controls must use KUC icon variant transparent button contract" >&2
-    exit 1
-  fi
-else
-  echo "document-surface-boundary-check: KUC document_viewer projection source is missing" >&2
-  exit 1
-fi
-
-kuc_storybook_visual_root="$kuc_storybook_source_root/src/visual"
-if [[ -d "$kuc_storybook_visual_root" ]]; then
-  kuc_storybook_kdv_overlay_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_kdv_overlay_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_kdv_overlay_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_kdv_overlay_matches"
-    echo "document-surface-boundary-check: KUC Storybook renderer must use generic absolute overlay layout, not KDV diagram style classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_viewer_media_action_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_viewer_media_action_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_viewer_media_action_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_viewer_media_action_matches"
-    echo "document-surface-boundary-check: KUC Storybook renderer tests must treat host action ids as opaque, not KDV viewer media commands" >&2
-    exit 1
-  fi
-
-  kuc_storybook_document_rule_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_document_rule_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_document_rule_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_document_rule_matches"
-    echo "document-surface-boundary-check: KUC Storybook divider rendering must use generic Divider props, not KDV document rule classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_document_media_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_document_media_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_document_media_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_document_media_matches"
-    echo "document-surface-boundary-check: KUC Storybook media frame rendering must use generic MediaFrame role, not KDV document media classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_code_frame_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_code_frame_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_code_frame_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_code_frame_matches"
-    echo "document-surface-boundary-check: KUC Storybook code overlay rendering must use generic absolute overlay layout, not KDV code frame classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_alert_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_alert_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_alert_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_alert_matches"
-    echo "document-surface-boundary-check: KUC Storybook alert rendering must use generic tone/theme token props, not KDV alert classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_list_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_list_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_list_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_list_matches"
-    echo "document-surface-boundary-check: KUC Storybook list rendering must use generic margin/role props, not KDV list classes" >&2
-    exit 1
-  fi
-
-  kuc_storybook_quote_heading_matches="$(
-    find "$kuc_storybook_visual_root" \
-      -maxdepth 1 \
-      -type f \
-      -name 'ui_tree_canvas*.rs' \
-      -print0 \
-      | xargs -0 grep -n -E "$kuc_storybook_forbidden_quote_heading_pattern" || true
-  )"
-
-  if [[ -n "$kuc_storybook_quote_heading_matches" ]]; then
-    printf '%s\n' "$kuc_storybook_quote_heading_matches"
-    echo "document-surface-boundary-check: KUC Storybook quote/heading rendering must use generic margin/padding/border props, not KDV document classes" >&2
-    exit 1
-  fi
 fi
 
 if ! grep -R -q 'SettingsListAction::UpdateField' "$storybook_source"; then

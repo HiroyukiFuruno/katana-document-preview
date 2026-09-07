@@ -52,6 +52,7 @@ const COMMAND_KINDS: [(DocumentSessionCommand, DocumentSessionCommandKind); 9] =
 
 #[test]
 fn pdf_session_owns_navigation_surface_and_rendering() -> TestResult {
+    let _baseline = DocumentSession::resource_snapshot();
     let mut session = DocumentSession::open(
         ViewerSource::Pdf(BinaryDocumentSource::new(
             ViewerSourceIdentity::new("file:///sample.pdf", "sha256:sample"),
@@ -65,11 +66,47 @@ fn pdf_session_owns_navigation_surface_and_rendering() -> TestResult {
     assert_eq!(ViewerDocumentFormat::Pdf, initial.format);
     assert_eq!(DocumentSurfaceKind::Page, initial.surface.kind());
     assert!(initial.state.item_count > 0);
+    assert!(initial.spreadsheet.is_none());
+
+    assert_pdf_filter_is_rejected(&mut session);
 
     assert_pdf_commands(&mut session)?;
     assert_eq!("file:///sample.pdf", session.info().identity.uri);
-    session.close();
+    assert_idempotent_close(&mut session);
     Ok(())
+}
+
+fn assert_idempotent_close(session: &mut DocumentSession) {
+    session.close();
+    session.close();
+    assert!(session.is_closed());
+    assert_eq!(Err(DocumentSessionError::Closed), session.frame());
+    assert_eq!(
+        Err(DocumentSessionError::Closed),
+        session.apply(DocumentSessionCommand::Surface(
+            DocumentSurfaceCommand::Resize(DocumentViewport::new(1, 1)),
+        ))
+    );
+    assert_eq!(
+        Err(DocumentSessionError::Closed),
+        session.apply_spreadsheet_filter(SpreadsheetFilterCommand::Clear {
+            sheet_index: 0,
+            column: None,
+        })
+    );
+}
+
+fn assert_pdf_filter_is_rejected(session: &mut DocumentSession) {
+    assert_eq!(
+        Err(DocumentSessionError::UnsupportedCommand {
+            format: ViewerDocumentFormat::Pdf,
+            command: DocumentSessionCommandKind::SpreadsheetFilter,
+        }),
+        session.apply_spreadsheet_filter(SpreadsheetFilterCommand::Clear {
+            sheet_index: 0,
+            column: None,
+        })
+    );
 }
 
 fn assert_pdf_commands(session: &mut DocumentSession) -> TestResult {
@@ -146,3 +183,6 @@ fn every_document_session_command_has_a_stable_kind() {
         assert_eq!(expected, command.kind());
     }
 }
+
+#[path = "document_session_tests_xlsx.rs"]
+mod xlsx;

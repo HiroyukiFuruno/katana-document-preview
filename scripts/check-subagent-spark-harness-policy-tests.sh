@@ -81,6 +81,13 @@ run_harness_with_external_policy() {
     bash "$HARNESS_SCRIPT" >"${workspace}/stdout" 2>"${workspace}/stderr"
 }
 
+run_harness_with_default_external_policy() {
+  local workspace="$1"
+  HOME="${workspace}/home" \
+    KDV_SUBAGENT_HARNESS_WORKSPACE_DIR="$workspace" \
+    bash "$HARNESS_SCRIPT" >"${workspace}/stdout" 2>"${workspace}/stderr"
+}
+
 write_external_policy() {
   local workspace="$1"
   local task_delegation_line="$2"
@@ -90,10 +97,11 @@ write_external_policy() {
 
   cat >"${workspace}/home/.codex/AGENTS.md" <<'AGENTS'
 分離できる実装・調査がある場合、原則 subagent へ移譲する。
-subagent は原則 `gpt-5.3-codex-spark` / reasoning `medium` を明示する。
+subagent は `gpt-5.3-codex-spark` を使う。
+subagent 起動時はモデルと reasoning を必ず明示し、reasoning は `medium` を基準に作業内容に応じて調整する。
 親モデル継承を理由に省略しない。
 例外は、ユーザーが明示的に禁止した場合、単純な一手作業、直列のクリティカルパス、書き込み範囲を明示できない場合に限る。
-main agent は設計、計画、レビュー、統合判断、ユーザー対話を担当する。
+main Codex は設計、計画、レビュー、統合判断、ユーザー対話を担当する。
 subagent には分離できる実装・調査を渡す。
 完了済み subagent は速やかに閉じる。
 AGENTS
@@ -163,6 +171,111 @@ expect_missing_policy_test_command_fails() {
   fi
 }
 
+expect_legacy_external_reasoning_phrase_passes() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "subagent には分離できる実装・調査を渡す。"
+  sed -i.bak \
+    's/reasoning は `medium` を基準に作業内容に応じて調整する/reasoning `medium` を明示する/' \
+    "${workspace}/home/.codex/AGENTS.md"
+
+  run_harness_with_external_policy "$workspace" || \
+    fail_test "legacy external reasoning phrase should pass"
+}
+
+expect_missing_external_reasoning_policy_fails() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "subagent には分離できる実装・調査を渡す。"
+  sed -i.bak '/reasoning は `medium` を基準/d' \
+    "${workspace}/home/.codex/AGENTS.md"
+
+  if run_harness_with_external_policy "$workspace"; then
+    fail_test "missing external reasoning policy should fail"
+  fi
+
+  if ! grep -Fq -- 'reasoning `medium`' "${workspace}/stderr"; then
+    fail_test "missing external reasoning policy should explain reasoning baseline"
+  fi
+}
+
+expect_legacy_external_main_role_phrase_passes() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "subagent には分離できる実装・調査を渡す。"
+  sed -i.bak 's/main Codex/main agent/' \
+    "${workspace}/home/.codex/AGENTS.md"
+
+  run_harness_with_external_policy "$workspace" || \
+    fail_test "legacy external main role phrase should pass"
+}
+
+expect_missing_external_main_role_fails() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "subagent には分離できる実装・調査を渡す。"
+  sed -i.bak '/main Codex は設計/d' \
+    "${workspace}/home/.codex/AGENTS.md"
+
+  if run_harness_with_external_policy "$workspace"; then
+    fail_test "missing external main role should fail"
+  fi
+
+  if ! grep -Fq -- 'main agent/Codex must own design and integration.' \
+    "${workspace}/stderr"; then
+    fail_test "missing external main role should explain orchestrator ownership"
+  fi
+}
+
+expect_missing_external_cleanup_policy_fails() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "subagent には分離できる実装・調査を渡す。"
+  sed -i.bak '/完了済み subagent/d' \
+    "${workspace}/home/.codex/AGENTS.md"
+
+  if run_harness_with_external_policy "$workspace"; then
+    fail_test "missing external cleanup policy should fail"
+  fi
+
+  if ! grep -Fq -- '完了済み subagent' "${workspace}/stderr"; then
+    fail_test "missing external cleanup policy should explain cleanup requirement"
+  fi
+}
+
+expect_default_external_policy_is_opt_in() {
+  local workspace
+  workspace="$(mktemp -d)"
+  trap 'rm -rf "$workspace"' RETURN
+
+  write_workspace "$workspace"
+  write_external_policy "$workspace" \
+    "環境やAGENTSでSpark指定がある場合だけ、subagentは指定modelを使う。"
+
+  run_harness_with_default_external_policy "$workspace" || \
+    fail_test "default external policy check should be opt-in"
+}
+
 expect_conditional_external_skill_fails() {
   local workspace
   workspace="$(mktemp -d)"
@@ -189,6 +302,12 @@ expect_policy_failure "missing main role" "main agent は設計" "main agent は
 expect_policy_failure "missing subagent role" "subagent には" "subagent には分離できる実装・調査"
 expect_policy_failure "missing cleanup rule" "完了済み subagent" "完了済み subagent"
 expect_missing_policy_test_command_fails
+expect_legacy_external_reasoning_phrase_passes
+expect_missing_external_reasoning_policy_fails
+expect_legacy_external_main_role_phrase_passes
+expect_missing_external_main_role_fails
+expect_missing_external_cleanup_policy_fails
+expect_default_external_policy_is_opt_in
 expect_conditional_external_skill_fails
 
 echo "check-subagent-spark-harness-policy-tests: ok"

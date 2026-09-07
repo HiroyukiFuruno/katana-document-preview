@@ -1,7 +1,8 @@
 use super::{
     DocumentFrame, DocumentSessionCommand, DocumentSessionError, DocumentSessionEvent,
-    DocumentViewerState, OfficeDocumentSource, OfficeWorkerConfig, SpreadsheetViewerSession,
-    ViewerCapabilities, ViewerDiagnostic, ViewerDocumentFormat,
+    DocumentViewerState, OfficeDocumentSource, OfficeWorkerConfig, SpreadsheetFilterCommand,
+    SpreadsheetFilterEvent, SpreadsheetFrameMetadata, SpreadsheetViewerSession, ViewerCapabilities,
+    ViewerDiagnostic, ViewerDocumentFormat,
 };
 use crate::{DocumentSurfaceCommand, DocumentViewport, SpreadsheetGridSurface};
 
@@ -61,6 +62,8 @@ impl SpreadsheetDocumentSession {
     }
 
     pub(super) fn frame(&mut self) -> Result<DocumentFrame, DocumentSessionError> {
+        let _trace_scope = self.engine.trace_scope();
+        let _publication = super::debug_trace::DebugTrace::start("spreadsheet.frame_publication");
         let coordinates = self.surface.materialization_request();
         let cells = self
             .engine
@@ -73,6 +76,7 @@ impl SpreadsheetDocumentSession {
             .iter()
             .map(|sheet| sheet.name.clone())
             .collect();
+        let spreadsheet = frame_metadata(self.engine.artifact(), self.state.active_index);
         Ok(DocumentFrame {
             surface: self
                 .surface
@@ -82,11 +86,41 @@ impl SpreadsheetDocumentSession {
             capabilities: self.capabilities.clone(),
             diagnostics: self.diagnostics.clone(),
             format: ViewerDocumentFormat::Xlsx,
+            spreadsheet,
         })
+    }
+
+    pub(super) fn apply_filter(
+        &mut self,
+        command: SpreadsheetFilterCommand,
+    ) -> Result<SpreadsheetFilterEvent, DocumentSessionError> {
+        let _trace_scope = self.engine.trace_scope();
+        let sheet_index = command.sheet_index();
+        let event = self.engine.apply_filter(command)?;
+        if sheet_index == self.state.active_index
+            && matches!(event, SpreadsheetFilterEvent::VisibilityChanged { .. })
+        {
+            self.replace_surface_preserving_state()?;
+        }
+        Ok(event)
     }
 
     fn replace_surface(&mut self) -> Result<(), DocumentSessionError> {
         self.surface = surface_for(&self.engine, self.state.active_index, self.viewport)?;
+        Ok(())
+    }
+
+    fn replace_surface_preserving_state(&mut self) -> Result<(), DocumentSessionError> {
+        let sheet = self
+            .engine
+            .artifact()
+            .sheets
+            .get(self.state.active_index)
+            .ok_or(super::DocumentViewerStateError::IndexOutsideDocument {
+                requested: self.state.active_index,
+                item_count: self.engine.artifact().sheet_count,
+            })?;
+        self.surface.replace_sheet(sheet, self.viewport)?;
         Ok(())
     }
 
@@ -97,6 +131,30 @@ impl SpreadsheetDocumentSession {
             &self.diagnostics,
         )
     }
+}
+
+fn frame_metadata(
+    artifact: &super::SpreadsheetDocumentArtifact,
+    sheet_index: usize,
+) -> Option<SpreadsheetFrameMetadata> {
+    let sheet = artifact.sheets.get(sheet_index)?;
+    let visible_row_count = sheet
+        .row_tracks
+        .iter()
+        .enumerate()
+        .filter(|(row, track)| {
+            !track.hidden
+                && sheet
+                    .auto_filter
+                    .as_ref()
+                    .is_none_or(|filter| filter.filtered_out_rows.binary_search(row).is_err())
+        })
+        .count();
+    Some(SpreadsheetFrameMetadata {
+        sheet_index: sheet.index,
+        visible_row_count,
+        auto_filter: sheet.auto_filter.clone(),
+    })
 }
 
 fn surface_for(
@@ -113,6 +171,12 @@ fn surface_for(
     Ok(SpreadsheetGridSurface::new(sheet, viewport)?)
 }
 
+#[cfg(test)]
+#[path = "document_session_spreadsheet_filter_state_tests.rs"]
+mod filter_state_tests;
+#[cfg(test)]
+#[path = "document_session_spreadsheet_filter_tests.rs"]
+mod filter_tests;
 #[cfg(test)]
 #[path = "document_session_spreadsheet_tests.rs"]
 mod tests;
